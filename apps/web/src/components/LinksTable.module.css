@@ -1,0 +1,17 @@
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.virtualRow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.loader {
+  padding: 16px;
+  color: var(--text-muted);
+}
