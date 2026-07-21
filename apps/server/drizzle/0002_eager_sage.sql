@@ -1,0 +1,1 @@
+ALTER TABLE "links" ADD COLUMN "dupe_count" integer DEFAULT 1 NOT NULL;

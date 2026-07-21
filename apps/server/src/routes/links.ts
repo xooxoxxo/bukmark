@@ -6,6 +6,7 @@ import { hubLinks, links } from '../db/schema.js';
 const LinkDto = Type.Object({
   id: Type.String(), url: Type.String(), title: Type.String(), note: Type.String(),
   status: Type.String(), relevance: Type.Union([Type.Integer(), Type.Null()]),
+  dupeCount: Type.Integer(),
   hubIds: Type.Array(Type.String()), firstSeen: Type.String(),
 });
 
@@ -36,7 +37,7 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
     const rows = await req.server.db
       .select({
         id: links.id, url: links.url, title: links.title, note: links.note,
-        status: links.status, relevance: links.relevance, firstSeen: links.firstSeen,
+        status: links.status, relevance: links.relevance, dupeCount: links.dupeCount, firstSeen: links.firstSeen,
         hubIds: dsql<string[]>`coalesce(array_agg(hub_links.hub_id) FILTER (WHERE hub_links.hub_id IS NOT NULL), '{}')`,
       })
       .from(links)
@@ -69,7 +70,10 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
       .update(links)
       .set({ ...body, updatedAt: dsql`now()` })
       .where(eq(links.id, id))
-      .returning();
+      .returning({
+        id: links.id, url: links.url, title: links.title, note: links.note,
+        status: links.status, relevance: links.relevance, dupeCount: links.dupeCount, firstSeen: links.firstSeen,
+      });
     if (!row) return reply.code(404).send({ error: 'link not found' });
     const hubRows = await req.server.db
       .select({ hubId: hubLinks.hubId }).from(hubLinks).where(eq(hubLinks.linkId, id));

@@ -12,6 +12,7 @@ export const links = pgTable('links', {
   status: text('status', { enum: ['active', 'archived'] }).notNull().default('active'),
   junkRule: text('junk_rule'),
   relevance: integer('relevance'),
+  dupeCount: integer('dupe_count').notNull().default(1),
   firstSeen: timestamp('first_seen', { withTimezone: true }).notNull().defaultNow(),
   lastSeen: timestamp('last_seen', { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

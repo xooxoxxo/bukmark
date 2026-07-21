@@ -15,6 +15,13 @@
       "when": 1784631153381,
       "tag": "0001_fts",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784632895871,
+      "tag": "0002_eager_sage",
+      "breakpoints": true
     }
   ]
 }

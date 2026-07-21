@@ -39,13 +39,14 @@ export async function importStore(db: Db, store: Store): Promise<ImportResult> {
           url: l.url, urlHash, title: l.title, note, status,
           junkRule: l.junk?.rule ?? null,
           relevance: l.triage?.relevance ?? null,
+          dupeCount: l.dupeCount,
           firstSeen: new Date(l.firstSeen), lastSeen: new Date(l.lastSeen),
         })
         .onConflictDoUpdate({
           target: links.urlHash,
           set: {
             note, status, title: l.title, junkRule: l.junk?.rule ?? null,
-            relevance: l.triage?.relevance ?? null, updatedAt: dsql`now()`,
+            relevance: l.triage?.relevance ?? null, dupeCount: l.dupeCount, updatedAt: dsql`now()`,
           },
         })
         .returning({ id: links.id });

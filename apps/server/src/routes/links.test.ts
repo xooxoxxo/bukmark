@@ -30,7 +30,7 @@ describe('links api', () => {
   async function seed() {
     const [h] = await db.insert(hubs).values({ name: 'homelab' }).returning();
     const [l1] = await db.insert(links).values({
-      url: 'https://a.com/tailscale', urlHash: 'h1', title: 'Tailscale Docs', relevance: 5,
+      url: 'https://a.com/tailscale', urlHash: 'h1', title: 'Tailscale Docs', relevance: 5, dupeCount: 3,
     }).returning();
     const [l2] = await db.insert(links).values({
       url: 'https://a.com/2', urlHash: 'h2', title: 'Unsorted thing',
@@ -42,13 +42,14 @@ describe('links api', () => {
     return { hubId: h!.id, l1: l1!.id, l2: l2!.id };
   }
 
-  it('lists active links with hubIds, total', async () => {
+  it('lists active links with hubIds, total, dupeCount', async () => {
     const { hubId } = await seed();
     const res = await app.inject({ method: 'GET', url: '/api/links' });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.total).toBe(2);
     expect(body.items[0].title).toBe('Tailscale Docs');
+    expect(body.items[0].dupeCount).toBe(3);
     expect(body.items[0].hubIds).toEqual([hubId]);
   });
 
