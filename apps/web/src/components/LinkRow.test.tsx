@@ -54,6 +54,14 @@ describe('LinkRow', () => {
     expect(screen.getByText('–')).toBeInTheDocument();
   });
 
+  it('falls back to url as link text when title is empty', () => {
+    renderRow({ ...base, title: '' });
+    expect(screen.getByRole('link', { name: 'https://example.com/post' })).toHaveAttribute(
+      'href',
+      'https://example.com/post',
+    );
+  });
+
   it('checkbox toggles selection store', async () => {
     renderRow(base);
     await userEvent.click(screen.getByRole('checkbox'));

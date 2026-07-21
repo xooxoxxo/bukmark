@@ -21,7 +21,7 @@ export function LinkRow({ link }: { link: LinkDto }) {
       <div className={styles.body}>
         <div className={styles.titleLine}>
           <a href={link.url} target="_blank" rel="noreferrer">
-            {link.title}
+            {link.title || link.url}
           </a>
           {link.dupeCount > 1 ? <span className={styles.dupe}>×{link.dupeCount}</span> : null}
         </div>
