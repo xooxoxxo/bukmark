@@ -91,4 +91,17 @@ describe('LinksView', () => {
       ),
     );
   });
+
+  it('select-all-loaded selects every fetched row', async () => {
+    vi.mocked(client.fetchLinks).mockResolvedValue({
+      items: [link('a', 'First link'), link('b', 'Second link')],
+      total: 2,
+    });
+    renderView();
+    await screen.findByText('First link');
+    await userEvent.click(screen.getByLabelText('Select all loaded'));
+    expect(useSelection.getState().selected.has('a')).toBe(true);
+    expect(useSelection.getState().selected.has('b')).toBe(true);
+    expect(screen.getByText('2 selected')).toBeInTheDocument();
+  });
 });
