@@ -1,0 +1,53 @@
+.header {
+  padding: 16px 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.name {
+  margin: 0;
+  font-size: 18px;
+}
+
+.desc {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.actions button,
+.renameForm button {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-size: 12px;
+}
+
+.renameForm {
+  display: flex;
+  gap: 6px;
+}
+
+.renameForm input {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.danger {
+  color: var(--danger);
+}
+
+.error {
+  color: var(--danger);
+  font-size: 12px;
+  width: 100%;
+}
