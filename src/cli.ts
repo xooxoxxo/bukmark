@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
 import { unlinkSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { exportAll } from './export.js';
 import { ingestFile } from './ingest.js';
 import { renderAll } from './render.js';
 import { loadCanon, loadStore, saveCanon, saveStore } from './store.js';
@@ -83,6 +84,13 @@ export async function runCli(argv: string[], paths: Paths = defaultPaths): Promi
       return 0;
     }
 
+    case 'export': {
+      const store = loadStore(storeFile);
+      const r = exportAll(store, paths.outputDir);
+      console.log(`exported ${r.count} links → ${r.html} + ${r.csv}`);
+      return 0;
+    }
+
     case 'status': {
       const store = loadStore(storeFile);
       const links = Object.values(store.links);
@@ -96,7 +104,7 @@ export async function runCli(argv: string[], paths: Paths = defaultPaths): Promi
     }
 
     default:
-      console.error('commands: ingest | prepare | merge-triage | render | status');
+      console.error('commands: ingest | prepare | merge-triage | render | export | status');
       return 2;
   }
 }
