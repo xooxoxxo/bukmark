@@ -16,6 +16,7 @@
     "dev": "tsx watch src/main.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/db/migrate.ts"
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:import": "tsx src/import/run.ts"
   }
 }
