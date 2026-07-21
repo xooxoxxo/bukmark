@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { sql as dsql } from 'drizzle-orm';
 import type { Store } from '@bookmarkt/shared';
 import { getDb, type Db } from '../db/client.js';
@@ -43,30 +43,38 @@ describe('importStore', () => {
   it('imports full store with correct mapping', async () => {
     const { db, sql } = getDb(TEST_URL);
     await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, import_jobs CASCADE`);
-    const { store } = makeStore();
-    const r = await importStore(db, store);
-    expect(r).toEqual({ links: 4, captures: 5, hubs: 1, memberships: 1, skipped: 0 });
-    const rows = await db.execute(dsql`SELECT url_hash, status, junk_rule, note, relevance FROM links ORDER BY url_hash`);
-    expect(rows.map((r) => [r.url_hash, r.status])).toEqual([
-      ['h1', 'active'], ['h2', 'archived'], ['h3', 'archived'], ['h4', 'active'],
-    ]);
-    expect(rows[1]!.note).toBe('old; stale');
-    expect(rows[2]!.junk_rule).toBe('gmail');
-    expect(rows[0]!.relevance).toBe(5);
-    const mem = await db.execute(dsql`SELECT relevance, assigned_by FROM hub_links`);
-    expect(mem).toEqual([{ relevance: 5, assigned_by: 'auto' }]);
-    await sql.end();
+    try {
+      const { store } = makeStore();
+      const r = await importStore(db, store);
+      expect(r).toEqual({ links: 4, captures: 5, hubs: 1, memberships: 1, skipped: 0 });
+      const rows = await db.execute(dsql`SELECT url_hash, status, junk_rule, note, relevance FROM links ORDER BY url_hash`);
+      expect(rows.map((r) => [r.url_hash, r.status])).toEqual([
+        ['h1', 'active'], ['h2', 'archived'], ['h3', 'archived'], ['h4', 'active'],
+      ]);
+      expect(rows[1]!.note).toBe('old; stale');
+      expect(rows[2]!.junk_rule).toBe('gmail');
+      expect(rows[0]!.relevance).toBe(5);
+      const mem = await db.execute(dsql`SELECT relevance, assigned_by FROM hub_links`);
+      expect(mem).toEqual([{ relevance: 5, assigned_by: 'auto' }]);
+    } finally {
+      await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, import_jobs CASCADE`);
+      await sql.end();
+    }
   });
 
   it('re-import is idempotent', async () => {
     const { db, sql } = getDb(TEST_URL);
     await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, import_jobs CASCADE`);
-    const { store } = makeStore();
-    await importStore(db, store);
-    const r2 = await importStore(db, store);
-    expect(r2.links).toBe(4);
-    const count = await db.execute(dsql`SELECT count(*)::int AS n FROM captures`);
-    expect(count[0]!.n).toBe(5);
-    await sql.end();
+    try {
+      const { store } = makeStore();
+      await importStore(db, store);
+      const r2 = await importStore(db, store);
+      expect(r2.links).toBe(4);
+      const count = await db.execute(dsql`SELECT count(*)::int AS n FROM captures`);
+      expect(count[0]!.n).toBe(5);
+    } finally {
+      await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, import_jobs CASCADE`);
+      await sql.end();
+    }
   });
 });

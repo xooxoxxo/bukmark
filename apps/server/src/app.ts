@@ -3,11 +3,21 @@ import { join } from 'node:path';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
+import { getDb, type Db } from './db/client.js';
+import { linkRoutes } from './routes/links.js';
 
-export async function buildApp(): Promise<FastifyInstance> {
+declare module 'fastify' {
+  interface FastifyInstance { db: Db }
+}
+
+export async function buildApp(opts: { databaseUrl?: string } = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: true }).withTypeProvider<TypeBoxTypeProvider>();
+  const { db, sql } = getDb(opts.databaseUrl);
+  app.decorate('db', db);
+  app.addHook('onClose', async () => { await sql.end(); });
 
   app.get('/healthz', async () => ({ ok: true }));
+  await app.register(linkRoutes, { prefix: '/api' });
 
   const webDist = join(import.meta.dirname, '../../web/dist');
   if (existsSync(webDist)) {
