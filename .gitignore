@@ -7,3 +7,4 @@ apps/cli/fixtures/*
 apps/*/src/**/*.js
 packages/*/src/**/*.js
 *.tsbuildinfo
+apps/web/dist/
