@@ -6,7 +6,7 @@ import { runMigrations } from '../db/migrate.js';
 import { importStore } from './storeImport.js';
 
 const TEST_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://bookmarkt:bookmarkt@localhost:5432/bookmarkt_import_test';
+  process.env.TEST_DATABASE_URL ?? 'postgres://bookmarkt:bookmarkt@localhost:5432/bookmarkt_test';
 
 const T = '2026-07-21T10:00:00Z';
 function makeStore(): { store: Store } {

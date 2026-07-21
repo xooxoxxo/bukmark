@@ -27,49 +27,54 @@ export async function importStore(db: Db, store: Store): Promise<ImportResult> {
   }
 
   for (const [urlHash, l] of Object.entries(store.links)) {
-    const tossed = l.triage !== undefined && !l.triage.keep;
-    const status = l.junk || tossed ? ('archived' as const) : ('active' as const);
-    const note = l.triage
-      ? l.triage.reason ? `${l.triage.explanation}; ${l.triage.reason}` : l.triage.explanation
-      : '';
-    const rows = await db
-      .insert(links)
-      .values({
-        url: l.url, urlHash, title: l.title, note, status,
-        junkRule: l.junk?.rule ?? null,
-        relevance: l.triage?.relevance ?? null,
-        firstSeen: new Date(l.firstSeen), lastSeen: new Date(l.lastSeen),
-      })
-      .onConflictDoUpdate({
-        target: links.urlHash,
-        set: { note, status, relevance: l.triage?.relevance ?? null, updatedAt: dsql`now()` },
-      })
-      .returning({ id: links.id });
-    const row = rows[0];
-    if (!row || !row.id) throw new Error(`Failed to insert link ${urlHash}, got: ${JSON.stringify(row)}`);
-    const linkId = row.id;
-    res.links += 1;
+    await db.transaction(async (tx) => {
+      const tossed = l.triage !== undefined && !l.triage.keep;
+      const status = l.junk || tossed ? ('archived' as const) : ('active' as const);
+      const note = l.triage
+        ? l.triage.reason ? `${l.triage.explanation}; ${l.triage.reason}` : l.triage.explanation
+        : '';
+      const rows = await tx
+        .insert(links)
+        .values({
+          url: l.url, urlHash, title: l.title, note, status,
+          junkRule: l.junk?.rule ?? null,
+          relevance: l.triage?.relevance ?? null,
+          firstSeen: new Date(l.firstSeen), lastSeen: new Date(l.lastSeen),
+        })
+        .onConflictDoUpdate({
+          target: links.urlHash,
+          set: {
+            note, status, title: l.title, junkRule: l.junk?.rule ?? null,
+            relevance: l.triage?.relevance ?? null, updatedAt: dsql`now()`,
+          },
+        })
+        .returning({ id: links.id });
+      const row = rows[0];
+      if (!row || !row.id) throw new Error(`Failed to insert link ${urlHash}, got: ${JSON.stringify(row)}`);
+      const linkId = row.id;
+      res.links += 1;
 
-    await db.delete(captures).where(eq(captures.linkId, linkId));
-    for (const source of l.sources) {
-      const captureValues = {
-        linkId, source, originalUrl: l.url, originalTitle: l.title,
-        groupHint: l.groupHints[0] ?? null,
-        raw: { dupeCount: l.dupeCount, groupHints: l.groupHints },
-        capturedAt: new Date(l.firstSeen),
-      };
-      await db.insert(captures).values(captureValues);
-      res.captures += 1;
-    }
+      await tx.delete(captures).where(eq(captures.linkId, linkId));
+      for (const source of l.sources) {
+        const captureValues = {
+          linkId, source, originalUrl: l.url, originalTitle: l.title,
+          groupHint: l.groupHints[0] ?? null,
+          raw: { dupeCount: l.dupeCount, groupHints: l.groupHints },
+          capturedAt: new Date(l.firstSeen),
+        };
+        await tx.insert(captures).values(captureValues);
+        res.captures += 1;
+      }
 
-    if (l.triage?.keep && !l.junk) {
-      const hubId = await hubIdFor(l.triage.category);
-      await db
-        .insert(hubLinks)
-        .values({ hubId, linkId, relevance: l.triage.relevance, assignedBy: 'auto' })
-        .onConflictDoNothing();
-      res.memberships += 1;
-    }
+      if (l.triage?.keep && !l.junk) {
+        const hubId = await hubIdFor(l.triage.category);
+        await tx
+          .insert(hubLinks)
+          .values({ hubId, linkId, relevance: l.triage.relevance, assignedBy: 'auto' })
+          .onConflictDoNothing();
+        res.memberships += 1;
+      }
+    });
   }
   return res;
 }
