@@ -1,7 +1,7 @@
 import { eq, sql as dsql } from 'drizzle-orm';
 import type { Store } from '@bookmarkt/shared';
 import type { Db } from '../db/client.js';
-import { captures, hubLinks, hubs, links } from '../db/schema.js';
+import { captures, deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 
 export interface ImportResult {
   links: number; captures: number; hubs: number; memberships: number; skipped: number;
@@ -9,6 +9,8 @@ export interface ImportResult {
 
 export async function importStore(db: Db, store: Store): Promise<ImportResult> {
   const res: ImportResult = { links: 0, captures: 0, hubs: 0, memberships: 0, skipped: 0 };
+  const tombstoneRows = await db.select({ urlHash: deletedHashes.urlHash }).from(deletedHashes);
+  const tombstones = new Set(tombstoneRows.map((r) => r.urlHash));
   const hubIds = new Map<string, string>();
 
   async function hubIdFor(name: string): Promise<string> {
@@ -27,6 +29,10 @@ export async function importStore(db: Db, store: Store): Promise<ImportResult> {
   }
 
   for (const [urlHash, l] of Object.entries(store.links)) {
+    if (tombstones.has(urlHash)) {
+      res.skipped += 1;
+      continue;
+    }
     await db.transaction(async (tx) => {
       const tossed = l.triage !== undefined && !l.triage.keep;
       const status = l.junk || tossed ? ('archived' as const) : ('active' as const);
