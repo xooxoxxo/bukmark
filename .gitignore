@@ -4,3 +4,6 @@ work/
 output/
 apps/cli/fixtures/*
 !apps/cli/fixtures/sample-onetab.txt
+apps/*/src/**/*.js
+packages/*/src/**/*.js
+*.tsbuildinfo

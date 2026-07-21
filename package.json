@@ -6,7 +6,7 @@
   "scripts": {
     "cli": "tsx apps/cli/src/cli.ts",
     "test": "vitest run",
-    "typecheck": "tsc -b apps/cli apps/server packages/shared 2>/dev/null || pnpm -r --if-present typecheck"
+    "typecheck": "tsc --noEmit 2>/dev/null || pnpm -r --if-present typecheck"
   },
   "devDependencies": {
     "@types/node": "^22.5.0",
