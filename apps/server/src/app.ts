@@ -5,6 +5,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { getDb, type Db } from './db/client.js';
 import { linkRoutes } from './routes/links.js';
+import { hubRoutes } from './routes/hubs.js';
 
 declare module 'fastify' {
   interface FastifyInstance { db: Db }
@@ -18,6 +19,7 @@ export async function buildApp(opts: { databaseUrl?: string } = {}): Promise<Fas
 
   app.get('/healthz', async () => ({ ok: true }));
   await app.register(linkRoutes, { prefix: '/api' });
+  await app.register(hubRoutes, { prefix: '/api' });
 
   const webDist = join(import.meta.dirname, '../../web/dist');
   if (existsSync(webDist)) {
