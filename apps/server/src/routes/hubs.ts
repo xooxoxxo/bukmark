@@ -1,5 +1,5 @@
 import { Type } from '@sinclair/typebox';
-import { desc, eq, sql as dsql } from 'drizzle-orm';
+import { asc, desc, eq, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { hubLinks, hubs, links } from '../db/schema.js';
 
@@ -13,7 +13,7 @@ export async function hubRoutes(app: FastifyInstance): Promise<void> {
       .from(hubs)
       .leftJoin(hubLinks, eq(hubLinks.hubId, hubs.id))
       .groupBy(hubs.id)
-      .orderBy(desc(dsql`count(hub_links.link_id)`));
+      .orderBy(desc(dsql`count(hub_links.link_id)`), asc(hubs.name));
     return { items };
   });
 
@@ -40,9 +40,10 @@ export async function hubRoutes(app: FastifyInstance): Promise<void> {
     },
   }, async (req, reply) => {
     const { id } = req.params as { id: string };
+    const body = req.body as { name?: string; description?: string; status?: 'active' | 'dormant' | 'archived' };
     const [row] = await req.server.db
       .update(hubs)
-      .set({ ...(req.body as object), updatedAt: dsql`now()` })
+      .set({ ...body, updatedAt: dsql`now()` })
       .where(eq(hubs.id, id))
       .returning();
     if (!row) return reply.code(404).send({ error: 'hub not found' });

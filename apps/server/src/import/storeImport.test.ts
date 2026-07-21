@@ -34,8 +34,8 @@ function makeStore(): { store: Store } {
 
 describe('importStore', () => {
   beforeAll(async () => {
-    const { sql: adminSql } = getDb(TEST_URL.replace(/\/bookmarkt_import_test$/, '/bookmarkt'));
-    await adminSql`CREATE DATABASE bookmarkt_import_test`.catch(() => {});
+    const { sql: adminSql } = getDb(TEST_URL.replace(/\/bookmarkt_test$/, '/bookmarkt'));
+    await adminSql`CREATE DATABASE bookmarkt_test`.catch(() => {});
     await adminSql.end();
     await runMigrations(TEST_URL);
   });
