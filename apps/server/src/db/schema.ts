@@ -13,6 +13,8 @@ export const links = pgTable('links', {
   junkRule: text('junk_rule'),
   relevance: integer('relevance'),
   dupeCount: integer('dupe_count').notNull().default(1),
+  imageUrl: text('image_url'),
+  ogFetchedAt: timestamp('og_fetched_at', { withTimezone: true }),
   firstSeen: timestamp('first_seen', { withTimezone: true }).notNull().defaultNow(),
   lastSeen: timestamp('last_seen', { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -61,4 +63,9 @@ export const importJobs = pgTable('import_jobs', {
   errors: jsonb('errors'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const deletedHashes = pgTable('deleted_hashes', {
+  urlHash: text('url_hash').primaryKey(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }).notNull().defaultNow(),
 });
