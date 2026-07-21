@@ -17,6 +17,7 @@ describe('App shell', () => {
       hubs: 0,
       unassigned: 1,
     });
+    vi.mocked(client.fetchLinks).mockResolvedValue({ items: [], total: 0 });
     const Wrapper = makeWrapper();
     render(
       <Wrapper>
@@ -27,6 +28,6 @@ describe('App shell', () => {
     );
     expect(screen.getByRole('heading', { name: 'bookmarkt' })).toBeInTheDocument();
     expect(await screen.findByText('1 links')).toBeInTheDocument();
-    expect(screen.getByText('links view')).toBeInTheDocument();
+    expect(await screen.findByText('0 results')).toBeInTheDocument();
   });
 });

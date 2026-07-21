@@ -1,3 +1,5 @@
+import { LinksView } from '../components/LinksView';
+
 export function LinksPage() {
-  return <p>links view</p>;
+  return <LinksView />;
 }
