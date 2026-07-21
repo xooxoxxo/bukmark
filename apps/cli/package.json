@@ -3,5 +3,5 @@
   "private": true,
   "type": "module",
   "dependencies": { "@bookmarkt/shared": "workspace:*" },
-  "scripts": { "typecheck": "tsc --noEmit" }
+  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" }
 }

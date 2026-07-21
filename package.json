@@ -5,7 +5,7 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "cli": "tsx apps/cli/src/cli.ts",
-    "test": "vitest run",
+    "test": "pnpm -r --if-present run test",
     "typecheck": "tsc --noEmit 2>/dev/null || pnpm -r --if-present typecheck"
   },
   "devDependencies": {
