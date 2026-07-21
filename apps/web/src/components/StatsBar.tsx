@@ -13,8 +13,8 @@ export function StatsBar() {
   ];
   return (
     <header className={styles.bar}>
-      {chips.map((c) => (
-        <span key={c} className={styles.chip}>
+      {chips.map((c, i) => (
+        <span key={i} className={styles.chip}>
           {c}
         </span>
       ))}

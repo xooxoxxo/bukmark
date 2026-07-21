@@ -87,3 +87,7 @@ export function deleteHub(id: string): Promise<{ ok: boolean }> {
 export function fetchStats(): Promise<Stats> {
   return http('/stats');
 }
+
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'unexpected error';
+}

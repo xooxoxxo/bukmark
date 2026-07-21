@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { errorMessage } from '../api/client';
 import { useDeleteHub, useHubs, usePatchHub } from '../api/queries';
 import { LinksView } from '../components/LinksView';
 import styles from './HubPage.module.css';
@@ -78,7 +79,7 @@ export function HubPage() {
           </>
         )}
         {(patchHub.isError || deleteHub.isError) ? (
-          <p className={styles.error}>{(patchHub.error ?? deleteHub.error)?.message}</p>
+          <p className={styles.error}>{errorMessage(patchHub.error ?? deleteHub.error)}</p>
         ) : null}
       </header>
       <LinksView hubId={hubId} />

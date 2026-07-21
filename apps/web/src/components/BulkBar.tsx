@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { errorMessage } from '../api/client';
 import { useBulkLinks, useHubs } from '../api/queries';
 import { useSelection } from '../state/selection';
 import styles from './BulkBar.module.css';
@@ -40,7 +41,7 @@ export function BulkBar() {
       <button onClick={clear} className={styles.ghost}>
         Clear
       </button>
-      {bulk.isError ? <span className={styles.error}>{bulk.error.message}</span> : null}
+      {bulk.isError ? <span className={styles.error}>{errorMessage(bulk.error)}</span> : null}
     </div>
   );
 }
