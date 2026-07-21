@@ -21,6 +21,14 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.20.1)
 
+  apps/cli:
+    dependencies:
+      '@bookmarkt/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  packages/shared: {}
+
 packages:
 
   '@esbuild/aix-ppc64@0.21.5':

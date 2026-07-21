@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Canon, Store, Triage } from './types.js';
+import type { Canon, Store, Triage } from '@bookmarkt/shared';
 
 export interface BatchLink {
   urlHash: string;

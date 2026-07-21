@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseOneTab } from './onetab.js';
 
-const fixture = readFileSync('fixtures/sample-onetab.txt', 'utf8');
+const fixture = readFileSync(new URL('../../fixtures/sample-onetab.txt', import.meta.url).pathname, 'utf8');
 
 describe('parseOneTab', () => {
   const caps = parseOneTab(fixture);

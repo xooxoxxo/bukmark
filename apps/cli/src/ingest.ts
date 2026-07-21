@@ -1,10 +1,10 @@
 import { basename, join } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
-import { normalizeUrl, sha256Hex } from './normalize.js';
+import { normalizeUrl, sha256Hex } from '@bookmarkt/shared';
 import { parseOneTab } from './parsers/onetab.js';
 import { classifyJunk, nonHttpRule, parseAllowlist } from './rules.js';
 import { loadStore, mergeCapture, saveStore } from './store.js';
-import type { Paths, Source } from './types.js';
+import type { Paths, Source } from '@bookmarkt/shared';
 
 export interface IngestReport {
   file: string;

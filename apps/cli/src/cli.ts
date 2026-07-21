@@ -6,7 +6,7 @@ import { ingestFile } from './ingest.js';
 import { renderAll } from './render.js';
 import { loadCanon, loadStore, saveCanon, saveStore } from './store.js';
 import { collectResultFiles, mergeBatch, prepareBatches, validateBatch } from './triage.js';
-import { defaultPaths, type Paths, type Source } from './types.js';
+import { defaultPaths, type Paths, type Source } from '@bookmarkt/shared';
 
 const SOURCES: Source[] = ['onetab_import', 'chrome_import', 'safari_import', 'extension_capture', 'manual'];
 

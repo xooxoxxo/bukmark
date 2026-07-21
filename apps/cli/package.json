@@ -1,0 +1,7 @@
+{
+  "name": "@bookmarkt/cli",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@bookmarkt/shared": "workspace:*" },
+  "scripts": { "typecheck": "tsc --noEmit" }
+}

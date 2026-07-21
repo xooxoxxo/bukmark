@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Canon, LinkRecord, Store } from './types.js';
+import type { Canon, LinkRecord, Store } from '@bookmarkt/shared';
 
 type Entry = LinkRecord & { urlHash: string };
 

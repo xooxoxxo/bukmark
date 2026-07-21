@@ -1,12 +1,12 @@
 {
-  "name": "bookmarkt",
+  "name": "bookmarkt-monorepo",
   "private": true,
   "type": "module",
   "engines": { "node": ">=22" },
   "scripts": {
-    "cli": "tsx src/cli.ts",
+    "cli": "tsx apps/cli/src/cli.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc -b apps/cli apps/server packages/shared 2>/dev/null || pnpm -r --if-present typecheck"
   },
   "devDependencies": {
     "@types/node": "^22.5.0",

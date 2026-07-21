@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ingestFile } from './ingest.js';
-import { normalizeUrl } from './normalize.js';
+import { normalizeUrl } from '@bookmarkt/shared';
 import { loadStore } from './store.js';
-import type { Paths } from './types.js';
+import type { Paths } from '@bookmarkt/shared';
 
 function setup(): { paths: Paths; dir: string } {
   const dir = mkdtempSync(join(tmpdir(), 'bm-'));
@@ -15,7 +15,7 @@ function setup(): { paths: Paths; dir: string } {
   };
 }
 
-const FIXTURE = 'fixtures/sample-onetab.txt';
+const FIXTURE = new URL('../fixtures/sample-onetab.txt', import.meta.url).pathname;
 
 describe('ingestFile', () => {
   it('ingests fixture with correct counts', () => {
