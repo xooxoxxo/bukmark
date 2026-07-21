@@ -1,4 +1,10 @@
+import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { afterEach } from 'vitest';
+
+afterEach(() => {
+  cleanup();
+});
 
 // jsdom has no layout engine and no ResizeObserver; @tanstack/react-virtual
 // needs both to decide which rows to render.
