@@ -6,7 +6,7 @@ import { emptyStore, mergeCapture } from './store.js';
 import {
   collectResultFiles, mergeBatch, normalizeCategory, prepareBatches, validateBatch,
 } from './triage.js';
-import type { Canon, Store } from './types.js';
+import type { Canon, Store } from '@bookmarkt/shared';
 
 const T = '2026-07-21T10:00:00Z';
 

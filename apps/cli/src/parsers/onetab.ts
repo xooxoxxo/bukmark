@@ -1,4 +1,4 @@
-import type { RawCapture } from '../types.js';
+import type { RawCapture } from '@bookmarkt/shared';
 
 export function parseOneTab(content: string): RawCapture[] {
   const captures: RawCapture[] = [];

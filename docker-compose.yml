@@ -1,0 +1,23 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: bookmarkt
+      POSTGRES_PASSWORD: bookmarkt
+      POSTGRES_DB: bookmarkt
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookmarkt"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  app:
+    build: { context: ., dockerfile: apps/server/Dockerfile }
+    environment:
+      DATABASE_URL: postgres://bookmarkt:bookmarkt@db:5432/bookmarkt
+    ports: ["3000:3000"]
+    depends_on:
+      db: { condition: service_healthy }
+volumes:
+  pgdata:

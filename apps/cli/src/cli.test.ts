@@ -3,8 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { runCli } from './cli.js';
-import type { Paths } from './types.js';
+import type { Paths } from '@bookmarkt/shared';
 import type { BatchResultFile } from './triage.js';
+
+const FIXTURE = new URL('../fixtures/sample-onetab.txt', import.meta.url).pathname;
 
 function setup(): Paths {
   const dir = mkdtempSync(join(tmpdir(), 'bm-'));
@@ -14,7 +16,7 @@ function setup(): Paths {
 describe('end-to-end', () => {
   it('ingest → prepare → fake triage → merge → render', async () => {
     const paths = setup();
-    expect(await runCli(['ingest', 'fixtures/sample-onetab.txt'], paths)).toBe(0);
+    expect(await runCli(['ingest', FIXTURE], paths)).toBe(0);
     expect(await runCli(['prepare', '--batch-size', '3'], paths)).toBe(0);
 
     const batchNames = readdirSync(paths.workDir).filter((n) => /^batch-\d+\.json$/.test(n));
@@ -48,7 +50,7 @@ describe('end-to-end', () => {
 
   it('invalid batch leaves files and returns nonzero', async () => {
     const paths = setup();
-    await runCli(['ingest', 'fixtures/sample-onetab.txt'], paths);
+    await runCli(['ingest', FIXTURE], paths);
     await runCli(['prepare'], paths);
     writeFileSync(
       join(paths.workDir, 'batch-1.result.json'),
@@ -60,8 +62,8 @@ describe('end-to-end', () => {
 
   it('re-running full loop is a no-op', async () => {
     const paths = setup();
-    await runCli(['ingest', 'fixtures/sample-onetab.txt'], paths);
-    const r = await runCli(['ingest', 'fixtures/sample-onetab.txt'], paths);
+    await runCli(['ingest', FIXTURE], paths);
+    const r = await runCli(['ingest', FIXTURE], paths);
     expect(r).toBe(0); // already-ingested is not an error
     expect(await runCli(['prepare'], paths)).toBe(0);
   });

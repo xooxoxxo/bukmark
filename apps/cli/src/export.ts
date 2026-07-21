@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { LinkRecord, Store } from './types.js';
+import type { LinkRecord, Store } from '@bookmarkt/shared';
 
 function escHtml(s: string): string {
   return s
