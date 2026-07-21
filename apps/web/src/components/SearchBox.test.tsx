@@ -1,5 +1,4 @@
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useFilters } from '../state/filters';
 import { SearchBox } from './SearchBox';
@@ -14,12 +13,16 @@ describe('SearchBox', () => {
     vi.useRealTimers();
   });
 
-  it('debounces input into the filters store', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  it('debounces input into the filters store', () => {
     render(<SearchBox />);
-    await user.type(screen.getByPlaceholderText('Search links…'), 'rust');
+    const input = screen.getByPlaceholderText('Search links…');
+    act(() => {
+      fireEvent.change(input, { target: { value: 'rust' } });
+    });
     expect(useFilters.getState().q).toBe('');
-    vi.advanceTimersByTime(300);
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
     expect(useFilters.getState().q).toBe('rust');
   });
 });
