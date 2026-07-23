@@ -9,6 +9,8 @@ export function FilterBar({ hubMode, total }: { hubMode: boolean; total: number 
   const setUnassigned = useFilters((s) => s.setUnassigned);
   const status = useFilters((s) => s.status);
   const setStatus = useFilters((s) => s.setStatus);
+  const view = useFilters((s) => s.view);
+  const setView = useFilters((s) => s.setView);
   const { data: hubs } = useHubs();
   const navigate = useNavigate();
 
@@ -48,6 +50,14 @@ export function FilterBar({ hubMode, total }: { hubMode: boolean; total: number 
           ))}
         </select>
       ) : null}
+      <div className={styles.viewToggle}>
+        <button aria-pressed={view === 'list'} onClick={() => setView('list')}>
+          List
+        </button>
+        <button aria-pressed={view === 'grid'} onClick={() => setView('grid')}>
+          Grid
+        </button>
+      </div>
       <span className={styles.total}>{total} results</span>
     </div>
   );

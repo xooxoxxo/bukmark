@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useHubs } from '../api/queries';
 import type { LinkDto } from '../api/types';
 import { useSelection } from '../state/selection';
@@ -7,6 +8,7 @@ export function LinkRow({ link }: { link: LinkDto }) {
   const selected = useSelection((s) => s.selected.has(link.id));
   const toggle = useSelection((s) => s.toggle);
   const { data: hubs } = useHubs();
+  const [thumbBroken, setThumbBroken] = useState(false);
   const hubName = new Map((hubs?.items ?? []).map((h) => [h.id, h.name]));
 
   return (
@@ -18,6 +20,15 @@ export function LinkRow({ link }: { link: LinkDto }) {
         aria-label={`Select ${link.title}`}
       />
       <span className={styles.badge}>{link.relevance ?? '–'}</span>
+      {link.imageUrl && !thumbBroken ? (
+        <img
+          className={styles.thumb}
+          src={link.imageUrl}
+          alt=""
+          loading="lazy"
+          onError={() => setThumbBroken(true)}
+        />
+      ) : null}
       <div className={styles.body}>
         <div className={styles.titleLine}>
           <a href={link.url} target="_blank" rel="noreferrer">

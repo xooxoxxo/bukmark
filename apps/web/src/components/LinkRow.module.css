@@ -21,6 +21,14 @@
   justify-content: center;
 }
 
+.thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  flex-shrink: 0;
+}
+
 .body {
   flex: 1;
   min-width: 0;

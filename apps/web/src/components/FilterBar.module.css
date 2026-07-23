@@ -27,6 +27,23 @@
   background: var(--bg);
 }
 
+.viewToggle {
+  display: flex;
+  gap: 2px;
+}
+
+.viewToggle button {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.viewToggle button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .total {
   margin-left: auto;
   color: var(--text-muted);
