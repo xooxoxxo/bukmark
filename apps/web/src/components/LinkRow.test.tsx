@@ -18,6 +18,7 @@ const base: LinkDto = {
   relevance: 4,
   dupeCount: 3,
   hubIds: ['h1', 'h2'],
+  imageUrl: null,
   firstSeen: '2026-07-21T00:00:00.000Z',
 };
 

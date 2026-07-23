@@ -17,6 +17,7 @@ function link(id: string): LinkDto {
     relevance: 3,
     dupeCount: 1,
     hubIds: [],
+    imageUrl: null,
     firstSeen: '2026-07-21T00:00:00.000Z',
   };
 }

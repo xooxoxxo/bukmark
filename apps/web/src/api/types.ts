@@ -7,6 +7,7 @@ export interface LinkDto {
   relevance: number | null;
   dupeCount: number;
   hubIds: string[];
+  imageUrl: string | null;
   firstSeen: string;
 }
 

@@ -50,6 +50,7 @@ describe('links api', () => {
     expect(body.total).toBe(2);
     expect(body.items[0].title).toBe('Tailscale Docs');
     expect(body.items[0].dupeCount).toBe(3);
+    expect(body.items[0].imageUrl).toBeNull();
     expect(body.items[0].hubIds).toEqual([hubId]);
   });
 
