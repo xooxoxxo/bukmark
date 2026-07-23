@@ -43,3 +43,5 @@ The repo ships an MCP server (`apps/mcp`) registered in `.mcp.json`. With the AP
 Input: `{ items: [{ url, title?, note?, hub?, relevance? }] }` — url required; hub is a category name (auto-created); relevance is 1–5. Existing urls are updated in place; previously deleted urls are resurrected.
 
 Set `BOOKMARKT_API_URL` in `.mcp.json` env if the server isn't at `http://localhost:3000` (e.g. tailnet address).
+
+Note: adding a bookmark fetches its og:image server-side and follows HTTP redirects, so a supplied URL can reach hosts on the server's network. Run bookmarkt only on trusted networks (LAN/tailnet), not exposed to untrusted callers.
