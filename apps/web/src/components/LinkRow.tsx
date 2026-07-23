@@ -26,6 +26,7 @@ export function LinkRow({ link }: { link: LinkDto }) {
           src={link.imageUrl}
           alt=""
           loading="lazy"
+          referrerPolicy="no-referrer"
           onError={() => setThumbBroken(true)}
         />
       ) : null}

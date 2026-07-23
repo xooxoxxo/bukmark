@@ -15,7 +15,7 @@ export function LinkCard({ link }: { link: LinkDto }) {
     <div className={styles.card}>
       <div className={styles.media}>
         {link.imageUrl && !broken ? (
-          <img src={link.imageUrl} alt="" loading="lazy" onError={() => setBroken(true)} />
+          <img src={link.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />
         ) : (
           <div className={styles.placeholder} aria-hidden="true" />
         )}
