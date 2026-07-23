@@ -36,7 +36,7 @@ export interface LinksQuery {
   offset?: number;
 }
 
-export type BulkAction = 'archive' | 'activate' | 'assign' | 'unassign';
+export type BulkAction = 'archive' | 'activate' | 'assign' | 'unassign' | 'delete';
 
 export interface LinkPatch {
   title?: string;
