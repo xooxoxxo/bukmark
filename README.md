@@ -44,4 +44,4 @@ Input: `{ items: [{ url, title?, note?, hub?, relevance? }] }` — url required;
 
 Set `BOOKMARKT_API_URL` in `.mcp.json` env if the server isn't at `http://localhost:3000` (e.g. tailnet address).
 
-Note: adding a bookmark fetches its og:image server-side and follows HTTP redirects, so a supplied URL can reach hosts on the server's network. Run bookmarkt only on trusted networks (LAN/tailnet), not exposed to untrusted callers.
+Note: adding a bookmark fetches its og:image server-side. The fetcher blocks private, loopback, link-local (incl. cloud-metadata `169.254.169.254`), and CGNAT/tailnet address ranges, follows redirects manually and re-validates every hop, and caps time and body size — so a supplied URL can't be used to reach internal services (SSRF). Still keep the API on a trusted network (LAN/tailnet); it has no auth.
