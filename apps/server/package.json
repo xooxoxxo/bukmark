@@ -18,6 +18,7 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
-    "db:import": "tsx src/import/run.ts"
+    "db:import": "tsx src/import/run.ts",
+    "db:og-fetch": "tsx src/og/fetchOg.ts"
   }
 }

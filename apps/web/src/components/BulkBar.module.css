@@ -29,3 +29,8 @@
   color: var(--danger);
   font-size: 12px;
 }
+
+.danger {
+  color: var(--danger);
+  border-color: var(--danger) !important;
+}

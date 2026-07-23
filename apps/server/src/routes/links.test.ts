@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
 import { getDb, type Db } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
-import { hubLinks, hubs, links } from '../db/schema.js';
+import { deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 
 const TEST_URL =
   process.env.TEST_DATABASE_URL ?? 'postgres://bookmarkt:bookmarkt@localhost:5432/bookmarkt_test';
@@ -14,17 +14,17 @@ describe('links api', () => {
   beforeAll(async () => {
     await runMigrations(TEST_URL);
     const tempDb = await getDb(TEST_URL);
-    await tempDb.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, import_jobs CASCADE`);
+    await tempDb.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs CASCADE`);
     await tempDb.sql.end();
     app = await buildApp({ databaseUrl: TEST_URL });
     db = app.db;
     return async () => { await app.close(); };
   });
   beforeEach(async () => {
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes CASCADE`);
   });
   afterAll(async () => {
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, import_jobs CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs CASCADE`);
   });
 
   async function seed() {
@@ -50,6 +50,7 @@ describe('links api', () => {
     expect(body.total).toBe(2);
     expect(body.items[0].title).toBe('Tailscale Docs');
     expect(body.items[0].dupeCount).toBe(3);
+    expect(body.items[0].imageUrl).toBeNull();
     expect(body.items[0].hubIds).toEqual([hubId]);
   });
 
@@ -96,5 +97,19 @@ describe('links api', () => {
       method: 'POST', url: '/api/links/bulk', payload: { ids: [l2], action: 'assign' },
     });
     expect(missingHub.statusCode).toBe(400);
+  });
+
+  it('bulk delete removes links + memberships and tombstones hashes', async () => {
+    const { l1, l2 } = await seed();
+    const res = await app.inject({
+      method: 'POST', url: '/api/links/bulk', payload: { ids: [l1, l2], action: 'delete' },
+    });
+    expect(res.json()).toEqual({ affected: 2 });
+    const remaining = await app.inject({ method: 'GET', url: '/api/links' });
+    expect(remaining.json().total).toBe(0);
+    const tombs = await db.select({ urlHash: deletedHashes.urlHash }).from(deletedHashes);
+    expect(tombs.map((t) => t.urlHash).sort()).toEqual(['h1', 'h2']);
+    const memberships = await db.select().from(hubLinks);
+    expect(memberships).toEqual([]);
   });
 });

@@ -21,6 +21,7 @@ function link(id: string, title: string): LinkDto {
     relevance: 3,
     dupeCount: 1,
     hubIds: [],
+    imageUrl: null,
     firstSeen: '2026-07-21T00:00:00.000Z',
   };
 }
@@ -41,6 +42,7 @@ describe('LinksView', () => {
     vi.mocked(client.fetchLinks).mockReset();
     vi.mocked(client.fetchHubs).mockResolvedValue({ items: [] });
     useFilters.getState().reset();
+    useFilters.getState().setView('list');
     useSelection.getState().clear();
   });
 
@@ -103,5 +105,21 @@ describe('LinksView', () => {
     expect(useSelection.getState().selected.has('a')).toBe(true);
     expect(useSelection.getState().selected.has('b')).toBe(true);
     expect(screen.getByText('2 selected')).toBeInTheDocument();
+  });
+
+  it('grid toggle switches renderer', async () => {
+    vi.mocked(client.fetchLinks).mockResolvedValue({
+      items: [link('a', 'First link')],
+      total: 1,
+    });
+    renderView();
+    await screen.findByText('First link');
+    expect(screen.getByLabelText('Links list')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Grid' }));
+    expect(screen.getByLabelText('Links grid')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Links list')).not.toBeInTheDocument();
+    expect(screen.getByText('First link')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'List' }));
+    expect(screen.getByLabelText('Links list')).toBeInTheDocument();
   });
 });

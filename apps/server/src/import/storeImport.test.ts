@@ -3,6 +3,7 @@ import { sql as dsql } from 'drizzle-orm';
 import type { Store } from '@bookmarkt/shared';
 import { getDb, type Db } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
+import { deletedHashes } from '../db/schema.js';
 import { importStore } from './storeImport.js';
 
 const TEST_URL =
@@ -42,7 +43,7 @@ describe('importStore', () => {
 
   it('imports full store with correct mapping', async () => {
     const { db, sql } = getDb(TEST_URL);
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, import_jobs CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs CASCADE`);
     try {
       const { store } = makeStore();
       const r = await importStore(db, store);
@@ -58,14 +59,14 @@ describe('importStore', () => {
       const mem = await db.execute(dsql`SELECT relevance, assigned_by FROM hub_links`);
       expect(mem).toEqual([{ relevance: 5, assigned_by: 'auto' }]);
     } finally {
-      await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, import_jobs CASCADE`);
+      await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs CASCADE`);
       await sql.end();
     }
   });
 
   it('re-import is idempotent', async () => {
     const { db, sql } = getDb(TEST_URL);
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, import_jobs CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs CASCADE`);
     try {
       const { store } = makeStore();
       await importStore(db, store);
@@ -74,7 +75,23 @@ describe('importStore', () => {
       const count = await db.execute(dsql`SELECT count(*)::int AS n FROM captures`);
       expect(count[0]!.n).toBe(5);
     } finally {
-      await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, import_jobs CASCADE`);
+      await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs CASCADE`);
+      await sql.end();
+    }
+  });
+
+  it('skips tombstoned url_hashes on re-import', async () => {
+    const { db, sql } = getDb(TEST_URL);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs CASCADE`);
+    try {
+      await db.insert(deletedHashes).values({ urlHash: 'h1' });
+      const { store } = makeStore();
+      const r = await importStore(db, store);
+      expect(r.skipped).toBe(1);
+      expect(r.links).toBe(3);
+      const rows = await db.execute(dsql`SELECT url_hash FROM links ORDER BY url_hash`);
+      expect(rows.map((x) => x.url_hash)).toEqual(['h2', 'h3', 'h4']);
+    } finally {
       await sql.end();
     }
   });

@@ -7,6 +7,7 @@ export interface LinkDto {
   relevance: number | null;
   dupeCount: number;
   hubIds: string[];
+  imageUrl: string | null;
   firstSeen: string;
 }
 
@@ -35,7 +36,7 @@ export interface LinksQuery {
   offset?: number;
 }
 
-export type BulkAction = 'archive' | 'activate' | 'assign' | 'unassign';
+export type BulkAction = 'archive' | 'activate' | 'assign' | 'unassign' | 'delete';
 
 export interface LinkPatch {
   title?: string;

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
@@ -52,6 +52,28 @@ describe('BulkBar', () => {
     render(<BulkBar />, { wrapper: makeWrapper() });
     await userEvent.click(screen.getByRole('button', { name: 'Clear' }));
     expect(useSelection.getState().selected.size).toBe(0);
+    expect(client.bulkLinks).not.toHaveBeenCalled();
+  });
+
+  it('delete requires two clicks, then calls API and clears selection', async () => {
+    useSelection.getState().setMany(['a', 'b'], true);
+    render(<BulkBar />, { wrapper: makeWrapper() });
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(client.bulkLinks).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Really delete 2?' }));
+    expect(client.bulkLinks).toHaveBeenCalledWith({ ids: ['a', 'b'], action: 'delete' });
+    await waitFor(() => expect(useSelection.getState().selected.size).toBe(0));
+  });
+
+  it('delete confirm disarms when selection changes', async () => {
+    useSelection.getState().setMany(['a'], true);
+    render(<BulkBar />, { wrapper: makeWrapper() });
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(screen.getByRole('button', { name: 'Really delete 1?' })).toBeInTheDocument();
+    await act(async () => {
+      useSelection.getState().setMany(['b'], true);
+    });
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
     expect(client.bulkLinks).not.toHaveBeenCalled();
   });
 });

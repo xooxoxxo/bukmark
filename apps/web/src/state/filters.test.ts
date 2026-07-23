@@ -28,4 +28,12 @@ describe('filters store', () => {
     useFilters.getState().reset();
     expect(useFilters.getState().q).toBe('');
   });
+
+  it('view toggles and survives reset', () => {
+    useFilters.getState().setView('grid');
+    expect(useFilters.getState().view).toBe('grid');
+    useFilters.getState().reset();
+    expect(useFilters.getState().view).toBe('grid');
+    useFilters.getState().setView('list');
+  });
 });

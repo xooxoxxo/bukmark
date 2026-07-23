@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
@@ -18,6 +18,7 @@ const base: LinkDto = {
   relevance: 4,
   dupeCount: 3,
   hubIds: ['h1', 'h2'],
+  imageUrl: null,
   firstSeen: '2026-07-21T00:00:00.000Z',
 };
 
@@ -68,5 +69,18 @@ describe('LinkRow', () => {
     expect(useSelection.getState().selected.has('l1')).toBe(true);
     await userEvent.click(screen.getByRole('checkbox'));
     expect(useSelection.getState().selected.has('l1')).toBe(false);
+  });
+
+  it('shows thumbnail when imageUrl set, hides it on load error', async () => {
+    renderRow({ ...base, imageUrl: 'https://cdn.example.com/t.png' });
+    const img = screen.getByRole('presentation');
+    expect(img).toHaveAttribute('src', 'https://cdn.example.com/t.png');
+    fireEvent.error(img);
+    expect(screen.queryByRole('presentation')).not.toBeInTheDocument();
+  });
+
+  it('no thumbnail when imageUrl null', () => {
+    renderRow(base);
+    expect(screen.queryByRole('presentation')).not.toBeInTheDocument();
   });
 });

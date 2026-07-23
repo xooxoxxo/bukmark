@@ -1,13 +1,13 @@
 import { Type } from '@sinclair/typebox';
 import { and, desc, eq, inArray, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { hubLinks, links } from '../db/schema.js';
+import { deletedHashes, hubLinks, links } from '../db/schema.js';
 
 const LinkDto = Type.Object({
   id: Type.String(), url: Type.String(), title: Type.String(), note: Type.String(),
   status: Type.String(), relevance: Type.Union([Type.Integer(), Type.Null()]),
   dupeCount: Type.Integer(),
-  hubIds: Type.Array(Type.String()), firstSeen: Type.String(),
+  hubIds: Type.Array(Type.String()), imageUrl: Type.Union([Type.String(), Type.Null()]), firstSeen: Type.String(),
 });
 
 export async function linkRoutes(app: FastifyInstance): Promise<void> {
@@ -38,6 +38,7 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
       .select({
         id: links.id, url: links.url, title: links.title, note: links.note,
         status: links.status, relevance: links.relevance, dupeCount: links.dupeCount, firstSeen: links.firstSeen,
+        imageUrl: links.imageUrl,
         hubIds: dsql<string[]>`coalesce(array_agg(hub_links.hub_id) FILTER (WHERE hub_links.hub_id IS NOT NULL), '{}')`,
       })
       .from(links)
@@ -73,6 +74,7 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
       .returning({
         id: links.id, url: links.url, title: links.title, note: links.note,
         status: links.status, relevance: links.relevance, dupeCount: links.dupeCount, firstSeen: links.firstSeen,
+        imageUrl: links.imageUrl,
       });
     if (!row) return reply.code(404).send({ error: 'link not found' });
     const hubRows = await req.server.db
@@ -86,14 +88,14 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
         ids: Type.Array(Type.String({ format: 'uuid' }), { minItems: 1 }),
         action: Type.Union([
           Type.Literal('archive'), Type.Literal('activate'),
-          Type.Literal('assign'), Type.Literal('unassign'),
+          Type.Literal('assign'), Type.Literal('unassign'), Type.Literal('delete'),
         ]),
         hubId: Type.Optional(Type.String({ format: 'uuid' })),
       }),
     },
   }, async (req, reply) => {
     const { ids, action, hubId } = req.body as {
-      ids: string[]; action: 'archive' | 'activate' | 'assign' | 'unassign'; hubId?: string;
+      ids: string[]; action: 'archive' | 'activate' | 'assign' | 'unassign' | 'delete'; hubId?: string;
     };
     if ((action === 'assign' || action === 'unassign') && !hubId) {
       return reply.code(400).send({ error: `${action} requires hubId` });
@@ -105,6 +107,23 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
         .where(inArray(links.id, ids))
         .returning({ id: links.id });
       return { affected: rows.length };
+    }
+    if (action === 'delete') {
+      const affected = await req.server.db.transaction(async (tx) => {
+        const victims = await tx
+          .select({ urlHash: links.urlHash })
+          .from(links)
+          .where(inArray(links.id, ids));
+        if (victims.length > 0) {
+          await tx
+            .insert(deletedHashes)
+            .values(victims.map((v) => ({ urlHash: v.urlHash })))
+            .onConflictDoNothing();
+        }
+        const deleted = await tx.delete(links).where(inArray(links.id, ids)).returning({ id: links.id });
+        return deleted.length;
+      });
+      return { affected };
     }
     if (action === 'assign') {
       const rows = await req.server.db

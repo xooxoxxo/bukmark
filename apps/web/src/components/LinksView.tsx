@@ -3,12 +3,14 @@ import { useFilters } from '../state/filters';
 import { useSelection } from '../state/selection';
 import { BulkBar } from './BulkBar';
 import { FilterBar } from './FilterBar';
+import { LinksGrid } from './LinksGrid';
 import { LinksTable } from './LinksTable';
 
 export function LinksView({ hubId }: { hubId?: string }) {
   const q = useFilters((s) => s.q);
   const unassigned = useFilters((s) => s.unassigned);
   const status = useFilters((s) => s.status);
+  const view = useFilters((s) => s.view);
   const selected = useSelection((s) => s.selected);
   const setMany = useSelection((s) => s.setMany);
 
@@ -43,12 +45,21 @@ export function LinksView({ hubId }: { hubId?: string }) {
       ) : null}
       <BulkBar />
       {query.isError ? <p role="alert">{query.error.message}</p> : null}
-      <LinksTable
-        rows={rows}
-        hasNextPage={query.hasNextPage}
-        isFetchingNextPage={query.isFetchingNextPage}
-        fetchNextPage={() => void query.fetchNextPage()}
-      />
+      {view === 'grid' ? (
+        <LinksGrid
+          rows={rows}
+          hasNextPage={query.hasNextPage}
+          isFetchingNextPage={query.isFetchingNextPage}
+          fetchNextPage={() => void query.fetchNextPage()}
+        />
+      ) : (
+        <LinksTable
+          rows={rows}
+          hasNextPage={query.hasNextPage}
+          isFetchingNextPage={query.isFetchingNextPage}
+          fetchNextPage={() => void query.fetchNextPage()}
+        />
+      )}
     </>
   );
 }
