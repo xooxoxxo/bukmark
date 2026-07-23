@@ -9,6 +9,8 @@ import { deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 const TEST_URL =
   process.env.TEST_DATABASE_URL ?? 'postgres://bookmarkt:bookmarkt@localhost:5432/bookmarkt_test';
 
+let ogStub: string | null = null;
+
 describe('links api', () => {
   let app: FastifyInstance; let db: Db;
   beforeAll(async () => {
@@ -16,11 +18,12 @@ describe('links api', () => {
     const tempDb = await getDb(TEST_URL);
     await tempDb.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs CASCADE`);
     await tempDb.sql.end();
-    app = await buildApp({ databaseUrl: TEST_URL });
+    app = await buildApp({ databaseUrl: TEST_URL, fetchOgImage: async () => ogStub });
     db = app.db;
     return async () => { await app.close(); };
   });
   beforeEach(async () => {
+    ogStub = null;
     await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes CASCADE`);
   });
   afterAll(async () => {
@@ -111,5 +114,60 @@ describe('links api', () => {
     expect(tombs.map((t) => t.urlHash).sort()).toEqual(['h1', 'h2']);
     const memberships = await db.select().from(hubLinks);
     expect(memberships).toEqual([]);
+  });
+
+  it('POST creates a new link with capture, hub membership, og image', async () => {
+    const { hubId: _hubId } = await seed();
+    ogStub = 'https://cdn.example.com/og.png';
+    const res = await app.inject({
+      method: 'POST', url: '/api/links',
+      payload: { url: 'https://New.Example.com/a?utm_source=x', title: 'New A', note: 'keep', hub: 'reading', relevance: 4 },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.outcome).toBe('created');
+    expect(body.link.url).toBe('https://new.example.com/a');
+    expect(body.link.title).toBe('New A');
+    expect(body.link.relevance).toBe(4);
+    expect(body.link.imageUrl).toBe('https://cdn.example.com/og.png');
+    expect(body.link.hubIds).toHaveLength(1);
+    const caps = await db.execute(dsql`SELECT source FROM captures WHERE original_url = 'https://new.example.com/a'`);
+    expect(caps[0]!.source).toBe('manual');
+  });
+
+  it('POST on an existing url updates provided fields and bumps dupeCount', async () => {
+    const first = await app.inject({
+      method: 'POST', url: '/api/links', payload: { url: 'https://fresh.example.com/x', title: 'First', relevance: 2 },
+    });
+    expect(first.json().outcome).toBe('created');
+    const second = await app.inject({
+      method: 'POST', url: '/api/links', payload: { url: 'https://fresh.example.com/x', note: 'added note' },
+    });
+    const b = second.json();
+    expect(b.outcome).toBe('updated');
+    expect(b.link.title).toBe('First');      // unprovided → unchanged
+    expect(b.link.note).toBe('added note');   // provided → updated
+    expect(b.link.relevance).toBe(2);         // unprovided → unchanged
+    expect(b.link.dupeCount).toBe(2);         // bumped
+  });
+
+  it('POST resurrects a tombstoned url and clears the tombstone', async () => {
+    const created = await app.inject({
+      method: 'POST', url: '/api/links', payload: { url: 'https://tomb.example.com/y' },
+    });
+    const id = created.json().link.id;
+    await app.inject({ method: 'POST', url: '/api/links/bulk', payload: { ids: [id], action: 'delete' } });
+    const again = await app.inject({
+      method: 'POST', url: '/api/links', payload: { url: 'https://tomb.example.com/y', title: 'Back' },
+    });
+    expect(again.json().outcome).toBe('resurrected');
+    const tombs = await db.select({ urlHash: deletedHashes.urlHash }).from(deletedHashes);
+    expect(tombs).toEqual([]);
+  });
+
+  it('POST rejects an unparseable url with 400', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/links', payload: { url: 'not a url' } });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/url/);
   });
 });

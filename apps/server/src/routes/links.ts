@@ -1,7 +1,9 @@
 import { Type } from '@sinclair/typebox';
 import { and, desc, eq, inArray, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
+import { normalizeUrl } from '@bookmarkt/shared';
 import { deletedHashes, hubLinks, links } from '../db/schema.js';
+import { addLink } from '../links/addLink.js';
 
 const LinkDto = Type.Object({
   id: Type.String(), url: Type.String(), title: Type.String(), note: Type.String(),
@@ -53,6 +55,32 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
       items: rows.map((r) => ({ ...r, firstSeen: r.firstSeen.toISOString() })),
       total: totalRows[0]!.n,
     };
+  });
+
+  app.post('/links', {
+    schema: {
+      body: Type.Object({
+        url: Type.String(),
+        title: Type.Optional(Type.String()),
+        note: Type.Optional(Type.String()),
+        hub: Type.Optional(Type.String()),
+        relevance: Type.Optional(Type.Integer({ minimum: 1, maximum: 5 })),
+      }),
+      response: {
+        200: Type.Object({
+          outcome: Type.Union([Type.Literal('created'), Type.Literal('updated'), Type.Literal('resurrected')]),
+          link: LinkDto,
+        }),
+        400: Type.Object({
+          error: Type.String(),
+        }),
+      },
+    },
+  }, async (req, reply) => {
+    const b = req.body as { url: string; title?: string; note?: string; hub?: string; relevance?: number };
+    const norm = normalizeUrl(b.url);
+    if (!norm.ok) return reply.code(400).send({ error: `${norm.reason} url` });
+    return addLink(req.server.db, { ...b, url: norm.url, urlHash: norm.urlHash }, req.server.fetchOgImage);
   });
 
   app.patch('/links/:id', {
