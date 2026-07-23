@@ -6,15 +6,22 @@ import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { getDb, type Db } from './db/client.js';
 import { linkRoutes } from './routes/links.js';
 import { hubRoutes } from './routes/hubs.js';
+import { fetchOgImage as defaultFetchOgImage } from './og/fetchOgImage.js';
 
 declare module 'fastify' {
-  interface FastifyInstance { db: Db }
+  interface FastifyInstance {
+    db: Db;
+    fetchOgImage: (url: string) => Promise<string | null>;
+  }
 }
 
-export async function buildApp(opts: { databaseUrl?: string } = {}): Promise<FastifyInstance> {
+export async function buildApp(
+  opts: { databaseUrl?: string; fetchOgImage?: (url: string) => Promise<string | null> } = {},
+): Promise<FastifyInstance> {
   const app = Fastify({ logger: true }).withTypeProvider<TypeBoxTypeProvider>();
   const { db, sql } = getDb(opts.databaseUrl);
   app.decorate('db', db);
+  app.decorate('fetchOgImage', opts.fetchOgImage ?? defaultFetchOgImage);
   app.addHook('onClose', async () => { await sql.end(); });
 
   app.get('/healthz', async () => ({ ok: true }));
