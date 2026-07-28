@@ -170,4 +170,26 @@ describe('links api', () => {
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/url/);
   });
+
+  it('POST /api/links/import creates unsorted links without fetching og', async () => {
+    ogStub = 'https://cdn.example.com/should-not-be-used.png';
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/links/import',
+      payload: { items: [{ url: 'https://imported.com/1', title: 'Imported', folderPath: 'Bar/Dev' }] },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ created: 1, updated: 0, skippedDeleted: 0, invalid: [] });
+
+    const listed = await app.inject({ method: 'GET', url: '/api/links?unassigned=true' });
+    const item = listed.json().items[0];
+    expect(item.hubIds).toEqual([]);
+    expect(item.imageUrl).toBeNull();
+  });
+
+  it('POST /api/links/import rejects a batch over 200 items', async () => {
+    const items = Array.from({ length: 201 }, (_, i) => ({ url: `https://big.com/${i}` }));
+    const res = await app.inject({ method: 'POST', url: '/api/links/import', payload: { items } });
+    expect(res.statusCode).toBe(400);
+  });
 });

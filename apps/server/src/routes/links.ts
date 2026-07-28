@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { normalizeUrl } from '@bookmarkt/shared';
 import { deletedHashes, hubLinks, links } from '../db/schema.js';
 import { addLink } from '../links/addLink.js';
+import { importLinks } from '../links/importLinks.js';
 
 const LinkDto = Type.Object({
   id: Type.String(), url: Type.String(), title: Type.String(), note: Type.String(),
@@ -81,6 +82,24 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
     const norm = normalizeUrl(b.url);
     if (!norm.ok) return reply.code(400).send({ error: `${norm.reason} url` });
     return addLink(req.server.db, { ...b, url: norm.url, urlHash: norm.urlHash }, req.server.fetchOgImage);
+  });
+
+  app.post('/links/import', {
+    schema: {
+      body: Type.Object({
+        items: Type.Array(
+          Type.Object({
+            url: Type.String(),
+            title: Type.Optional(Type.String()),
+            folderPath: Type.Optional(Type.String()),
+          }),
+          { minItems: 1, maxItems: 200 },
+        ),
+      }),
+    },
+  }, async (req) => {
+    const { items } = req.body as { items: { url: string; title?: string; folderPath?: string }[] };
+    return importLinks(req.server.db, items);
   });
 
   app.patch('/links/:id', {
