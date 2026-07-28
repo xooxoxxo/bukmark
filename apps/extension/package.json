@@ -1,0 +1,14 @@
+{
+  "name": "@bookmarkt/extension",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.2.2",
+    "vite": "^6.0.0"
+  }
+}
