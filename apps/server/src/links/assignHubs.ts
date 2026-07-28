@@ -72,7 +72,7 @@ export async function assignHubs(db: Db, assignments: Assignment[]): Promise<Ass
       .values([...rows.values()].map((r) => ({ ...r, assignedBy: 'auto' as const })))
       .onConflictDoUpdate({
         target: [hubLinks.hubId, hubLinks.linkId],
-        set: { relevance: dsql`excluded.relevance` },
+        set: { relevance: dsql`excluded.relevance`, assignedBy: 'auto' as const },
       });
     res.assigned = rows.size;
   });

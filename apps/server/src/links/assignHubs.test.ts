@@ -92,4 +92,30 @@ describe('assignHubs', () => {
     const res = await assignHubs(db, []);
     expect(res).toEqual({ assigned: 0, hubsCreated: [], unknownLinkIds: [] });
   });
+
+  it('updates assignedBy from user to auto on re-assignment', async () => {
+    const [a] = await seedIds(db, 1);
+    // Create a hub manually
+    const [hub] = await db.insert(hubs).values({ name: 'rust' }).returning({ id: hubs.id });
+    // Insert a hub_links row marked as user-filed
+    await db
+      .insert(hubLinks)
+      .values({ hubId: hub!.id, linkId: a!, assignedBy: 'user' as const, relevance: 2 });
+
+    // Re-assign through assignHubs
+    const res = await assignHubs(db, [{ linkId: a!, hub: 'rust', relevance: 5 }]);
+
+    expect(res.assigned).toBe(1);
+    const rows = await db.select().from(hubLinks).where(eq(hubLinks.linkId, a!));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.assignedBy).toBe('auto');
+    expect(rows[0]!.relevance).toBe(5);
+  });
+
+  it('stores null for relevance when omitted', async () => {
+    const [a] = await seedIds(db, 1);
+    await assignHubs(db, [{ linkId: a!, hub: 'rust' }]);
+    const [row] = await db.select().from(hubLinks);
+    expect(row!.relevance).toBeNull();
+  });
 });
