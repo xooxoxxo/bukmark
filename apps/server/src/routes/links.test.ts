@@ -192,4 +192,20 @@ describe('links api', () => {
     const res = await app.inject({ method: 'POST', url: '/api/links/import', payload: { items } });
     expect(res.statusCode).toBe(400);
   });
+
+  it('GET /api/links returns the imported folder path as groupHint', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/links/import',
+      payload: { items: [{ url: 'https://hinted.com/1', folderPath: 'Bookmarks Bar/Dev/Rust' }] },
+    });
+    const res = await app.inject({ method: 'GET', url: '/api/links?unassigned=true' });
+    expect(res.json().items[0].groupHint).toBe('Bookmarks Bar/Dev/Rust');
+  });
+
+  it('GET /api/links returns null groupHint for links captured without one', async () => {
+    await app.inject({ method: 'POST', url: '/api/links', payload: { url: 'https://plain.com/1' } });
+    const res = await app.inject({ method: 'GET', url: '/api/links?unassigned=true' });
+    expect(res.json().items[0].groupHint).toBeNull();
+  });
 });

@@ -44,6 +44,11 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
         id: links.id, url: links.url, title: links.title, note: links.note,
         status: links.status, relevance: links.relevance, dupeCount: links.dupeCount, firstSeen: links.firstSeen,
         imageUrl: links.imageUrl,
+        groupHint: dsql<string | null>`(
+          SELECT c.group_hint FROM captures c
+          WHERE c.link_id = ${links.id} AND c.group_hint IS NOT NULL
+          ORDER BY c.captured_at DESC LIMIT 1
+        )`,
         hubIds: dsql<string[]>`coalesce(array_agg(hub_links.hub_id) FILTER (WHERE hub_links.hub_id IS NOT NULL), '{}')`,
       })
       .from(links)
