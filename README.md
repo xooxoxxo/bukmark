@@ -45,3 +45,19 @@ Input: `{ items: [{ url, title?, note?, hub?, relevance? }] }` — url required;
 Set `BOOKMARKT_API_URL` in `.mcp.json` env if the server isn't at `http://localhost:3000` (e.g. tailnet address).
 
 Note: adding a bookmark fetches its og:image server-side. The fetcher blocks private, loopback, link-local (incl. cloud-metadata `169.254.169.254`), and CGNAT/tailnet address ranges, follows redirects manually and re-validates every hop, and caps time and body size — so a supplied URL can't be used to reach internal services (SSRF). Still keep the API on a trusted network (LAN/tailnet); it has no auth.
+
+## Extension (capture + Claude sorting)
+
+Chrome/Brave extension (`apps/extension`) for capturing the current tab and importing browser bookmarks.
+
+```bash
+pnpm --filter @bookmarkt/extension build    # → apps/extension/dist
+# Load dist/ unpacked: brave://extensions, Developer mode on
+# Set server URL in extension options (defaults to http://localhost:3000)
+# Import bookmarks (one-shot in options page)
+
+# Then sort unsorted bookmarks via Claude:
+# → list_unsorted, list_hubs, assign_hubs tools in MCP
+```
+
+Toolbar popup saves current tab; keyboard shortcut `Cmd+Shift+S` (Mac) / `Ctrl+Shift+S` (others) saves silently. Browser bookmarks imported with folder structure preserved as hints. See docs/superpowers/HANDOVER.md for CORS setup and host_permissions pinning.
