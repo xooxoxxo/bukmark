@@ -5,6 +5,7 @@ import { normalizeUrl } from '@bookmarkt/shared';
 import { deletedHashes, hubLinks, links } from '../db/schema.js';
 import { addLink } from '../links/addLink.js';
 import { importLinks } from '../links/importLinks.js';
+import { assignHubs } from '../links/assignHubs.js';
 import { backfillOg } from '../og/backfill.js';
 
 const LinkDto = Type.Object({
@@ -112,6 +113,26 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
   }, async (req) => {
     const { limit = 20 } = req.body as { limit?: number };
     return backfillOg(req.server.db, req.server.fetchOgImage, limit);
+  });
+
+  app.post('/links/assign', {
+    schema: {
+      body: Type.Object({
+        assignments: Type.Array(
+          Type.Object({
+            linkId: Type.String({ format: 'uuid' }),
+            hub: Type.String({ minLength: 1 }),
+            relevance: Type.Optional(Type.Integer({ minimum: 1, maximum: 5 })),
+          }),
+          { minItems: 1, maxItems: 100 },
+        ),
+      }),
+    },
+  }, async (req) => {
+    const { assignments } = req.body as {
+      assignments: { linkId: string; hub: string; relevance?: number }[];
+    };
+    return assignHubs(req.server.db, assignments);
   });
 
   app.patch('/links/:id', {
