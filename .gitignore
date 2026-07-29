@@ -8,3 +8,4 @@ apps/*/src/**/*.js
 packages/*/src/**/*.js
 *.tsbuildinfo
 apps/web/dist/
+apps/extension/dist/

@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>bookmarkt settings</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { max-width: 560px; margin: 32px auto; padding: 0 16px; font: 14px/1.5 system-ui, sans-serif; }
+      h2 { font-size: 15px; margin-top: 28px; }
+      input, button { font: inherit; padding: 6px 8px; }
+      input { width: 100%; box-sizing: border-box; }
+      button { cursor: pointer; margin-top: 8px; }
+      .muted { opacity: 0.7; font-size: 12px; }
+      progress { width: 100%; margin-top: 8px; }
+      #importStatus { margin-top: 8px; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <h2>Server</h2>
+    <input id="baseUrl" />
+    <p class="muted">
+      Tailnet address by default, so it works away from home too. Changing this to a
+      host outside the extension's <code>host_permissions</code> requires editing
+      <code>manifest.json</code> and reloading the extension.
+    </p>
+    <button id="saveUrl">Save</button>
+    <span id="urlStatus" class="muted"></span>
+
+    <h2>Import browser bookmarks</h2>
+    <p class="muted">
+      Every bookmark is imported unsorted. The folder it was in is kept as a hint for
+      sorting later, but nothing is filed automatically. Safe to run more than once —
+      existing links are not duplicated and previously deleted ones stay deleted.
+    </p>
+    <button id="import">Import all bookmarks</button>
+    <progress id="progress" value="0" max="1" hidden></progress>
+    <div id="importStatus"></div>
+
+    <script type="module" src="/src/options/main.ts"></script>
+  </body>
+</html>

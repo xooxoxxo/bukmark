@@ -4,6 +4,9 @@ import type { FastifyInstance } from 'fastify';
 import { normalizeUrl } from '@bookmarkt/shared';
 import { deletedHashes, hubLinks, links } from '../db/schema.js';
 import { addLink } from '../links/addLink.js';
+import { importLinks } from '../links/importLinks.js';
+import { assignHubs } from '../links/assignHubs.js';
+import { backfillOg } from '../og/backfill.js';
 
 const LinkDto = Type.Object({
   id: Type.String(), url: Type.String(), title: Type.String(), note: Type.String(),
@@ -41,6 +44,11 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
         id: links.id, url: links.url, title: links.title, note: links.note,
         status: links.status, relevance: links.relevance, dupeCount: links.dupeCount, firstSeen: links.firstSeen,
         imageUrl: links.imageUrl,
+        groupHint: dsql<string | null>`(
+          SELECT c.group_hint FROM captures c
+          WHERE c.link_id = ${links.id} AND c.group_hint IS NOT NULL
+          ORDER BY c.captured_at DESC LIMIT 1
+        )`,
         hubIds: dsql<string[]>`coalesce(array_agg(hub_links.hub_id) FILTER (WHERE hub_links.hub_id IS NOT NULL), '{}')`,
       })
       .from(links)
@@ -81,6 +89,55 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
     const norm = normalizeUrl(b.url);
     if (!norm.ok) return reply.code(400).send({ error: `${norm.reason} url` });
     return addLink(req.server.db, { ...b, url: norm.url, urlHash: norm.urlHash }, req.server.fetchOgImage);
+  });
+
+  app.post('/links/import', {
+    schema: {
+      body: Type.Object({
+        items: Type.Array(
+          Type.Object({
+            url: Type.String(),
+            title: Type.Optional(Type.String()),
+            folderPath: Type.Optional(Type.String()),
+          }),
+          { minItems: 1, maxItems: 200 },
+        ),
+      }),
+    },
+  }, async (req) => {
+    const { items } = req.body as { items: { url: string; title?: string; folderPath?: string }[] };
+    return importLinks(req.server.db, items);
+  });
+
+  app.post('/links/og-backfill', {
+    schema: {
+      body: Type.Object({
+        limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 50, default: 20 })),
+      }),
+    },
+  }, async (req) => {
+    const { limit = 20 } = req.body as { limit?: number };
+    return backfillOg(req.server.db, req.server.fetchOgImage, limit);
+  });
+
+  app.post('/links/assign', {
+    schema: {
+      body: Type.Object({
+        assignments: Type.Array(
+          Type.Object({
+            linkId: Type.String({ format: 'uuid' }),
+            hub: Type.String({ minLength: 1 }),
+            relevance: Type.Optional(Type.Integer({ minimum: 1, maximum: 5 })),
+          }),
+          { minItems: 1, maxItems: 100 },
+        ),
+      }),
+    },
+  }, async (req) => {
+    const { assignments } = req.body as {
+      assignments: { linkId: string; hub: string; relevance?: number }[];
+    };
+    return assignHubs(req.server.db, assignments);
   });
 
   app.patch('/links/:id', {

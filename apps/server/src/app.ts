@@ -1,8 +1,10 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
+import { config } from './config.js';
 import { getDb, type Db } from './db/client.js';
 import { linkRoutes } from './routes/links.js';
 import { hubRoutes } from './routes/hubs.js';
@@ -16,13 +18,27 @@ declare module 'fastify' {
 }
 
 export async function buildApp(
-  opts: { databaseUrl?: string; fetchOgImage?: (url: string) => Promise<string | null> } = {},
+  opts: {
+    databaseUrl?: string;
+    fetchOgImage?: (url: string) => Promise<string | null>;
+    corsOrigins?: string[];
+  } = {},
 ): Promise<FastifyInstance> {
   const app = Fastify({ logger: true }).withTypeProvider<TypeBoxTypeProvider>();
   const { db, sql } = getDb(opts.databaseUrl);
   app.decorate('db', db);
   app.decorate('fetchOgImage', opts.fetchOgImage ?? defaultFetchOgImage);
   app.addHook('onClose', async () => { await sql.end(); });
+
+  // Explicit allowlist, never a wildcard: the API has no auth, so the set of
+  // origins that may call it from a browser is the only thing narrowing it.
+  const corsOrigins = opts.corsOrigins ?? config.corsOrigins;
+  if (corsOrigins.length > 0) {
+    await app.register(cors, {
+      origin: corsOrigins,
+      methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    });
+  }
 
   app.get('/healthz', async () => ({ ok: true }));
   await app.register(linkRoutes, { prefix: '/api' });

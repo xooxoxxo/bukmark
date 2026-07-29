@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root { color-scheme: light dark; }
+      body { width: 320px; margin: 0; padding: 12px; font: 13px/1.4 system-ui, sans-serif; }
+      label { display: block; margin-top: 8px; font-size: 11px; opacity: 0.7; }
+      input, textarea, select, button { width: 100%; box-sizing: border-box; font: inherit; padding: 6px; }
+      textarea { resize: vertical; min-height: 52px; }
+      button { margin-top: 10px; cursor: pointer; }
+      #status { margin-top: 8px; min-height: 16px; font-size: 12px; }
+      #status.error { color: #c0392b; }
+    </style>
+  </head>
+  <body>
+    <label for="title">Title</label>
+    <input id="title" />
+    <label for="note">Why keep it?</label>
+    <textarea id="note" placeholder="optional — this is what Claude sorts on later"></textarea>
+    <label for="hub">Hub</label>
+    <select id="hub"><option value="">(unsorted)</option></select>
+    <button id="save">Save</button>
+    <div id="status"></div>
+    <script type="module" src="/src/popup/main.ts"></script>
+  </body>
+</html>
