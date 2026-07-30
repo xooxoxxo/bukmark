@@ -3,9 +3,9 @@ services:
     image: pgvector/pgvector:pg17
     environment:
       POSTGRES_USER: bookmarkt
-      POSTGRES_PASSWORD: bookmarkt
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bookmarkt}
       POSTGRES_DB: bookmarkt
-    ports: ["5432:5432"]
+    ports: ["${POSTGRES_PORT:-5432}:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bookmarkt"]
@@ -15,8 +15,10 @@ services:
   app:
     build: { context: ., dockerfile: apps/server/Dockerfile }
     environment:
-      DATABASE_URL: postgres://bookmarkt:bookmarkt@db:5432/bookmarkt
-    ports: ["3000:3000"]
+      DATABASE_URL: postgres://bookmarkt:${POSTGRES_PASSWORD:-bookmarkt}@db:5432/bookmarkt
+      PORT: 3000
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+    ports: ["${PORT:-3000}:3000"]
     depends_on:
       db: { condition: service_healthy }
 volumes:

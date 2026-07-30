@@ -1,5 +1,6 @@
 import { runBackfill, runImport } from '../lib/api';
 import { flattenBookmarks, type BookmarkNode } from '../lib/bookmarks';
+import { ensureHostPermission } from '../lib/permissions';
 import { loadSettings, saveSettings } from '../lib/settings';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -16,6 +17,13 @@ async function init(): Promise<void> {
   baseUrlEl.value = settings.baseUrl;
 
   saveUrlEl.addEventListener('click', async () => {
+    // Ask before saving: a stored URL the extension may not reach is worse than
+    // no change, because every later request fails with an opaque network error.
+    const granted = await ensureHostPermission(baseUrlEl.value);
+    if (!granted) {
+      urlStatusEl.textContent = 'Not saved — access to that address was declined';
+      return;
+    }
     await saveSettings({ baseUrl: baseUrlEl.value });
     const reloaded = await loadSettings();
     baseUrlEl.value = reloaded.baseUrl;

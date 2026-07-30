@@ -18,7 +18,14 @@ describe('normalizeBaseUrl', () => {
     expect(normalizeBaseUrl('')).toBe(DEFAULT_BASE_URL);
   });
 
-  it('defaults to the tailnet address, which resolves both at home and away', () => {
-    expect(DEFAULT_BASE_URL).toBe('http://localhost:8085');
+  it('defaults to localhost so a fresh clone works with no configuration', () => {
+    expect(DEFAULT_BASE_URL).toBe('http://localhost:3000');
+  });
+
+  it('never ships a private or tailnet default', () => {
+    // A published default pointing at someone's LAN is both a leak and broken
+    // for everyone else. Self-hosters set their own URL in the options page.
+    expect(DEFAULT_BASE_URL).not.toMatch(/\b(?:10|127|192\.168|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7]))\./);
+    expect(DEFAULT_BASE_URL).not.toContain('.home');
   });
 });
