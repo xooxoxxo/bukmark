@@ -5,7 +5,7 @@ services:
       POSTGRES_USER: bookmarkt
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bookmarkt}
       POSTGRES_DB: bookmarkt
-    ports: ["5432:5432"]
+    ports: ["${POSTGRES_PORT:-5432}:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bookmarkt"]
