@@ -19,9 +19,9 @@
     <h2>Server</h2>
     <input id="baseUrl" />
     <p class="muted">
-      Tailnet address by default, so it works away from home too. Changing this to a
-      host outside the extension's <code>host_permissions</code> requires editing
-      <code>manifest.json</code> and reloading the extension.
+      Defaults to <code>http://localhost:3000</code>, matching
+      <code>docker compose up -d</code>. Point it anywhere — the browser will ask
+      permission for that address the first time you save it.
     </p>
     <button id="saveUrl">Save</button>
     <span id="urlStatus" class="muted"></span>
