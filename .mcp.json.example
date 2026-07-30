@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "bookmarkt": {
+      "command": "pnpm",
+      "args": ["exec", "tsx", "apps/mcp/src/index.ts"],
+      "env": { "BOOKMARKT_API_URL": "http://localhost:3000" }
+    }
+  }
+}
