@@ -12,3 +12,6 @@ apps/extension/dist/
 
 # Local MCP config — copy .mcp.json.example and set your own server URL
 .mcp.json
+
+# macOS metadata
+.DS_Store
