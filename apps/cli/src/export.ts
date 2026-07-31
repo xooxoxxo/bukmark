@@ -1,3 +1,9 @@
+// SUPERSEDED — v0 only. This reads data/store.json and groups by
+// `triage.category`, both of which are v0 CLI structures. Real data has lived
+// in Postgres with hubs since m1, so this exports a model nothing writes to any
+// more. The current exporter is GET /api/export (apps/server/src/export/).
+// Left in place because the CLI's own future is undecided; do not extend it.
+
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { LinkRecord, Store } from '@bookmarkt/shared';
