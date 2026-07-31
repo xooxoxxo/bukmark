@@ -59,4 +59,12 @@ describe('toBackupJson', () => {
     const out = JSON.parse(toBackupJson(links, '2026-07-31T12:00:00.000Z'));
     expect(out.links).toEqual(links);
   });
+
+  it('round-trips nulls rather than dropping them, so a backup loses nothing', () => {
+    const links = [link({ imageUrl: null, groupHint: null, note: '', relevance: null, hubs: [] })];
+    const out = JSON.parse(toBackupJson(links, '2026-07-31T12:00:00.000Z'));
+    expect(out.links).toEqual(links);
+    expect(out.links[0].imageUrl).toBeNull();
+    expect(out.links[0].groupHint).toBeNull();
+  });
 });

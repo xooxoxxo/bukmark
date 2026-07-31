@@ -46,4 +46,8 @@ describe('toCsv', () => {
   it('writes the relevance when present', () => {
     expect(toCsv([link({ relevance: 4 })]).split('\n')[1]).toContain(',4,active,');
   });
+
+  it('handles a field containing a comma, a quote and a newline at once', () => {
+    expect(toCsv([link({ note: 'say "hi",\nthen leave' })])).toContain('"say ""hi"",\nthen leave"');
+  });
 });
