@@ -1,0 +1,41 @@
+.wrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.trigger {
+  font: inherit;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 4px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: Canvas;
+  z-index: 10;
+}
+
+.item {
+  padding: 6px 8px;
+  text-decoration: none;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.item:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.sep {
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+}

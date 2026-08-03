@@ -1,9 +1,16 @@
 import { useStats } from '../api/queries';
+import { ExportButton } from './ExportButton';
 import styles from './StatsBar.module.css';
 
 export function StatsBar() {
   const { data } = useStats();
-  if (!data) return <header className={styles.bar} />;
+  if (!data) {
+    return (
+      <header className={styles.bar}>
+        <ExportButton />
+      </header>
+    );
+  }
   const chips = [
     `${data.links} links`,
     `${data.active} active`,
@@ -18,6 +25,7 @@ export function StatsBar() {
           {c}
         </span>
       ))}
+      <ExportButton />
     </header>
   );
 }
