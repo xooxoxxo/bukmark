@@ -1,5 +1,5 @@
 {
-  "name": "@bookmarkt/extension",
+  "name": "@bukmark/extension",
   "private": true,
   "type": "module",
   "scripts": {

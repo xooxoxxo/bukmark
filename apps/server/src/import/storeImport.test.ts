@@ -1,13 +1,13 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { sql as dsql } from 'drizzle-orm';
-import type { Store } from '@bookmarkt/shared';
+import type { Store } from '@bukmark/shared';
 import { getDb, type Db } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
 import { deletedHashes } from '../db/schema.js';
 import { importStore } from './storeImport.js';
 
 const TEST_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://bookmarkt:bookmarkt@localhost:5432/bookmarkt_test';
+  process.env.TEST_DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark_test';
 
 const T = '2026-07-21T10:00:00Z';
 function makeStore(): { store: Store } {
@@ -35,8 +35,8 @@ function makeStore(): { store: Store } {
 
 describe('importStore', () => {
   beforeAll(async () => {
-    const { sql: adminSql } = getDb(TEST_URL.replace(/\/bookmarkt_test$/, '/bookmarkt'));
-    await adminSql`CREATE DATABASE bookmarkt_test`.catch(() => {});
+    const { sql: adminSql } = getDb(TEST_URL.replace(/\/bukmark_test$/, '/bukmark'));
+    await adminSql`CREATE DATABASE bukmark_test`.catch(() => {});
     await adminSql.end();
     await runMigrations(TEST_URL);
   });

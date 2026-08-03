@@ -26,7 +26,7 @@ describe('App shell', () => {
         </MemoryRouter>
       </Wrapper>,
     );
-    expect(screen.getByRole('heading', { name: 'bookmarkt' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'bukmark' })).toBeInTheDocument();
     expect(await screen.findByText('1 links')).toBeInTheDocument();
     expect(await screen.findByText('0 results')).toBeInTheDocument();
   });

@@ -1,4 +1,4 @@
-const API = process.env.BOOKMARKT_API_URL ?? 'http://localhost:3000';
+const API = process.env.BUKMARK_API_URL ?? 'http://localhost:3000';
 
 export function apiBase(): string {
   return API;

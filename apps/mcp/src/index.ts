@@ -8,7 +8,7 @@ import {
   type AssignResult, type HubSummary, type UnsortedLink,
 } from './sorting.js';
 
-const API = process.env.BOOKMARKT_API_URL ?? 'http://localhost:3000';
+const API = process.env.BUKMARK_API_URL ?? 'http://localhost:3000';
 
 const itemShape = {
   url: z.string(),
@@ -36,14 +36,14 @@ async function postItem(item: BookmarkItem): Promise<ItemResult> {
   }
 }
 
-const server = new McpServer({ name: 'bookmarkt', version: '1.0.0' });
+const server = new McpServer({ name: 'bukmark', version: '1.0.0' });
 
 server.registerTool(
   'add_bookmarks',
   {
     title: 'Add bookmarks',
     description:
-      'Add one or more bookmarks to bookmarkt. Each item needs a url; optionally title, note (why worth keeping), hub (category name, auto-created), and relevance (1-5). Existing urls are updated; previously deleted urls are resurrected.',
+      'Add one or more bookmarks to bukmark. Each item needs a url; optionally title, note (why worth keeping), hub (category name, auto-created), and relevance (1-5). Existing urls are updated; previously deleted urls are resurrected.',
     inputSchema: { items: z.array(z.object(itemShape)).min(1) },
   },
   async ({ items }) => {
@@ -111,4 +111,4 @@ server.registerTool(
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error(`bookmarkt MCP server ready (API ${API})`);
+console.error(`bukmark MCP server ready (API ${API})`);

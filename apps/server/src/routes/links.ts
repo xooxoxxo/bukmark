@@ -1,7 +1,7 @@
 import { Type } from '@sinclair/typebox';
 import { and, desc, eq, inArray, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { normalizeUrl } from '@bookmarkt/shared';
+import { normalizeUrl } from '@bukmark/shared';
 import { deletedHashes, hubLinks, links } from '../db/schema.js';
 import { addLink } from '../links/addLink.js';
 import { importLinks } from '../links/importLinks.js';

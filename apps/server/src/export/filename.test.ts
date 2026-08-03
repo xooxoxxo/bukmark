@@ -38,16 +38,16 @@ describe('slugify', () => {
 
 describe('exportFilename', () => {
   it('builds the documented shape', () => {
-    expect(exportFilename('rust', 'html', '2026-07-31')).toBe('bookmarkt-rust-2026-07-31.html');
+    expect(exportFilename('rust', 'html', '2026-07-31')).toBe('bukmark-rust-2026-07-31.html');
   });
 
   it('slugs the scope', () => {
     expect(exportFilename('Rust / systems', 'json', '2026-07-31')).toBe(
-      'bookmarkt-rust-systems-2026-07-31.json',
+      'bukmark-rust-systems-2026-07-31.json',
     );
   });
 
   it('supports every format', () => {
-    expect(exportFilename('all', 'csv', '2026-01-02')).toBe('bookmarkt-all-2026-01-02.csv');
+    expect(exportFilename('all', 'csv', '2026-01-02')).toBe('bukmark-all-2026-01-02.csv');
   });
 });

@@ -1,4 +1,4 @@
-# bookmarkt
+# bukmark
 
 A self-hosted bookmark manager built around triage rather than storage. Capture
 a page in one click, and everything lands **unsorted** on purpose — sorting is a
@@ -21,7 +21,7 @@ at 1am with sixty tabs open.
 ## Quickstart
 
 ```bash
-git clone <repo-url> bookmarkt && cd bookmarkt
+git clone <repo-url> bukmark && cd bukmark
 cp .env.example .env          # optional — defaults work as-is
 docker compose up -d
 curl localhost:3000/healthz   # {"ok":true}
@@ -42,7 +42,7 @@ serves the API and web UI on <http://localhost:3000>.
 
 ```bash
 pnpm install
-pnpm --filter @bookmarkt/extension build   # → apps/extension/dist
+pnpm --filter @bukmark/extension build   # → apps/extension/dist
 ```
 
 Then in Chrome or Brave: open `chrome://extensions` (or `brave://extensions`),
@@ -75,11 +75,11 @@ Then:
 ## Sorting with Claude (MCP)
 
 ```bash
-cp .mcp.json.example .mcp.json     # edit BOOKMARKT_API_URL if not localhost:3000
+cp .mcp.json.example .mcp.json     # edit BUKMARK_API_URL if not localhost:3000
 ```
 
 Restart Claude Code so it picks the config up, then ask it to *"sort my unsorted
-bookmarkt links"*. It lists what's unsorted along with your existing hubs,
+bukmark links"*. It lists what's unsorted along with your existing hubs,
 proposes assignments, and applies them in one batch after you approve. Tools:
 `add_bookmarks`, `list_unsorted`, `list_hubs`, `assign_hubs`.
 
@@ -153,7 +153,7 @@ Monorepo layout: `apps/server` (Fastify + Drizzle), `apps/web` (React 19 + Vite)
 `packages/shared`.
 
 Note: `apps/server` serves `apps/web/dist` statically, and asset routes are
-registered at boot — after `pnpm --filter @bookmarkt/web build`, restart the
+registered at boot — after `pnpm --filter @bukmark/web build`, restart the
 server or new bundles fall through to the SPA fallback.
 
 ## A note on fetching preview images

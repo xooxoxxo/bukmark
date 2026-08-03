@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { Canon, LinkRecord, Source, Store } from '@bookmarkt/shared';
+import type { Canon, LinkRecord, Source, Store } from '@bukmark/shared';
 
 export function emptyStore(): Store {
   return { version: 1, links: {}, ingestedFiles: {} };

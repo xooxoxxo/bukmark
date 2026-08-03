@@ -1,7 +1,7 @@
 {
-  "name": "@bookmarkt/cli",
+  "name": "@bukmark/cli",
   "private": true,
   "type": "module",
-  "dependencies": { "@bookmarkt/shared": "workspace:*" },
+  "dependencies": { "@bukmark/shared": "workspace:*" },
   "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" }
 }

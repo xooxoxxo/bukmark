@@ -1,9 +1,9 @@
 {
-  "name": "@bookmarkt/server",
+  "name": "@bukmark/server",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@bookmarkt/shared": "workspace:*",
+    "@bukmark/shared": "workspace:*",
     "@fastify/cors": "^11.3.0",
     "@fastify/static": "^8.0.0",
     "@fastify/type-provider-typebox": "^5.0.0",

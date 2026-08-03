@@ -2,20 +2,20 @@ services:
   db:
     image: pgvector/pgvector:pg17
     environment:
-      POSTGRES_USER: bookmarkt
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bookmarkt}
-      POSTGRES_DB: bookmarkt
+      POSTGRES_USER: bukmark
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bukmark}
+      POSTGRES_DB: bukmark
     ports: ["${POSTGRES_PORT:-5432}:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bookmarkt"]
+      test: ["CMD-SHELL", "pg_isready -U bukmark"]
       interval: 5s
       timeout: 3s
       retries: 10
   app:
     build: { context: ., dockerfile: apps/server/Dockerfile }
     environment:
-      DATABASE_URL: postgres://bookmarkt:${POSTGRES_PASSWORD:-bookmarkt}@db:5432/bookmarkt
+      DATABASE_URL: postgres://bukmark:${POSTGRES_PASSWORD:-bukmark}@db:5432/bukmark
       PORT: 3000
       CORS_ORIGINS: ${CORS_ORIGINS:-}
     ports: ["${PORT:-3000}:3000"]

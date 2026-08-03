@@ -1,5 +1,5 @@
 import { inArray, sql as dsql } from 'drizzle-orm';
-import { normalizeUrl } from '@bookmarkt/shared';
+import { normalizeUrl } from '@bukmark/shared';
 import type { Db } from '../db/client.js';
 import { captures, deletedHashes, links } from '../db/schema.js';
 

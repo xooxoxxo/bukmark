@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import type { Store } from '@bookmarkt/shared';
+import type { Store } from '@bukmark/shared';
 import { getDb } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
 import { importStore } from './storeImport.js';

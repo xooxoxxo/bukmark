@@ -6,7 +6,7 @@ import { captures, deletedHashes, links } from '../db/schema.js';
 import { importLinks } from './importLinks.js';
 
 const TEST_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://bookmarkt:bookmarkt@localhost:5432/bookmarkt_test';
+  process.env.TEST_DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark_test';
 
 describe('importLinks', () => {
   let db: Db; let end: () => Promise<void>;

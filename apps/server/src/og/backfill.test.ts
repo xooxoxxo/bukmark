@@ -7,7 +7,7 @@ import { importLinks } from '../links/importLinks.js';
 import { backfillOg } from './backfill.js';
 
 const TEST_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://bookmarkt:bookmarkt@localhost:5432/bookmarkt_test';
+  process.env.TEST_DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark_test';
 
 async function seed(db: Db, n: number): Promise<void> {
   await importLinks(db, Array.from({ length: n }, (_, i) => ({ url: `https://seed.com/${i}` })));

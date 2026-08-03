@@ -5,12 +5,12 @@ import { runMigrations } from './migrate.js';
 import { links } from './schema.js';
 
 const TEST_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://bookmarkt:bookmarkt@localhost:5432/bookmarkt_test';
+  process.env.TEST_DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark_test';
 
 describe('schema', () => {
   beforeAll(async () => {
-    const { sql } = getDb(TEST_URL.replace(/\/bookmarkt_test$/, '/bookmarkt'));
-    await sql`CREATE DATABASE bookmarkt_test`.catch(() => {});
+    const { sql } = getDb(TEST_URL.replace(/\/bukmark_test$/, '/bukmark'));
+    await sql`CREATE DATABASE bukmark_test`.catch(() => {});
     await sql.end();
     await runMigrations(TEST_URL);
   });

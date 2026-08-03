@@ -26,7 +26,7 @@ importers:
 
   apps/cli:
     dependencies:
-      '@bookmarkt/shared':
+      '@bukmark/shared':
         specifier: workspace:*
         version: link:../../packages/shared
 
@@ -50,7 +50,7 @@ importers:
 
   apps/server:
     dependencies:
-      '@bookmarkt/shared':
+      '@bukmark/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@fastify/cors':

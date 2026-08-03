@@ -7,7 +7,7 @@ import { runMigrations } from '../db/migrate.js';
 import { deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 
 const TEST_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://bookmarkt:bookmarkt@localhost:5432/bookmarkt_test';
+  process.env.TEST_DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark_test';
 
 let ogStub: string | null = null;
 

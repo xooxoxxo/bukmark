@@ -1,5 +1,5 @@
 import { eq, sql as dsql } from 'drizzle-orm';
-import type { Store } from '@bookmarkt/shared';
+import type { Store } from '@bukmark/shared';
 import type { Db } from '../db/client.js';
 import { captures, deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 

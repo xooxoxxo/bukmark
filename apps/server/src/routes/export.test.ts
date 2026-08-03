@@ -6,7 +6,7 @@ import { getDb, type Db } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
 
 const TEST_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://bookmarkt:bookmarkt@localhost:5432/bookmarkt_test';
+  process.env.TEST_DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark_test';
 
 describe('export api', () => {
   let app: FastifyInstance; let db: Db;
@@ -143,7 +143,7 @@ describe('export api', () => {
     await seed();
     const res = await app.inject({ method: 'GET', url: '/api/export?format=json' });
     expect(res.headers['content-disposition']).toMatch(
-      /attachment; filename="bookmarkt-all-\d{4}-\d{2}-\d{2}\.json"/,
+      /attachment; filename="bukmark-all-\d{4}-\d{2}-\d{2}\.json"/,
     );
   });
 
@@ -152,12 +152,12 @@ describe('export api', () => {
     const hubs = (await app.inject({ method: 'GET', url: '/api/hubs' })).json();
     const rustHub = hubs.items.find((h: { name: string }) => h.name === 'rust');
     const res = await app.inject({ method: 'GET', url: `/api/export?format=html&hub=${rustHub.id}` });
-    expect(res.headers['content-disposition']).toContain('bookmarkt-rust-');
+    expect(res.headers['content-disposition']).toContain('bukmark-rust-');
   });
 
   it('names the file "unsorted" when filtering to unassigned', async () => {
     await seed();
     const res = await app.inject({ method: 'GET', url: '/api/export?format=csv&unassigned=true' });
-    expect(res.headers['content-disposition']).toContain('bookmarkt-unsorted-');
+    expect(res.headers['content-disposition']).toContain('bukmark-unsorted-');
   });
 });

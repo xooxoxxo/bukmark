@@ -3,7 +3,7 @@ import { resolvesToPublic } from './ssrfGuard.js';
 const MAX_BYTES = 65536;
 const TIMEOUT_MS = 5000;
 const MAX_REDIRECTS = 5;
-const UA = 'Mozilla/5.0 (compatible; bookmarkt-og/1.0)';
+const UA = 'Mozilla/5.0 (compatible; bukmark-og/1.0)';
 
 async function readCapped(res: Response): Promise<string | null> {
   if (!res.body) return null;

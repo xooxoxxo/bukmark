@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { runCli } from './cli.js';
-import type { Paths } from '@bookmarkt/shared';
+import type { Paths } from '@bukmark/shared';
 import type { BatchResultFile } from './triage.js';
 
 const FIXTURE = new URL('../fixtures/sample-onetab.txt', import.meta.url).pathname;

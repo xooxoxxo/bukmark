@@ -17,7 +17,7 @@ export function Sidebar() {
 
   return (
     <nav className={styles.sidebar}>
-      <h1 className={styles.title}>bookmarkt</h1>
+      <h1 className={styles.title}>bukmark</h1>
       <NavLink to="/" end className={({ isActive }) => (isActive ? styles.active : styles.item)}>
         All links
       </NavLink>

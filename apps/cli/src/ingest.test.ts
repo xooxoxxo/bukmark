@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ingestFile } from './ingest.js';
-import { normalizeUrl } from '@bookmarkt/shared';
+import { normalizeUrl } from '@bukmark/shared';
 import { loadStore } from './store.js';
-import type { Paths } from '@bookmarkt/shared';
+import type { Paths } from '@bukmark/shared';
 
 function setup(): { paths: Paths; dir: string } {
   const dir = mkdtempSync(join(tmpdir(), 'bm-'));

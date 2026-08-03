@@ -7,8 +7,8 @@ describe('originPatternFor', () => {
   });
 
   it('keeps a non-default port on a hostname', () => {
-    expect(originPatternFor('http://bookmarkt.example.com:8085')).toBe(
-      'http://bookmarkt.example.com:8085/*',
+    expect(originPatternFor('http://bukmark.example.com:8085')).toBe(
+      'http://bukmark.example.com:8085/*',
     );
   });
 

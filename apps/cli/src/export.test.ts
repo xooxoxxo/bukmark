@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { exportAll } from './export.js';
 import { emptyStore } from './store.js';
-import type { LinkRecord, Store, Triage } from '@bookmarkt/shared';
+import type { LinkRecord, Store, Triage } from '@bukmark/shared';
 
 const T = '2026-07-21T10:00:00Z';
 

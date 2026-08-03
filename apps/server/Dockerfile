@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# bookmarkt server image: builds the web SPA, ships the monorepo run via tsx
+# bukmark server image: builds the web SPA, ships the monorepo run via tsx
 # (the project never compiles — noEmit everywhere — so runtime executes TS directly).
 # On start it applies DB migrations, then serves the API + apps/web/dist.
 
@@ -12,7 +12,7 @@ RUN corepack enable
 # pnpm version, so the frozen install matches the committed lockfile.
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @bookmarkt/web build
+RUN pnpm --filter @bukmark/web build
 
 FROM node:22-slim AS runtime
 WORKDIR /app

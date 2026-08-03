@@ -24,5 +24,5 @@ export function exportFilename(
   format: 'html' | 'json' | 'csv',
   date: string,
 ): string {
-  return `bookmarkt-${slugify(scope)}-${date}.${format}`;
+  return `bukmark-${slugify(scope)}-${date}.${format}`;
 }

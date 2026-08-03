@@ -5,6 +5,6 @@ export default defineConfig({
   schema: './src/db/schema.ts',
   out: './drizzle',
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? 'postgres://bookmarkt:bookmarkt@localhost:5432/bookmarkt',
+    url: process.env.DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark',
   },
 });

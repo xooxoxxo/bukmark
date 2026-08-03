@@ -7,7 +7,7 @@ import { importLinks } from './importLinks.js';
 import { assignHubs } from './assignHubs.js';
 
 const TEST_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://bookmarkt:bookmarkt@localhost:5432/bookmarkt_test';
+  process.env.TEST_DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark_test';
 
 async function seedIds(db: Db, n: number): Promise<string[]> {
   await importLinks(db, Array.from({ length: n }, (_, i) => ({ url: `https://s.com/${i}` })));

@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Canon, LinkRecord, Store } from '@bookmarkt/shared';
+import type { Canon, LinkRecord, Store } from '@bukmark/shared';
 
 type Entry = LinkRecord & { urlHash: string };
 
@@ -42,7 +42,7 @@ export function renderAll(store: Store, canon: Canon, outputDir: string): void {
     .sort((a, b) => b.weight - a.weight || a.category.localeCompare(b.category));
 
   const index: string[] = [
-    '# bookmarkt index', '',
+    '# bukmark index', '',
     `- Total links: ${all.length}`,
     `- Kept: ${kept.length}`,
     `- Tossed: ${tossed.length}`,
