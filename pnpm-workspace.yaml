@@ -3,5 +3,7 @@ packages:
   - 'packages/*'
 
 overrides:
-  # vitest 2.x resolves vite 5 by default; force 6 so its types match apps/web (vite ^6)
-  vite: ^6.0.0
+  # vitest 2.x resolves vite 5 by default; force 6 so its types match apps/web
+  # (vite ^6). Scoped to vitest rather than applied repo-wide: apps/site runs
+  # Astro, which needs a newer vite, and a global pin makes that build fail.
+  vitest>vite: ^6.0.0
