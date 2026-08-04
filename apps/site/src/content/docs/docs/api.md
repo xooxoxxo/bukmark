@@ -72,12 +72,15 @@ List links with optional full-text search, hub filtering, and status filtering.
       "dupeCount": 0,
       "hubIds": ["uuid1", "uuid2"],
       "imageUrl": "https://example.com/og-image.png",
+      "groupHint": "optional/browser/folder/path",
       "firstSeen": "2024-01-15T10:30:00.000Z"
     }
   ],
   "total": 42
 }
 ```
+
+**Note:** The `groupHint` field (string or null) represents the browser bookmark folder path or import source grouping. It is included in `GET /api/links` responses but omitted from `POST /api/links` responses due to response schema validation.
 
 ### POST /api/links
 
@@ -155,9 +158,26 @@ Import a batch of links, typically from a bookmark export (HTML, JSON, CSV).
   - `title` (string, optional)
   - `folderPath` (string, optional) — Browser bookmark folder path; becomes a hub if it doesn't exist
 
-**Response:**
+**Response (200):**
 
-Returns the result of all links processed (counts by outcome, or per-item results depending on implementation).
+```json
+{
+  "created": 10,
+  "updated": 5,
+  "skippedDeleted": 2,
+  "invalid": [
+    {
+      "url": "not-a-url",
+      "reason": "invalid url"
+    }
+  ]
+}
+```
+
+- `created` (integer) — Number of new links created
+- `updated` (integer) — Number of existing links updated (same URL, title preserved if already set)
+- `skippedDeleted` (integer) — Number of URLs that were previously deleted and skipped on reimport
+- `invalid` (array) — URLs that could not be normalized, with reason for each
 
 ### POST /api/links/og-backfill
 
@@ -173,9 +193,17 @@ Fetch and backfill Open Graph metadata (title, image URL) for links that lack it
 
 - `limit` (integer, optional) — Number of links to backfill, 1–50; defaults to 20
 
-**Response:**
+**Response (200):**
 
-Returns the count of links backfilled or error details.
+```json
+{
+  "processed": 20,
+  "remaining": 45
+}
+```
+
+- `processed` (integer) — Number of links fetched for Open Graph metadata in this call
+- `remaining` (integer) — Total number of links still waiting for backfill (those that have never been attempted)
 
 ### POST /api/links/assign
 
@@ -200,9 +228,19 @@ Assign multiple links to hubs in a single request.
   - `hub` (string, required) — Hub name (created if doesn't exist)
   - `relevance` (integer, optional) — Relevance score 1–5
 
-**Response:**
+**Response (200):**
 
-Returns confirmation of assignments or per-item results.
+```json
+{
+  "assigned": 8,
+  "hubsCreated": ["New Hub", "Another Hub"],
+  "unknownLinkIds": ["00000000-0000-0000-0000-000000000000"]
+}
+```
+
+- `assigned` (integer) — Number of link-to-hub assignments that succeeded
+- `hubsCreated` (string array) — Names of hubs that were created during this call (did not exist before)
+- `unknownLinkIds` (string array) — Link IDs from the request that do not exist in the database
 
 ### PATCH /api/links/:id
 
