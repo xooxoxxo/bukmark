@@ -12,6 +12,17 @@ import { addLink } from '../src/links/addLink.js';
 const DEMO_URL =
   process.env.DEMO_DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark_demo';
 
+// Safety by construction, not by convention. This script exists to keep
+// published demo data away from real bookmarks, so it refuses to run
+// against anything but the throwaway demo database.
+if (!/\/bukmark_demo(\?|$)/.test(DEMO_URL)) {
+  console.error(
+    `refusing to seed: DEMO_DATABASE_URL must point at a database named ` +
+      `bukmark_demo, got ${DEMO_URL.replace(/\/\/[^@]*@/, '//***@')}`,
+  );
+  process.exit(1);
+}
+
 const HUBS = ['rust', 'homelab', 'reading', 'design', 'postgres'];
 
 const LINKS: Array<{ url: string; title: string; note: string; hub?: string }> = [
