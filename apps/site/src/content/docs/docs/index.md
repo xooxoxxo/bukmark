@@ -16,5 +16,6 @@ make at 1am with sixty tabs open.
 - **[Browser Extension](/docs/extension)** — Chrome and Brave extension for quick capturing and bookmark import
 - **[Sorting with Claude](/docs/sorting)** — Use Claude Code and MCP to intelligently sort your bookmarks
 - **[Export](/docs/export)** — Export your data as HTML, JSON, or CSV for backups and other uses
+- **[API reference](/docs/api)** — Every REST endpoint bukmark serves, with parameters and response schemas
 - **[CLI](/docs/cli)** — Batch-triage exports from OneTab, Chrome, or Safari using the v0 CLI tool
 - **[Development](/docs/development)** — Set up a local development environment and understand the monorepo
