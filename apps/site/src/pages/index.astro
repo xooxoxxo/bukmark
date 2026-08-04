@@ -1,0 +1,99 @@
+---
+// Landing page for bukmark — not using Starlight's docs layout
+import '../styles/custom.css';
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width" />
+		<title>bukmark — bookmarks you actually revisit</title>
+		<meta name="description" content="Self-hosted bookmark manager built around triage. Capture in one click. Everything lands unsorted on purpose — sorting is a separate, deliberate pass you run when you choose." />
+	</head>
+	<body>
+		<main>
+			<div class="container">
+				<!-- Hero -->
+				<section class="hero">
+					<h1>Bookmarks you actually revisit.</h1>
+					<div class="hero-copy">
+						<p><strong>Capture in one click.</strong> Everything lands unsorted on purpose — sorting is a separate, deliberate pass you run when you choose, with Claude proposing the assignments. Self-hosted, no account, your data in your Postgres.</p>
+					</div>
+					<div class="cta-group">
+						<a href="/docs/install" class="button button-primary">Get started</a>
+						<a href="https://github.com/xooxoxxo/bukmark" class="button button-secondary">View on GitHub</a>
+					</div>
+				</section>
+
+				<hr />
+
+				<!-- The inversion -->
+				<section>
+					<h2>Unsorted is a feature, not a failure state.</h2>
+					<p>Every bookmark manager treats the unsorted pile as technical debt—something to automate away with tags, folders, and AI classification. The pile is embarrassing; the product's job is to hide it.</p>
+					<p>bukmark inverts that. Collecting happens at one click, no friction. Sorting happens when you have the attention for it, in one deliberate batch, with Claude proposing assignments and you approving them. You're not making taxonomy decisions at 1am with fifty tabs open. You're thinking, deliberately.</p>
+					<p>Self-hosted and private. No account, no telemetry, no vendor lock-in. Your data stays in your Postgres, and it leaves whenever you want.</p>
+				</section>
+
+				<hr />
+
+				<!-- Features -->
+				<section>
+					<h2>How it works</h2>
+					<div class="features">
+						<div class="feature">
+							<h3>Capture</h3>
+							<p>Chrome extension. Toolbar button to save the current tab with an optional note. Keyboard shortcut (Cmd+Shift+S / Ctrl+Shift+S) for silent saves, no popup.</p>
+						</div>
+						<div class="feature">
+							<h3>Sort with Claude</h3>
+							<p>Drop the MCP server into your Claude Code config. Ask Claude to sort your unsorted links. It lists what you have, proposes assignments to your existing categories, and applies them in one batch after you approve.</p>
+						</div>
+						<div class="feature">
+							<h3>Export</h3>
+							<p>HTML (import into Chrome, Firefox, Safari), JSON (for backups), or CSV (for spreadsheets). Export everything, one category, or just what matches your search. Your data is yours.</p>
+						</div>
+					</div>
+				</section>
+
+				<hr />
+
+				<!-- Quickstart -->
+				<section>
+					<h2>Quick start</h2>
+					<p>Running locally takes one command. Postgres and the full API start in Docker.</p>
+					<div class="quickstart-code">
+						<code>git clone https://github.com/xooxoxxo/bukmark.git bukmark && cd bukmark
+docker compose up -d</code>
+					</div>
+					<p style="margin-top: 1rem; font-size: 0.9rem; color: var(--bk-text-muted);">
+						Then open <code style="font-family: 'Menlo', 'Courier New', monospace;">localhost:3000</code>. Full docs at <a href="/docs/install" style="color: var(--bk-accent); text-decoration: none;">/docs/install</a>.
+					</p>
+				</section>
+
+				<hr />
+
+				<!-- Screenshot -->
+				<section class="screenshot-section">
+					<h2>In use</h2>
+					<img src="/screenshot.png" alt="bukmark web UI showing an unsorted pile of bookmarks with search and category filtering. The interface displays a grid of links with titles, URLs, and save dates. A toolbar at the top offers export, bulk actions, and search. The design is clean and minimal, focusing on the content." />
+				</section>
+			</div>
+		</main>
+
+		<footer>
+			<div class="container-wide">
+				<div style="display: flex; flex-direction: column; gap: 1.5rem;">
+					<div>
+						<p><strong>bukmark</strong> is self-hosted and open source.</p>
+						<p style="margin-top: 0.5rem;"><a href="https://github.com/xooxoxxo/bukmark">GitHub</a> · <a href="https://github.com/xooxoxxo/bukmark/blob/main/LICENSE">MIT License</a></p>
+					</div>
+					<p style="font-size: 0.85rem; color: var(--bk-text-muted); border-top: 1px solid var(--bk-border); padding-top: 1.5rem;">
+						Handcrafted for people who think deliberately about what they read. No account. No data collection. No vendor lock-in.
+					</p>
+				</div>
+			</div>
+		</footer>
+	</body>
+</html>
