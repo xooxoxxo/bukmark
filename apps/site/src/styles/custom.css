@@ -1,0 +1,25 @@
+/* Palette lifted verbatim from apps/web so the site and the running app read
+   as one product. Change these only by changing them in apps/web first. */
+:root {
+  --bk-bg: #ffffff;
+  --bk-bg-muted: #f5f5f4;
+  --bk-border: #e7e5e4;
+  --bk-text: #1c1917;
+  --bk-text-muted: #78716c;
+  --bk-accent: #2563eb;
+  --bk-accent-soft: #dbeafe;
+  --bk-radius: 6px;
+}
+
+/* Map Starlight's own tokens onto ours. */
+:root {
+  --sl-color-accent: var(--bk-accent);
+  --sl-color-accent-low: var(--bk-accent-soft);
+  --sl-color-text: var(--bk-text);
+  --sl-color-text-accent: var(--bk-accent);
+  --sl-color-bg: var(--bk-bg);
+  --sl-color-bg-nav: var(--bk-bg);
+  --sl-color-hairline: var(--bk-border);
+  --sl-color-gray-2: var(--bk-text-muted);
+  --sl-color-gray-6: var(--bk-bg-muted);
+}
