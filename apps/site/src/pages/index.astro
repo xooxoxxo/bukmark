@@ -113,10 +113,11 @@ docker compose up -d</pre>
 		<footer>
 			<div class="foot-dense">
 				<p>
-					bukmark. Self-hosted bookmark manager. Built with Postgres, Docker, Claude MCP.
-					<a href="https://github.com/xooxoxxo/bukmark/blob/main/LICENSE">MIT licensed</a>. Open
-					source. No telemetry. No vendor lock-in.
-					<a href="https://github.com/xooxoxxo/bukmark">github.com/xooxoxxo/bukmark</a>.
+					bukmark. Self-hosted bookmark manager. Built with Postgres, Docker, Claude MCP. <a
+						href="https://github.com/xooxoxxo/bukmark/blob/main/LICENSE">MIT licensed</a
+					>. Open source. No telemetry. No vendor lock-in. <a
+						href="https://github.com/xooxoxxo/bukmark">github.com/xooxoxxo/bukmark</a
+					>.
 				</p>
 			</div>
 		</footer>
@@ -281,7 +282,7 @@ docker compose up -d</pre>
 
 			/* ====== SECTIONS ====== */
 			.bk-section {
-				padding: var(--bk-space-3xl) var(--bk-space-xl);
+				padding: var(--bk-space-2xl) var(--bk-space-xl);
 				border-bottom: 2px solid var(--bk-ink);
 			}
 
@@ -303,9 +304,10 @@ docker compose up -d</pre>
 
 			.section__head {
 				font-family: var(--bk-font-display);
-				font-size: var(--bk-text-2xl);
+				font-size: clamp(2rem, 3.5vw + 0.5rem, 3.25rem);
 				font-weight: 800;
-				line-height: 1.1;
+				line-height: 1.05;
+				text-transform: uppercase;
 				letter-spacing: -0.02em;
 				margin: 0 0 var(--bk-space-lg) 0;
 				color: var(--bk-ink);
@@ -323,7 +325,7 @@ docker compose up -d</pre>
 
 			/* ====== HERO ====== */
 			.hero__content {
-				max-width: 70ch;
+				max-width: 62rem;
 			}
 
 			.hero__display {
@@ -345,8 +347,8 @@ docker compose up -d</pre>
 			}
 
 			.hero__subhead {
-				font-size: var(--bk-text-md);
-				line-height: 1.5;
+				font-size: var(--bk-text-lg);
+				line-height: 1.45;
 				margin: 0 0 var(--bk-space-lg) 0;
 				max-width: 65ch;
 				color: var(--bk-neutral);
@@ -362,7 +364,7 @@ docker compose up -d</pre>
 			.hero__cta-group {
 				display: flex;
 				gap: var(--bk-space-md);
-				margin-bottom: var(--bk-space-2xl);
+				margin-bottom: var(--bk-space-xl);
 				flex-wrap: wrap;
 			}
 
@@ -485,7 +487,14 @@ docker compose up -d</pre>
 				display: grid;
 				grid-template-columns: 1fr;
 				gap: var(--bk-space-2xl);
-				margin-top: var(--bk-space-2xl);
+				margin-top: var(--bk-space-xl);
+			}
+
+			@media (min-width: 64rem) {
+				.workflow {
+					grid-template-columns: repeat(3, minmax(0, 1fr));
+					gap: var(--bk-space-xl);
+				}
 			}
 
 			.workflow__step {
@@ -495,7 +504,7 @@ docker compose up -d</pre>
 
 			.workflow__step__title {
 				font-family: var(--bk-font-display);
-				font-size: var(--bk-text-lg);
+				font-size: var(--bk-text-xl);
 				font-weight: 700;
 				text-transform: uppercase;
 				letter-spacing: 0.04em;
@@ -522,6 +531,7 @@ docker compose up -d</pre>
 				margin: 0;
 				padding: 0;
 				border: 1px solid var(--bk-rule);
+				max-width: 56rem;
 			}
 
 			.bk-section figure img {
