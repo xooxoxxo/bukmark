@@ -1,16 +1,16 @@
 .card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: 1px solid var(--bk-rule);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: var(--bk-paper);
 }
 
 .media {
   position: relative;
   aspect-ratio: 16 / 9;
-  background: var(--bg-muted);
+  background: var(--bk-paper-2);
+  border-bottom: 1px solid var(--bk-rule);
 }
 
 .media img {
@@ -23,40 +23,43 @@
 .placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, var(--bg-muted), var(--border));
+  background: var(--bk-paper-2);
 }
 
 .check {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  top: var(--bk-space-sm);
+  left: var(--bk-space-sm);
 }
 
 .badge {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: var(--bk-space-sm);
+  right: var(--bk-space-sm);
   width: 22px;
   height: 22px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 12px;
+  background: var(--bk-paper);
+  color: var(--bk-muted);
+  font-size: var(--bk-text-xs);
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid var(--bk-rule);
 }
 
 .body {
-  padding: 8px 10px;
+  padding: var(--bk-space-md);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--bk-space-sm);
   min-height: 64px;
 }
 
 .title {
-  font-size: 13px;
+  font-size: var(--bk-text-sm);
+  font-weight: 500;
+  color: var(--bk-ink);
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -65,14 +68,17 @@
 
 .chips {
   display: flex;
-  gap: 4px;
+  gap: var(--bk-space-xs);
   flex-wrap: wrap;
+  margin-top: auto;
 }
 
 .chip {
-  background: var(--bg-muted);
-  border-radius: 999px;
-  padding: 1px 8px;
-  font-size: 11px;
-  color: var(--text-muted);
+  background: var(--bk-paper-2);
+  border: 1px solid var(--bk-rule);
+  padding: var(--bk-space-2xs) var(--bk-space-sm);
+  font-size: var(--bk-text-xs);
+  color: var(--bk-muted);
+  font-weight: 500;
+  white-space: nowrap;
 }

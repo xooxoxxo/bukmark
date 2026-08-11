@@ -14,11 +14,12 @@
 .gridRow {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  padding: 6px 0;
+  gap: var(--bk-space-md);
+  padding: var(--bk-space-sm) 0;
 }
 
 .loader {
-  padding: 16px;
-  color: var(--text-muted);
+  padding: var(--bk-space-lg);
+  color: var(--bk-neutral);
+  font-size: var(--bk-text-sm);
 }

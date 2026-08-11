@@ -12,6 +12,7 @@
 }
 
 .loader {
-  padding: 16px;
-  color: var(--text-muted);
+  padding: var(--bk-space-lg);
+  color: var(--bk-neutral);
+  font-size: var(--bk-text-sm);
 }
