@@ -1,5 +1,6 @@
 ---
-// Landing page for bukmark — not using Starlight's docs layout
+// Landing page for bukmark — not using Starlight's docs layout.
+// Design: Hallmark hybrid — Brutal (tempered) skin, workbench content flow.
 import '../styles/custom.css';
 ---
 
@@ -7,94 +8,575 @@ import '../styles/custom.css';
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<title>bukmark — bookmarks you actually revisit</title>
-		<meta name="description" content="Self-hosted bookmark manager built around triage. Capture in one click. Everything lands unsorted on purpose — sorting is a separate, deliberate pass you run when you choose." />
-		<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23ffffff'/><rect width='32' height='32' fill='%232563eb' rx='6' opacity='0.1'/><path d='M6 8h20v2H6V8zm0 6h14v2H6v-2zm0 6h18v2H6v-2z' fill='%232563eb'/></svg>" type="image/svg+xml" />
+		<meta
+			name="description"
+			content="Self-hosted bookmark manager built around triage. Capture in one click. Everything lands unsorted on purpose — sorting is a separate, deliberate pass you run when you choose."
+		/>
+		<link rel="icon" href="/favicon.png" type="image/png" />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	</head>
 	<body>
+		<header class="nav-slab">
+			<a class="nav-slab__brand" href="/">
+				<img class="nav-slab__logo" src="/logo-mark.png" alt="" width="140" height="200" />
+				<span class="nav-slab__mark">bukmark</span>
+			</a>
+			<nav aria-label="Primary">
+				<ul class="nav-slab__links">
+					<li><a class="nav-slab__link" href="#workflow">How</a></li>
+					<li><a class="nav-slab__link" href="/docs/install">Install</a></li>
+					<li><a class="nav-slab__link" href="/docs/">Docs</a></li>
+				</ul>
+			</nav>
+			<a class="nav-slab__cta" href="https://github.com/xooxoxxo/bukmark">Star</a>
+		</header>
+
 		<main>
-			<div class="container">
-				<!-- Hero -->
-				<section class="hero">
-					<h1>Bookmarks you actually revisit.</h1>
-					<div class="hero-copy">
-						<p><strong>Capture in one click.</strong> Everything lands unsorted on purpose — sorting is a separate, deliberate pass you run when you choose, with Claude proposing the assignments. Self-hosted, no account, your data in your Postgres.</p>
-					</div>
-					<div class="cta-group">
-						<a href="/docs/install" class="button button-primary">Get started</a>
-						<a href="https://github.com/xooxoxxo/bukmark" class="button button-secondary">View on GitHub</a>
-					</div>
-				</section>
-
-				<hr />
-
-				<!-- The inversion -->
-				<section>
-					<h2>Unsorted is a feature, not a failure state.</h2>
-					<p>Every bookmark manager treats the unsorted pile as technical debt—something to automate away with tags, folders, and AI classification. The pile is embarrassing; the product's job is to hide it.</p>
-					<p>bukmark inverts that. Collecting happens at one click, no friction. Sorting happens when you have the attention for it, in one deliberate batch, with Claude proposing assignments and you approving them. You're not making taxonomy decisions at 1am with fifty tabs open. You're thinking, deliberately.</p>
-					<p>Self-hosted and private. No account, no telemetry, no vendor lock-in. Your data stays in your Postgres, and it leaves whenever you want.</p>
-				</section>
-
-				<hr />
-
-				<!-- Features -->
-				<section>
-					<h2>How it works</h2>
-					<div class="features">
-						<div class="feature">
-							<h3>Capture</h3>
-							<p>Chrome extension. Toolbar button to save the current tab with an optional note. Keyboard shortcut (Cmd+Shift+S / Ctrl+Shift+S) for silent saves, no popup.</p>
-						</div>
-						<div class="feature">
-							<h3>Sort with Claude</h3>
-							<p>Drop the MCP server into your Claude Code config. Ask Claude to sort your unsorted links. It lists what you have, proposes assignments to your existing categories, and applies them in one batch after you approve.</p>
-						</div>
-						<div class="feature">
-							<h3>Export</h3>
-							<p>HTML (import into Chrome, Firefox, Safari), JSON (for backups), or CSV (for spreadsheets). Export everything, one category, or just what matches your search. Your data is yours.</p>
-						</div>
-					</div>
-				</section>
-
-				<hr />
-
-				<!-- Quickstart -->
-				<section>
-					<h2>Quick start</h2>
-					<p>Running locally takes one command. Postgres and the full API start in Docker.</p>
-					<div class="quickstart-code">
-						<code>git clone https://github.com/xooxoxxo/bukmark.git bukmark && cd bukmark
-docker compose up -d</code>
-					</div>
-					<p style="margin-top: 1rem; font-size: 0.9rem; color: var(--bk-text-muted);">
-						Then open <code style="font-family: 'Menlo', 'Courier New', monospace;">localhost:3000</code>. Full docs at <a href="/docs/install" style="color: var(--bk-accent); text-decoration: none;">/docs/install</a>.
+			<section class="bk-section hero">
+				<div class="hero__content">
+					<h1 class="hero__display">Bookmarks you actually revisit.</h1>
+					<p class="hero__subhead">
+						Capture anything with one click. Sort deliberately with Claude. Self-hosted, open
+						source. No accounts. No lock-in.
 					</p>
-				</section>
+					<div class="hero__cta-group">
+						<a class="cta" href="https://github.com/xooxoxxo/bukmark">Star on GitHub</a>
+						<a class="cta cta--secondary" href="/docs/install">Get started</a>
+					</div>
+					<div class="code-block">
+						<pre
+							class="code-block__pre">git clone https://github.com/xooxoxxo/bukmark.git bukmark && cd bukmark
+docker compose up -d</pre>
+					</div>
+					<p class="section__body">
+						Open <code>localhost:3000</code>. Install the Chrome extension. Start capturing.
+					</p>
+				</div>
+			</section>
 
-				<hr />
+			<section class="bk-section reveal" id="workflow">
+				<h2 class="section__head">The Three Moves</h2>
+				<p class="section__body">
+					Three deliberate steps. Speed up capture. Batch your sorting. Own your export.
+				</p>
+				<div class="workflow">
+					<div class="workflow__step">
+						<h3 class="workflow__step__title">Capture</h3>
+						<p class="workflow__step__desc">
+							Install the Chrome extension. Toolbar button saves the current page with an optional
+							note. Keyboard shortcut Cmd+Shift+S (or Ctrl+Shift+S) for silent save—no popup, no
+							friction. You capture now. Decide later.
+						</p>
+					</div>
+					<div class="workflow__step">
+						<h3 class="workflow__step__title">Sort with Claude</h3>
+						<p class="workflow__step__desc">
+							Drop the MCP server into your Claude Code config. Ask Claude to sort your unsorted
+							links. It proposes assignments to your existing categories; you approve or reassign
+							in one batch. Deliberate sorting, on your schedule—not the machine's.
+						</p>
+					</div>
+					<div class="workflow__step">
+						<h3 class="workflow__step__title">Export</h3>
+						<p class="workflow__step__desc">
+							HTML (imports into any browser), JSON (backups), CSV (spreadsheets). Export all, one
+							category, or search results. Data leaves the way you want it. You own everything.
+						</p>
+					</div>
+				</div>
+			</section>
 
-				<!-- Screenshot -->
-				<section class="screenshot-section">
-					<h2>In use</h2>
-					<img src="/screenshot.png" alt="bukmark interface showing a left sidebar of hub categories, stat pills at the top tracking link counts and status, and a list view of bookmarks with titles and brief notes." />
-				</section>
-			</div>
+			<section class="bk-section reveal">
+				<figure>
+					<img
+						src="/screenshot.png"
+						alt="bukmark interface showing a left sidebar of hub categories, stat pills at the top tracking link counts and status, and a list view of bookmarks with titles and brief notes."
+					/>
+					<figcaption>
+						Inbox interface. Hubs on the left. Stats and search above the list. Sort on demand via
+						Claude.
+					</figcaption>
+				</figure>
+			</section>
+
+			<section class="bk-section reveal">
+				<div class="hero__cta-group">
+					<a class="cta" href="/docs/">Read the Docs</a>
+					<a class="cta cta--secondary" href="/docs/install">Install locally</a>
+				</div>
+			</section>
 		</main>
 
 		<footer>
-			<div class="container-wide">
-				<div style="display: flex; flex-direction: column; gap: 1.5rem;">
-					<div>
-						<p><strong>bukmark</strong> is self-hosted and open source.</p>
-						<p style="margin-top: 0.5rem;"><a href="https://github.com/xooxoxxo/bukmark">GitHub</a> · <a href="https://github.com/xooxoxxo/bukmark/blob/main/LICENSE">MIT License</a></p>
-					</div>
-					<p style="font-size: 0.85rem; color: var(--bk-text-muted); border-top: 1px solid var(--bk-border); padding-top: 1.5rem;">
-						Handcrafted for people who think deliberately about what they read. No account. No data collection. No vendor lock-in.
-					</p>
-				</div>
+			<div class="foot-dense">
+				<p>
+					bukmark. Self-hosted bookmark manager. Built with Postgres, Docker, Claude MCP.
+					<a href="https://github.com/xooxoxxo/bukmark/blob/main/LICENSE">MIT licensed</a>. Open
+					source. No telemetry. No vendor lock-in.
+					<a href="https://github.com/xooxoxxo/bukmark">github.com/xooxoxxo/bukmark</a>.
+				</p>
 			</div>
 		</footer>
+
+		<script>
+			// Reveal animation via IntersectionObserver — progressive enhancement.
+			// Without JS every .reveal section stays fully visible.
+			document.documentElement.classList.add('js');
+
+			const revealObserver = new IntersectionObserver(
+				(entries) => {
+					for (const entry of entries) {
+						if (entry.isIntersecting) {
+							(entry.target as HTMLElement).style.opacity = '1';
+							(entry.target as HTMLElement).style.transform = 'none';
+							revealObserver.unobserve(entry.target);
+						}
+					}
+				},
+				{ threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+			);
+
+			document.querySelectorAll('.bk-section.reveal').forEach((el) => revealObserver.observe(el));
+		</script>
+
+		<style is:global>
+			html {
+				overflow-x: clip;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			body {
+				overflow-x: clip;
+				margin: 0;
+				padding: 0;
+				background: var(--bk-paper);
+				color: var(--bk-ink);
+				font-family: var(--bk-font-body);
+				font-size: var(--bk-text-base);
+				line-height: 1.6;
+				-webkit-font-smoothing: antialiased;
+			}
+
+			/* ====== NAV ====== */
+			.nav-slab {
+				display: flex;
+				align-items: center;
+				gap: var(--bk-space-md);
+				padding: var(--bk-space-md) var(--bk-space-xl);
+				border-bottom: 2px solid var(--bk-ink);
+				background: var(--bk-paper);
+			}
+
+			.nav-slab__brand {
+				display: flex;
+				align-items: center;
+				gap: var(--bk-space-xs);
+				text-decoration: none;
+				flex-shrink: 0;
+			}
+
+			.nav-slab__logo {
+				width: auto;
+				height: 2rem;
+				display: block;
+			}
+
+			.nav-slab__mark {
+				font-family: var(--bk-font-display);
+				font-weight: 800;
+				font-size: var(--bk-text-lg);
+				letter-spacing: -0.01em;
+				color: var(--bk-ink);
+			}
+
+			.nav-slab nav {
+				margin-left: auto;
+			}
+
+			.nav-slab__links {
+				display: flex;
+				gap: var(--bk-space-xl);
+				list-style: none;
+				padding: 0;
+				margin: 0;
+				flex-shrink: 0;
+			}
+
+			.nav-slab__link {
+				font-size: var(--bk-text-sm);
+				font-weight: 600;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				text-decoration: none;
+				color: var(--bk-ink);
+				transition: color var(--bk-dur-micro) var(--bk-ease-out);
+			}
+
+			.nav-slab__link:hover {
+				color: var(--bk-accent);
+			}
+
+			.nav-slab__link:focus-visible {
+				outline: 2px solid var(--bk-accent);
+				outline-offset: 3px;
+			}
+
+			.nav-slab__cta {
+				flex-shrink: 0;
+				padding: var(--bk-space-sm) var(--bk-space-lg);
+				background: var(--bk-ink);
+				color: var(--bk-paper);
+				font-family: var(--bk-font-display);
+				font-size: var(--bk-text-sm);
+				font-weight: 700;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+				text-decoration: none;
+				border: 2px solid var(--bk-ink);
+				cursor: pointer;
+				transition:
+					background var(--bk-dur-micro) var(--bk-ease-out),
+					border-color var(--bk-dur-micro) var(--bk-ease-out);
+			}
+
+			.nav-slab__cta:hover {
+				background: var(--bk-accent);
+				border-color: var(--bk-accent);
+			}
+
+			.nav-slab__cta:active {
+				transform: translateY(1px);
+			}
+
+			.nav-slab__cta:focus-visible {
+				outline: 2px solid var(--bk-accent);
+				outline-offset: 3px;
+			}
+
+			@media (max-width: 40rem) {
+				.nav-slab {
+					padding: var(--bk-space-md);
+					gap: var(--bk-space-md);
+				}
+				.nav-slab__mark {
+					font-size: var(--bk-text-base);
+				}
+				.nav-slab__logo {
+					height: 1.5rem;
+				}
+				.nav-slab__links {
+					display: none;
+				}
+				.nav-slab__cta {
+					font-size: var(--bk-text-xs);
+					padding: var(--bk-space-sm) var(--bk-space-md);
+				}
+			}
+
+			/* ====== SECTIONS ====== */
+			.bk-section {
+				padding: var(--bk-space-3xl) var(--bk-space-xl);
+				border-bottom: 2px solid var(--bk-ink);
+			}
+
+			.js .bk-section.reveal {
+				opacity: 0;
+				transform: translateY(8px);
+				animation: bk-reveal var(--bk-dur-long) var(--bk-ease-out) forwards;
+			}
+
+			.js .bk-section.reveal:nth-of-type(2) {
+				animation-delay: 60ms;
+			}
+			.js .bk-section.reveal:nth-of-type(3) {
+				animation-delay: 120ms;
+			}
+			.js .bk-section.reveal:nth-of-type(4) {
+				animation-delay: 180ms;
+			}
+
+			.section__head {
+				font-family: var(--bk-font-display);
+				font-size: var(--bk-text-2xl);
+				font-weight: 800;
+				line-height: 1.1;
+				letter-spacing: -0.02em;
+				margin: 0 0 var(--bk-space-lg) 0;
+				color: var(--bk-ink);
+				overflow-wrap: anywhere;
+				min-width: 0;
+			}
+
+			.section__body {
+				font-size: var(--bk-text-base);
+				line-height: 1.65;
+				max-width: 65ch;
+				margin: 0 0 var(--bk-space-lg) 0;
+				color: var(--bk-neutral);
+			}
+
+			/* ====== HERO ====== */
+			.hero__content {
+				max-width: 70ch;
+			}
+
+			.hero__display {
+				font-family: var(--bk-font-display);
+				font-size: var(--bk-text-display);
+				font-weight: 800;
+				line-height: 1.1;
+				letter-spacing: -0.02em;
+				margin: 0 0 var(--bk-space-lg) 0;
+				color: var(--bk-ink);
+				overflow-wrap: anywhere;
+				min-width: 0;
+			}
+
+			.js .hero__display {
+				animation: bk-reveal var(--bk-dur-long) var(--bk-ease-out) forwards;
+				opacity: 0;
+				transform: translateY(8px);
+			}
+
+			.hero__subhead {
+				font-size: var(--bk-text-md);
+				line-height: 1.5;
+				margin: 0 0 var(--bk-space-lg) 0;
+				max-width: 65ch;
+				color: var(--bk-neutral);
+			}
+
+			.js .hero__subhead {
+				animation: bk-reveal var(--bk-dur-long) var(--bk-ease-out) forwards;
+				animation-delay: 60ms;
+				opacity: 0;
+				transform: translateY(8px);
+			}
+
+			.hero__cta-group {
+				display: flex;
+				gap: var(--bk-space-md);
+				margin-bottom: var(--bk-space-2xl);
+				flex-wrap: wrap;
+			}
+
+			.cta {
+				flex: 0 1 auto;
+				padding: var(--bk-space-md) var(--bk-space-xl);
+				font-family: var(--bk-font-display);
+				font-size: var(--bk-text-sm);
+				font-weight: 700;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+				text-decoration: none;
+				border: 2px solid var(--bk-ink);
+				background: var(--bk-ink);
+				color: var(--bk-paper);
+				cursor: pointer;
+				transition:
+					background var(--bk-dur-short) var(--bk-ease-out),
+					border-color var(--bk-dur-short) var(--bk-ease-out),
+					transform var(--bk-dur-short) var(--bk-ease-out);
+				white-space: nowrap;
+			}
+
+			.cta:hover {
+				background: var(--bk-accent);
+				border-color: var(--bk-accent);
+				transform: translateY(-2px);
+			}
+
+			.cta:active {
+				transform: translateY(0);
+			}
+
+			.cta:focus-visible {
+				outline: 2px solid var(--bk-accent);
+				outline-offset: 3px;
+			}
+
+			.cta--secondary {
+				background: transparent;
+				color: var(--bk-ink);
+			}
+
+			.cta--secondary:hover {
+				background: var(--bk-accent);
+				border-color: var(--bk-accent);
+				color: var(--bk-paper);
+			}
+
+			/* ====== CODE BLOCK ====== */
+			.code-block {
+				background: var(--bk-paper-2);
+				border: 1px solid var(--bk-rule);
+				padding: var(--bk-space-lg);
+				margin: 0 0 var(--bk-space-lg) 0;
+				overflow-x: auto;
+			}
+
+			.js .code-block {
+				animation: bk-reveal var(--bk-dur-long) var(--bk-ease-out) forwards;
+				animation-delay: 120ms;
+				opacity: 0;
+				transform: translateY(8px);
+			}
+
+			.code-block__pre {
+				font-family: var(--bk-font-mono);
+				font-size: var(--bk-text-sm);
+				line-height: 1.5;
+				margin: 0;
+				color: var(--bk-ink);
+				white-space: pre;
+			}
+
+			@keyframes bk-reveal {
+				to {
+					opacity: 1;
+					transform: none;
+				}
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				.js .hero__display,
+				.js .hero__subhead,
+				.js .code-block,
+				.js .bk-section.reveal {
+					animation: none !important;
+					opacity: 1;
+					transform: none;
+				}
+			}
+
+			@media (max-width: 40rem) {
+				.bk-section {
+					padding: var(--bk-space-2xl) var(--bk-space-lg);
+				}
+				.hero__display {
+					font-size: clamp(1.75rem, 4vw, 3rem);
+				}
+				.hero__cta-group {
+					flex-direction: column;
+					gap: var(--bk-space-sm);
+				}
+				.cta {
+					width: 100%;
+					text-align: center;
+					padding: var(--bk-space-md) var(--bk-space-lg);
+					font-size: var(--bk-text-xs);
+				}
+				.code-block {
+					padding: var(--bk-space-md);
+				}
+				.code-block__pre {
+					font-size: var(--bk-text-xs);
+				}
+			}
+
+			/* ====== WORKFLOW ====== */
+			.workflow {
+				display: grid;
+				grid-template-columns: 1fr;
+				gap: var(--bk-space-2xl);
+				margin-top: var(--bk-space-2xl);
+			}
+
+			.workflow__step {
+				border-left: 2px solid var(--bk-ink);
+				padding-left: var(--bk-space-lg);
+			}
+
+			.workflow__step__title {
+				font-family: var(--bk-font-display);
+				font-size: var(--bk-text-lg);
+				font-weight: 700;
+				text-transform: uppercase;
+				letter-spacing: 0.04em;
+				margin: 0 0 var(--bk-space-md) 0;
+				color: var(--bk-ink);
+			}
+
+			.workflow__step__desc {
+				font-size: var(--bk-text-base);
+				line-height: 1.6;
+				margin: 0;
+				max-width: 65ch;
+				color: var(--bk-neutral);
+			}
+
+			@media (max-width: 40rem) {
+				.workflow {
+					gap: var(--bk-space-xl);
+				}
+			}
+
+			/* ====== FIGURE ====== */
+			.bk-section figure {
+				margin: 0;
+				padding: 0;
+				border: 1px solid var(--bk-rule);
+			}
+
+			.bk-section figure img {
+				display: block;
+				width: 100%;
+				height: auto;
+				background: var(--bk-paper);
+			}
+
+			.bk-section figcaption {
+				padding: var(--bk-space-md) var(--bk-space-lg);
+				font-size: var(--bk-text-sm);
+				color: var(--bk-muted);
+				line-height: 1.5;
+				border-top: 1px solid var(--bk-rule);
+			}
+
+			/* ====== FOOTER ====== */
+			footer {
+				padding: var(--bk-space-2xl) var(--bk-space-xl);
+				background: var(--bk-paper);
+			}
+
+			.foot-dense {
+				font-family: var(--bk-font-mono);
+				font-size: var(--bk-text-sm);
+				line-height: 1.8;
+				color: var(--bk-neutral);
+				max-width: 80ch;
+			}
+
+			.foot-dense p {
+				margin: 0;
+			}
+
+			.foot-dense a {
+				color: var(--bk-accent);
+				text-decoration: none;
+				transition: color var(--bk-dur-micro) var(--bk-ease-out);
+			}
+
+			.foot-dense a:hover {
+				color: var(--bk-ink);
+			}
+
+			.foot-dense a:focus-visible {
+				outline: 2px solid var(--bk-accent);
+				outline-offset: 2px;
+			}
+
+			@media (max-width: 40rem) {
+				.foot-dense {
+					font-size: var(--bk-text-xs);
+				}
+			}
+		</style>
 	</body>
 </html>
