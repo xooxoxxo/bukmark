@@ -18,5 +18,6 @@ apps/extension/dist/
 
 # Playwright MCP scratch output
 .playwright-mcp/
+.superpowers/
 # Stray viewport captures from browser checks (the real one is apps/site/public/)
 /*.png
