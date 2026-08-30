@@ -8,7 +8,7 @@ import { makeWrapper } from './test/utils';
 vi.mock('./api/client');
 
 describe('App shell', () => {
-  it('renders title, stats and links view at /', async () => {
+  it('renders title, compact toolbar, unassigned count and links view at /', async () => {
     vi.mocked(client.fetchHubs).mockResolvedValue({ items: [] });
     vi.mocked(client.fetchStats).mockResolvedValue({
       links: 1,
@@ -27,7 +27,10 @@ describe('App shell', () => {
       </Wrapper>,
     );
     expect(screen.getByRole('heading', { name: 'bukmark' })).toBeInTheDocument();
-    expect(await screen.findByText('1 links')).toBeInTheDocument();
+    expect(screen.getByRole('banner', { name: 'Application toolbar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Unassigned 1' })).toBeInTheDocument();
+    expect(screen.queryByText('1 links')).not.toBeInTheDocument();
     expect(await screen.findByText('0 results')).toBeInTheDocument();
   });
 });

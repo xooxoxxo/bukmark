@@ -5,6 +5,8 @@ import { BulkBar } from './BulkBar';
 import { FilterBar } from './FilterBar';
 import { LinksGrid } from './LinksGrid';
 import { LinksTable } from './LinksTable';
+import styles from './LinksView.module.css';
+import { Checkbox } from './ui/Checkbox';
 
 export function LinksView({ hubId }: { hubId?: string }) {
   const q = useFilters((s) => s.q);
@@ -23,29 +25,49 @@ export function LinksView({ hubId }: { hubId?: string }) {
   const rows = query.data?.pages.flatMap((p) => p.items) ?? [];
   const total = query.data?.pages[0]?.total ?? 0;
   const allLoadedSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
+  const filtered = Boolean(q || unassigned || status === 'archived' || hubId);
 
   return (
     <>
       <FilterBar hubMode={hubId !== undefined} total={total} />
       {rows.length > 0 ? (
-        <label>
-          <input
-            type="checkbox"
-            checked={allLoadedSelected}
-            onChange={(e) =>
-              setMany(
-                rows.map((r) => r.id),
-                e.target.checked,
-              )
-            }
-            aria-label="Select all loaded"
-          />{' '}
-          Select all loaded
-        </label>
+        <div className={styles.selectionToolbar} data-testid="selection-toolbar">
+          <label className={styles.selectAll}>
+            <Checkbox
+              checked={allLoadedSelected}
+              onCheckedChange={(checked) =>
+                setMany(
+                  rows.map((r) => r.id),
+                  checked,
+                )
+              }
+              aria-label="Select all loaded"
+            />
+            Select all loaded
+          </label>
+          <BulkBar />
+        </div>
       ) : null}
-      <BulkBar />
-      {query.isError ? <p role="alert">{query.error.message}</p> : null}
-      {view === 'grid' ? (
+      {query.isPending ? (
+        <div className={styles.state} aria-live="polite">
+          <h2>Loading links</h2>
+          <p>Opening the workbench.</p>
+        </div>
+      ) : query.isError ? (
+        <div className={`${styles.state} ${styles.error}`} role="alert">
+          <h2>Links could not load</h2>
+          <p>{query.error.message}</p>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className={styles.state}>
+          <h2>{filtered ? 'Nothing matches this view' : 'No links here yet'}</h2>
+          <p>
+            {filtered
+              ? 'Try another search or filter.'
+              : 'Capture a page with the extension; it will land here unsorted.'}
+          </p>
+        </div>
+      ) : view === 'grid' ? (
         <LinksGrid
           rows={rows}
           hasNextPage={query.hasNextPage}

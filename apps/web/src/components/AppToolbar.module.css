@@ -1,0 +1,7 @@
+.bar {
+  display: flex;
+  align-items: center;
+  min-height: 5.25rem;
+  padding: 0 clamp(1rem, 2.5vw, 2.5rem);
+  border-bottom: 2px solid var(--bk-ink);
+}

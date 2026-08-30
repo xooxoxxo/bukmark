@@ -14,7 +14,7 @@ export function ExportButton() {
   const [open, setOpen] = useState(false);
   const { q, unassigned, status } = useFilters();
   // hub is NOT in the filter store — it is the route param on hubs/:hubId.
-  // StatsBar renders inside Layout inside Routes, so useParams reaches it.
+  // AppToolbar renders inside Layout inside Routes, so useParams reaches it.
   const { hubId } = useParams<{ hubId: string }>();
 
   const current = (format: ExportFormat): string =>

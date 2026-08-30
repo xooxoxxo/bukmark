@@ -1,53 +1,135 @@
 .header {
-  padding: 16px 0 0;
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--bk-space-lg);
+  align-items: end;
+  padding: var(--bk-space-xl) 0;
+  border-bottom: 2px solid var(--bk-ink);
 }
 
 .name {
   margin: 0;
-  font-size: 18px;
+  font-family: var(--bk-font-display);
+  font-size: clamp(2.5rem, 5vw, 5.25rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.92;
+  text-wrap: balance;
 }
 
 .desc {
-  margin: 0;
-  color: var(--text-muted);
+  grid-column: 1;
+  max-width: 54ch;
+  margin: calc(-1 * var(--bk-space-sm)) 0 0;
+  color: var(--bk-muted);
+  font-size: var(--bk-text-md);
+}
+
+.actions,
+.renameForm {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--bk-space-xs);
 }
 
 .actions {
-  display: flex;
-  gap: 6px;
-  margin-left: auto;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.actions button,
+.renameForm button,
+.renameForm input {
+  min-height: 2.75rem;
+  padding: var(--bk-space-xs) var(--bk-space-md);
+  border: 1px solid var(--bk-rule);
+  background: var(--bk-paper);
+  color: var(--bk-ink);
+  font-size: var(--bk-text-sm);
 }
 
 .actions button,
 .renameForm button {
-  padding: 3px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  font-size: 12px;
+  font-family: var(--bk-font-display);
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background var(--bk-dur-micro) var(--bk-ease-out), color var(--bk-dur-micro) var(--bk-ease-out), border-color var(--bk-dur-micro) var(--bk-ease-out);
+}
+
+.actions button:hover,
+.renameForm button:hover {
+  border-color: var(--bk-ink);
+  background: var(--bk-ink);
+  color: var(--bk-paper);
 }
 
 .renameForm {
-  display: flex;
-  gap: 6px;
+  grid-column: 1 / -1;
+  justify-content: flex-start;
 }
 
 .renameForm input {
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  flex: 1;
+  min-width: 12rem;
+  border: 2px solid var(--bk-ink);
 }
 
 .danger {
-  color: var(--danger);
+  border-color: var(--danger) !important;
+  color: var(--danger) !important;
+}
+
+.danger:hover {
+  background: var(--danger) !important;
+  color: white !important;
 }
 
 .error {
+  grid-column: 1 / -1;
+  margin: 0;
   color: var(--danger);
-  font-size: 12px;
-  width: 100%;
+  font-size: 0.8125rem;
+}
+
+.state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 24rem;
+  padding: clamp(2rem, 6vw, 6rem) 0;
+}
+
+.state h2 {
+  max-width: 10ch;
+  margin: 0 0 var(--bk-space-md);
+  font-family: var(--bk-font-display);
+  font-size: clamp(3rem, 7vw, 6rem);
+  font-weight: 800;
+  letter-spacing: -0.055em;
+  line-height: 0.9;
+}
+
+.state p {
+  max-width: 42ch;
+  margin: 0;
+  color: var(--bk-muted);
+  font-size: var(--bk-text-md);
+}
+
+@media (max-width: 52rem) {
+  .header {
+    display: block;
+  }
+
+  .desc,
+  .actions {
+    margin-top: var(--bk-space-lg);
+  }
+
+  .actions,
+  .renameForm {
+    justify-content: flex-start;
+  }
 }

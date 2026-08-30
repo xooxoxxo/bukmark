@@ -3,6 +3,7 @@ import { useHubs } from '../api/queries';
 import type { LinkDto } from '../api/types';
 import { useSelection } from '../state/selection';
 import styles from './LinkRow.module.css';
+import { Checkbox } from './ui/Checkbox';
 
 export function LinkRow({ link }: { link: LinkDto }) {
   const selected = useSelection((s) => s.selected.has(link.id));
@@ -13,10 +14,10 @@ export function LinkRow({ link }: { link: LinkDto }) {
 
   return (
     <div className={styles.row}>
-      <input
-        type="checkbox"
+      <Checkbox
+        className={styles.rowCheck}
         checked={selected}
-        onChange={() => toggle(link.id)}
+        onCheckedChange={() => toggle(link.id)}
         aria-label={`Select ${link.title}`}
       />
       <span className={styles.badge}>{link.relevance ?? '–'}</span>

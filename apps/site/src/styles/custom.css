@@ -55,9 +55,259 @@
   --sl-color-text-accent: var(--bk-accent);
   --sl-color-bg: var(--bk-paper);
   --sl-color-bg-nav: var(--bk-paper);
+  --sl-color-bg-sidebar: var(--bk-paper);
   --sl-color-hairline: var(--bk-rule);
   --sl-color-gray-2: var(--bk-neutral);
   --sl-color-gray-6: var(--bk-paper-2);
   --sl-font: var(--bk-font-body);
   --sl-font-headings: var(--bk-font-display);
+  --sl-content-width: 52rem;
+  --sl-text-5xl: clamp(2.75rem, 6vw, 5.5rem);
+  color-scheme: light;
+}
+
+/* The product has one deliberate paper theme. Keep Starlight's generated dark
+   mode from drifting away from the canonical identity. */
+:root[data-theme='dark'] {
+  --sl-color-accent: var(--bk-accent);
+  --sl-color-accent-low: #ffe2d8;
+  --sl-color-text: var(--bk-ink);
+  --sl-color-text-accent: var(--bk-accent);
+  --sl-color-bg: var(--bk-paper);
+  --sl-color-bg-nav: var(--bk-paper);
+  --sl-color-bg-sidebar: var(--bk-paper);
+  --sl-color-hairline: var(--bk-rule);
+  --sl-color-gray-1: var(--bk-muted);
+  --sl-color-gray-2: var(--bk-neutral);
+  --sl-color-gray-3: var(--bk-neutral);
+  --sl-color-gray-4: var(--bk-rule);
+  --sl-color-gray-5: var(--bk-paper-2);
+  --sl-color-gray-6: var(--bk-paper-2);
+  --sl-color-black: var(--bk-paper);
+  --sl-color-white: var(--bk-ink);
+  color-scheme: light;
+}
+
+/* Starlight chrome. Stable element/component selectors are preferred over its
+   generated classes so framework updates do not silently erase the system. */
+html {
+  background: var(--bk-paper);
+}
+
+body {
+  background: var(--bk-paper);
+  color: var(--bk-ink);
+  font-family: var(--bk-font-body);
+}
+
+header.header {
+  border-bottom: 2px solid var(--bk-ink);
+  background: var(--bk-paper);
+  box-shadow: none;
+}
+
+.site-title {
+  gap: var(--bk-space-xs);
+  color: var(--bk-ink) !important;
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-lg);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.site-title img {
+  width: auto;
+  height: 1.75rem;
+}
+
+.sidebar-pane {
+  border-inline-end: 2px solid var(--bk-ink);
+  background: var(--bk-paper);
+  box-shadow: none;
+}
+
+.sidebar-content a {
+  color: var(--bk-muted);
+  font-size: var(--bk-text-sm);
+  text-decoration: none;
+}
+
+.sidebar-content a:hover,
+.sidebar-content a[aria-current='page'] {
+  color: var(--bk-accent);
+}
+
+.sidebar-content a[aria-current='page'] {
+  padding-inline-start: calc(var(--bk-space-sm) - 2px);
+  border-inline-start: 2px solid var(--bk-accent);
+  border-radius: 0;
+  background: transparent;
+  font-weight: 700;
+}
+
+.sidebar-content .group-label {
+  color: var(--bk-ink);
+  font-family: var(--bk-font-display);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+
+.main-frame {
+  background: var(--bk-paper);
+}
+
+.content-panel {
+  border: 0;
+  background: var(--bk-paper);
+}
+
+.sl-container {
+  max-width: 90rem;
+}
+
+.sl-markdown-content {
+  color: var(--bk-ink);
+  font-size: var(--bk-text-base);
+  line-height: 1.72;
+}
+
+.sl-markdown-content > :first-child {
+  margin-top: 0;
+}
+
+.sl-markdown-content :is(h1, h2, h3, h4) {
+  color: var(--bk-ink);
+  font-family: var(--bk-font-display);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.sl-markdown-content h1 {
+  max-width: 13ch;
+  font-size: clamp(3rem, 7vw, 6.5rem);
+  line-height: 0.94;
+}
+
+.sl-markdown-content h2 {
+  margin-top: var(--bk-space-2xl);
+  padding-top: var(--bk-space-lg);
+  border-top: 2px solid var(--bk-ink);
+  font-size: clamp(1.8rem, 3vw, 2.75rem);
+  line-height: 1.05;
+}
+
+.sl-markdown-content h3 {
+  font-size: var(--bk-text-lg);
+  line-height: 1.15;
+}
+
+.sl-markdown-content :is(p, li) {
+  text-wrap: pretty;
+}
+
+.sl-markdown-content a:not([class]) {
+  color: var(--bk-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.sl-markdown-content :not(pre) > code {
+  border: 1px solid var(--bk-rule);
+  border-radius: 0;
+  background: var(--bk-paper-2);
+  color: var(--bk-ink);
+  font-family: var(--bk-font-mono);
+}
+
+.sl-markdown-content pre,
+.expressive-code figure {
+  border: 2px solid var(--bk-ink);
+  border-radius: 0;
+  background: var(--bk-paper-2);
+  box-shadow: none;
+}
+
+.expressive-code :is(.frame, pre, code) {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.sl-markdown-content table {
+  display: table;
+  width: 100%;
+  border: 2px solid var(--bk-ink);
+  border-collapse: collapse;
+  font-size: var(--bk-text-sm);
+}
+
+.sl-markdown-content :is(th, td) {
+  padding: var(--bk-space-sm) var(--bk-space-md);
+  border: 1px solid var(--bk-rule);
+}
+
+.sl-markdown-content th {
+  background: var(--bk-paper-2);
+  color: var(--bk-ink);
+  font-family: var(--bk-font-display);
+  font-weight: 700;
+  text-align: left;
+}
+
+starlight-aside {
+  border: 0;
+  border-inline-start: 4px solid var(--bk-ink);
+  border-radius: 0;
+  background: var(--bk-paper-2);
+  color: var(--bk-ink);
+  box-shadow: none;
+}
+
+.card,
+.pagination-links a,
+site-search button,
+starlight-menu-button button {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.card,
+.pagination-links a {
+  border: 1px solid var(--bk-rule);
+  background: transparent;
+}
+
+.pagination-links a:hover {
+  border-color: var(--bk-ink);
+  background: var(--bk-paper-2);
+}
+
+site-search button,
+starlight-menu-button button,
+select {
+  border: 1px solid var(--bk-rule);
+  background: var(--bk-paper);
+  color: var(--bk-ink);
+}
+
+:is(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--bk-accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 50rem) {
+  .sidebar-pane {
+    border-inline-end: 0;
+  }
+
+  .sl-markdown-content h1 {
+    max-width: none;
+    font-size: clamp(2.6rem, 14vw, 4.75rem);
+  }
+
+  .sl-markdown-content table {
+    display: block;
+    overflow-x: auto;
+  }
 }

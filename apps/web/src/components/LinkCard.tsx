@@ -3,6 +3,7 @@ import { useHubs } from '../api/queries';
 import type { LinkDto } from '../api/types';
 import { useSelection } from '../state/selection';
 import styles from './LinkCard.module.css';
+import { Checkbox } from './ui/Checkbox';
 
 export function LinkCard({ link }: { link: LinkDto }) {
   const selected = useSelection((s) => s.selected.has(link.id));
@@ -19,11 +20,10 @@ export function LinkCard({ link }: { link: LinkDto }) {
         ) : (
           <div className={styles.placeholder} aria-hidden="true" />
         )}
-        <input
-          type="checkbox"
+        <Checkbox
           className={styles.check}
           checked={selected}
-          onChange={() => toggle(link.id)}
+          onCheckedChange={() => toggle(link.id)}
           aria-label={`Select ${link.title || link.url}`}
         />
         <span className={styles.badge}>{link.relevance ?? '–'}</span>

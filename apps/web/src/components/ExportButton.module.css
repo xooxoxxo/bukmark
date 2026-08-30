@@ -1,68 +1,59 @@
 .wrap {
   position: relative;
+  display: flex;
+  align-items: center;
   margin-left: auto;
 }
 
 .trigger {
-  padding: var(--bk-space-sm) var(--bk-space-md);
+  min-height: 3.25rem;
+  padding: var(--bk-space-sm) var(--bk-space-lg);
+  border: 2px solid var(--bk-ink);
   background: var(--bk-ink);
   color: var(--bk-paper);
   font-family: var(--bk-font-display);
   font-size: var(--bk-text-sm);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  border: 2px solid var(--bk-ink);
-  cursor: pointer;
-  transition: background var(--bk-dur-micro) var(--bk-ease-out),
-              border-color var(--bk-dur-micro) var(--bk-ease-out),
-              transform var(--bk-dur-micro) var(--bk-ease-out);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transition: background var(--bk-dur-micro) var(--bk-ease-out), border-color var(--bk-dur-micro) var(--bk-ease-out), transform var(--bk-dur-micro) var(--bk-ease-out);
 }
 
 .trigger:hover {
-  background: var(--bk-accent);
   border-color: var(--bk-accent);
+  background: var(--bk-accent);
   transform: translateY(-1px);
 }
 
 .trigger:active {
-  transform: translateY(0);
-}
-
-.trigger:focus-visible {
-  outline: 2px solid var(--bk-accent);
-  outline-offset: 2px;
+  transform: none;
 }
 
 .menu {
   position: absolute;
-  right: 0;
   top: calc(100% + var(--bk-space-xs));
+  right: 0;
+  z-index: 10;
   display: flex;
   flex-direction: column;
-  min-width: 180px;
+  min-width: 13rem;
   padding: var(--bk-space-xs);
-  border: 1px solid var(--bk-rule);
+  border: 2px solid var(--bk-ink);
   background: var(--bk-paper);
-  z-index: 10;
 }
 
 .item {
   padding: var(--bk-space-sm) var(--bk-space-md);
-  text-decoration: none;
   color: var(--bk-ink);
-  white-space: nowrap;
   font-size: var(--bk-text-sm);
-  transition: background var(--bk-dur-micro) var(--bk-ease-out);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--bk-dur-micro) var(--bk-ease-out), color var(--bk-dur-micro) var(--bk-ease-out);
 }
 
 .item:hover {
   background: var(--bk-paper-2);
-}
-
-.item:focus-visible {
-  outline: 2px solid var(--bk-accent);
-  outline-offset: -2px;
+  color: var(--bk-ink);
 }
 
 .sep {

@@ -15,7 +15,8 @@
     "astro": "^7.1.6"
   },
   "devDependencies": {
-    "vitest": "^2.1.9",
+    "@astrojs/check": "^0.9.10",
+    "vitest": "^3.2.7",
     "wrangler": "^4.118.0"
   }
 }

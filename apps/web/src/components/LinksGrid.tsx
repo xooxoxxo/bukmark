@@ -23,7 +23,8 @@ export function LinksGrid({
   const virtualizer = useVirtualizer({
     count,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 240,
+    estimateSize: () => 300,
+    measureElement: (element) => element.getBoundingClientRect().height || 300,
     overscan: 4,
   });
   const items = virtualizer.getVirtualItems();
@@ -43,6 +44,8 @@ export function LinksGrid({
           return (
             <div
               key={vi.key}
+              ref={virtualizer.measureElement}
+              data-index={vi.index}
               className={styles.virtualRow}
               style={{ transform: `translateY(${vi.start}px)` }}
             >

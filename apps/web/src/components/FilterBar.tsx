@@ -3,6 +3,13 @@ import { useHubs } from '../api/queries';
 import { useFilters } from '../state/filters';
 import styles from './FilterBar.module.css';
 import { SearchBox } from './SearchBox';
+import { Checkbox } from './ui/Checkbox';
+import { Select } from './ui/Select';
+
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'archived', label: 'Archived' },
+];
 
 export function FilterBar({ hubMode, total }: { hubMode: boolean; total: number }) {
   const unassigned = useFilters((s) => s.unassigned);
@@ -15,50 +22,45 @@ export function FilterBar({ hubMode, total }: { hubMode: boolean; total: number 
   const navigate = useNavigate();
 
   return (
-    <div className={styles.bar}>
-      <SearchBox />
-      <label className={styles.toggle}>
-        <input
-          type="checkbox"
-          checked={unassigned}
-          onChange={(e) => setUnassigned(e.target.checked)}
-          aria-label="Unassigned only"
+    <section className={styles.bar} aria-label="Link filters">
+      <div className={styles.search}>
+        <SearchBox />
+      </div>
+      <div className={styles.controls}>
+        <label className={styles.toggle}>
+          <Checkbox
+            checked={unassigned}
+            onCheckedChange={setUnassigned}
+            aria-label="Unassigned only"
+          />
+          Unassigned
+        </label>
+        <Select
+          value={status}
+          onValueChange={(value) => setStatus(value as 'active' | 'archived')}
+          options={STATUS_OPTIONS}
+          ariaLabel="Status"
+          className={styles.filterSelect}
         />
-        Unassigned
-      </label>
-      <select
-        value={status}
-        onChange={(e) => setStatus(e.target.value as 'active' | 'archived')}
-        aria-label="Status"
-      >
-        <option value="active">Active</option>
-        <option value="archived">Archived</option>
-      </select>
-      {!hubMode ? (
-        <select
-          value=""
-          onChange={(e) => {
-            if (e.target.value) navigate(`/hubs/${e.target.value}`);
-          }}
-          aria-label="Go to hub"
-        >
-          <option value="">All hubs</option>
-          {(hubs?.items ?? []).map((h) => (
-            <option key={h.id} value={h.id}>
-              {h.name}
-            </option>
-          ))}
-        </select>
-      ) : null}
-      <div className={styles.viewToggle}>
-        <button aria-pressed={view === 'list'} onClick={() => setView('list')}>
-          List
-        </button>
-        <button aria-pressed={view === 'grid'} onClick={() => setView('grid')}>
-          Grid
-        </button>
+        {!hubMode ? (
+          <Select
+            onValueChange={(value) => navigate(`/hubs/${value}`)}
+            options={(hubs?.items ?? []).map((hub) => ({ value: hub.id, label: hub.name }))}
+            placeholder="All hubs"
+            ariaLabel="Go to hub"
+            className={styles.filterSelect}
+          />
+        ) : null}
+        <div className={styles.viewToggle} aria-label="View">
+          <button aria-pressed={view === 'list'} onClick={() => setView('list')}>
+            List
+          </button>
+          <button aria-pressed={view === 'grid'} onClick={() => setView('grid')}>
+            Grid
+          </button>
+        </div>
       </div>
       <span className={styles.total}>{total} results</span>
-    </div>
+    </section>
   );
 }

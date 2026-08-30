@@ -17,7 +17,14 @@ export function HubPage() {
 
   const hub = data?.items.find((h) => h.id === hubId);
   if (!hubId) return null;
-  if (!hub) return <p>Hub not found.</p>;
+  if (!hub) {
+    return (
+      <div className={styles.state} role="status">
+        <h2>Hub not found</h2>
+        <p>This hub may have been renamed, archived, or removed.</p>
+      </div>
+    );
+  }
 
   function saveRename(e: FormEvent) {
     e.preventDefault();

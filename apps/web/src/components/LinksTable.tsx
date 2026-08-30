@@ -20,7 +20,8 @@ export function LinksTable({
   const virtualizer = useVirtualizer({
     count,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 64,
+    estimateSize: () => 76,
+    measureElement: (element) => element.getBoundingClientRect().height || 76,
     overscan: 10,
   });
   const items = virtualizer.getVirtualItems();
@@ -40,6 +41,7 @@ export function LinksTable({
           return (
             <div
               key={vi.key}
+              ref={virtualizer.measureElement}
               data-index={vi.index}
               className={styles.virtualRow}
               style={{ transform: `translateY(${vi.start}px)` }}

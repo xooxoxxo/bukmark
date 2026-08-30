@@ -86,7 +86,8 @@ describe('LinksView', () => {
   it('status select switches to archived', async () => {
     vi.mocked(client.fetchLinks).mockResolvedValue({ items: [], total: 0 });
     renderView();
-    await userEvent.selectOptions(screen.getByLabelText('Status'), 'archived');
+    await userEvent.click(screen.getByRole('combobox', { name: 'Status' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Archived' }));
     await waitFor(() =>
       expect(client.fetchLinks).toHaveBeenLastCalledWith(
         expect.objectContaining({ status: 'archived' }),
@@ -101,10 +102,14 @@ describe('LinksView', () => {
     });
     renderView();
     await screen.findByText('First link');
+    const toolbar = screen.getByTestId('selection-toolbar');
+    expect(screen.queryByRole('button', { name: 'Actions' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByLabelText('Select all loaded'));
     expect(useSelection.getState().selected.has('a')).toBe(true);
     expect(useSelection.getState().selected.has('b')).toBe(true);
     expect(screen.getByText('2 selected')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Actions' })).toBeInTheDocument();
+    expect(screen.getByTestId('selection-toolbar')).toBe(toolbar);
   });
 
   it('grid toggle switches renderer', async () => {

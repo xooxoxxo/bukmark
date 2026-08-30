@@ -47,6 +47,20 @@ to it. Amend intentionally — the file is the rule.
 - Accent is scarce: hovers, active nav item, links, focus rings, small
   highlights. Never large fills except CTA hover.
 
+## Composition guardrails
+- Signature comes from scale, proportion, whitespace, and border geometry —
+  never decorative kickers, numbered section labels, stamps, pill-tags, or
+  ornamental micro-metadata.
+- Functional metadata stays only where it helps a task. Hub assignments may
+  use quiet rectangular tags; aggregate counts use a typographic ledger, not
+  pills.
+- Marketing display headings use a wide measure and stay within two or three
+  lines on desktop. Primary controls and useful labels remain comfortably
+  readable rather than shrinking to manufacture hierarchy.
+- Dense rows are content-driven with a stable minimum height. Responsive
+  layouts may recompose, but preserve every control, avoid page-level
+  horizontal scrolling, and keep action labels on one line.
+
 ## Motion stance
 - 2–3 primitives max per page: reveal (opacity + 8px translateY), CTA lift,
   micro color transitions. Progressive enhancement — default visible w/o JS.

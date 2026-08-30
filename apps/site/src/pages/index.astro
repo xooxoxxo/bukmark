@@ -1,6 +1,5 @@
 ---
-// Landing page for bukmark — not using Starlight's docs layout.
-// Design: Hallmark hybrid — Brutal (tempered) skin, workbench content flow.
+// The landing page is intentionally independent from Starlight's docs layout.
 import '../styles/custom.css';
 ---
 
@@ -19,143 +18,167 @@ import '../styles/custom.css';
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	</head>
 	<body>
-		<header class="nav-slab">
-			<a class="nav-slab__brand" href="/">
-				<img class="nav-slab__logo" src="/logo-mark.png" alt="" width="140" height="200" />
-				<span class="nav-slab__mark">bukmark</span>
+		<a class="skip-link" href="#content">Skip to content</a>
+		<header class="site-header">
+			<a class="brand" href="/" aria-label="bukmark home">
+				<img class="brand__logo" src="/logo-mark.png" alt="" width="140" height="200" />
+				<span>bukmark</span>
 			</a>
-			<nav aria-label="Primary">
-				<ul class="nav-slab__links">
-					<li><a class="nav-slab__link" href="#workflow">How</a></li>
-					<li><a class="nav-slab__link" href="/docs/install">Install</a></li>
-					<li><a class="nav-slab__link" href="/docs/">Docs</a></li>
+			<nav aria-label="Primary navigation">
+				<ul class="site-header__links">
+					<li><a href="#workflow">How it works</a></li>
+					<li><a href="/docs/install">Install</a></li>
+					<li><a href="/docs/">Docs</a></li>
 				</ul>
 			</nav>
-			<a class="nav-slab__cta" href="https://github.com/xooxoxxo/bukmark">Star</a>
+			<a class="button button--compact" href="https://github.com/xooxoxxo/bukmark">Star</a>
 		</header>
 
-		<main>
-			<section class="bk-section hero">
-				<div class="hero__content">
-					<h1 class="hero__display">Bookmarks you actually revisit.</h1>
-					<p class="hero__subhead">
-						Capture anything with one click. Sort deliberately with Claude. Self-hosted, open
-						source. No accounts. No lock-in.
-					</p>
-					<div class="hero__cta-group">
-						<a class="cta" href="https://github.com/xooxoxxo/bukmark">Star on GitHub</a>
-						<a class="cta cta--secondary" href="/docs/install">Get started</a>
-					</div>
-					<div class="code-block">
-						<pre
-							class="code-block__pre">git clone https://github.com/xooxoxxo/bukmark.git bukmark && cd bukmark
-docker compose up -d</pre>
-					</div>
-					<p class="section__body">
-						Open <code>localhost:3000</code>. Install the Chrome extension. Start capturing.
-					</p>
-				</div>
-			</section>
-
-			<section class="bk-section reveal" id="workflow">
-				<h2 class="section__head">The Three Moves</h2>
-				<p class="section__body">
-					Three deliberate steps. Speed up capture. Batch your sorting. Own your export.
-				</p>
-				<div class="workflow">
-					<div class="workflow__step">
-						<h3 class="workflow__step__title">Capture</h3>
-						<p class="workflow__step__desc">
-							Install the Chrome extension. Toolbar button saves the current page with an optional
-							note. Keyboard shortcut Cmd+Shift+S (or Ctrl+Shift+S) for silent save—no popup, no
-							friction. You capture now. Decide later.
-						</p>
-					</div>
-					<div class="workflow__step">
-						<h3 class="workflow__step__title">Sort with Claude</h3>
-						<p class="workflow__step__desc">
-							Drop the MCP server into your Claude Code config. Ask Claude to sort your unsorted
-							links. It proposes assignments to your existing categories; you approve or reassign
-							in one batch. Deliberate sorting, on your schedule—not the machine's.
-						</p>
-					</div>
-					<div class="workflow__step">
-						<h3 class="workflow__step__title">Export</h3>
-						<p class="workflow__step__desc">
-							HTML (imports into any browser), JSON (backups), CSV (spreadsheets). Export all, one
-							category, or search results. Data leaves the way you want it. You own everything.
-						</p>
+		<main id="content">
+			<section class="hero">
+				<div class="frame reveal">
+					<h1>Bookmarks you actually revisit.</h1>
+					<div class="hero__lower">
+						<div class="hero__intro">
+							<p>
+								Capture anything with one click. Sort deliberately with Claude. Self-hosted,
+								open source. No accounts. No lock-in.
+							</p>
+							<div class="button-row">
+								<a class="button" href="https://github.com/xooxoxxo/bukmark">Star on GitHub</a>
+								<a class="button button--outline" href="/docs/install">Get started</a>
+							</div>
+						</div>
+						<div class="install-command">
+							<pre><code>git clone https://github.com/xooxoxxo/bukmark.git bukmark &amp;&amp; cd bukmark
+docker compose up -d</code></pre>
+							<p>
+								Open <code>localhost:3000</code>. Install the Chrome extension. Start capturing.
+							</p>
+						</div>
 					</div>
 				</div>
 			</section>
 
-			<section class="bk-section reveal">
-				<figure>
-					<img
-						src="/screenshot.png"
-						alt="bukmark interface showing a left sidebar of hub categories, stat pills at the top tracking link counts and status, and a list view of bookmarks with titles and brief notes."
-					/>
-					<figcaption>
-						Inbox interface. Hubs on the left. Stats and search above the list. Sort on demand via
-						Claude.
-					</figcaption>
-				</figure>
+			<section class="workflow reveal" id="workflow">
+				<div class="frame">
+					<header class="section-heading">
+						<h2>The three moves</h2>
+						<p>Speed up capture. Batch your sorting. Own your export.</p>
+					</header>
+					<div class="workflow__list">
+						<article class="workflow__item">
+							<h3>Capture</h3>
+							<p>
+								Install the Chrome extension. The toolbar button saves the current page with an
+								optional note. Use Cmd+Shift+S or Ctrl+Shift+S for a silent save. Capture now;
+								decide later.
+							</p>
+						</article>
+						<article class="workflow__item">
+							<h3>Sort with Claude</h3>
+							<p>
+								Connect the MCP server and ask Claude to sort your unsorted links. It proposes
+								assignments to your existing hubs; you approve or reassign them in one batch.
+								Sorting happens on your schedule, not at capture time.
+							</p>
+						</article>
+						<article class="workflow__item">
+							<h3>Export</h3>
+							<p>
+								Export HTML for any browser, JSON for backups, or CSV for spreadsheets. Export
+								all links, one hub, or the current search. Your data leaves the way you want it.
+							</p>
+						</article>
+					</div>
+				</div>
 			</section>
 
-			<section class="bk-section reveal">
-				<div class="hero__cta-group">
-					<a class="cta" href="/docs/">Read the Docs</a>
-					<a class="cta cta--secondary" href="/docs/install">Install locally</a>
+			<section class="product-view reveal">
+				<div class="frame">
+					<header class="product-view__intro">
+						<h2>Unsorted is a feature.</h2>
+						<p>
+							Everything lands in one calm workbench. Hubs stay visible, filters stay close,
+							and the unsorted queue waits until you choose to triage it.
+						</p>
+					</header>
+					<figure>
+						<img
+							src="/screenshot.png"
+							alt="bukmark interface showing a left sidebar of hub categories, aggregate link counts at the top, and a list of bookmarks with titles and brief notes."
+						/>
+						<figcaption>
+							The seeded demo workbench. Hubs on the left, search and filters above the list,
+							and deliberate sorting through Claude.
+						</figcaption>
+					</figure>
+				</div>
+			</section>
+
+			<section class="closing reveal">
+				<div class="frame closing__grid">
+					<h2>Capture now.<br />Sort when you choose.</h2>
+					<div class="closing__action">
+						<p>
+							Run it on your own infrastructure. Keep the database. Export whenever you want.
+						</p>
+						<div class="button-row">
+							<a class="button" href="/docs/install">Install locally</a>
+							<a class="button button--outline" href="/docs/">Read the docs</a>
+						</div>
+					</div>
 				</div>
 			</section>
 		</main>
 
-		<footer>
-			<div class="foot-dense">
-				<p>
-					bukmark. Self-hosted bookmark manager. Built with Postgres, Docker, Claude MCP. <a
-						href="https://github.com/xooxoxxo/bukmark/blob/main/LICENSE">MIT licensed</a
-					>. Open source. No telemetry. No vendor lock-in. <a
-						href="https://github.com/xooxoxxo/bukmark">github.com/xooxoxxo/bukmark</a
-					>.
-				</p>
+		<footer class="site-footer">
+			<div class="frame site-footer__grid">
+				<div>
+					<a class="brand brand--footer" href="/" aria-label="bukmark home">
+						<img class="brand__logo" src="/logo-mark.png" alt="" width="140" height="200" />
+						<span>bukmark</span>
+					</a>
+					<p>Self-hosted bookmark triage. Open source and built to leave.</p>
+				</div>
+				<div class="site-footer__details">
+					<p>Postgres · Docker · Claude MCP</p>
+					<p>
+						<a href="https://github.com/xooxoxxo/bukmark">GitHub</a>
+						<a href="https://github.com/xooxoxxo/bukmark/blob/main/LICENSE">MIT license</a>
+						<a href="/docs/">Documentation</a>
+					</p>
+				</div>
 			</div>
 		</footer>
 
 		<script>
-			// Reveal animation via IntersectionObserver — progressive enhancement.
-			// Without JS every .reveal section stays fully visible.
 			document.documentElement.classList.add('js');
-
-			const revealObserver = new IntersectionObserver(
-				(entries) => {
-					for (const entry of entries) {
-						if (entry.isIntersecting) {
-							(entry.target as HTMLElement).style.opacity = '1';
-							(entry.target as HTMLElement).style.transform = 'none';
-							revealObserver.unobserve(entry.target);
+			const targets = document.querySelectorAll<HTMLElement>('.reveal');
+			const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+			if (reducedMotion || !('IntersectionObserver' in window)) {
+				targets.forEach((target) => target.classList.add('is-visible'));
+			} else {
+				const observer = new IntersectionObserver(
+					(entries) => {
+						for (const entry of entries) {
+							if (!entry.isIntersecting) continue;
+							entry.target.classList.add('is-visible');
+							observer.unobserve(entry.target);
 						}
-					}
-				},
-				{ threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
-			);
-
-			document.querySelectorAll('.bk-section.reveal').forEach((el) => revealObserver.observe(el));
+					},
+					{ threshold: 0.08, rootMargin: '0px 0px -48px 0px' }
+				);
+				targets.forEach((target) => observer.observe(target));
+			}
 		</script>
 
 		<style is:global>
-			html {
-				overflow-x: clip;
-			}
-
-			* {
-				box-sizing: border-box;
-			}
-
+			html { overflow-x: clip; scroll-behavior: smooth; }
+			* { box-sizing: border-box; }
 			body {
 				overflow-x: clip;
 				margin: 0;
-				padding: 0;
 				background: var(--bk-paper);
 				color: var(--bk-ink);
 				font-family: var(--bk-font-body);
@@ -163,429 +186,273 @@ docker compose up -d</pre>
 				line-height: 1.6;
 				-webkit-font-smoothing: antialiased;
 			}
-
-			/* ====== NAV ====== */
-			.nav-slab {
-				display: flex;
-				align-items: center;
-				gap: var(--bk-space-md);
-				padding: var(--bk-space-md) var(--bk-space-xl);
-				border-bottom: 2px solid var(--bk-ink);
+			::selection { background: var(--bk-accent); color: var(--bk-paper); }
+			.skip-link {
+				position: fixed;
+				top: var(--bk-space-md);
+				left: var(--bk-space-md);
+				z-index: 20;
+				padding: var(--bk-space-sm) var(--bk-space-md);
+				border: 2px solid var(--bk-ink);
 				background: var(--bk-paper);
+				color: var(--bk-ink);
+				font-family: var(--bk-font-display);
+				font-weight: 700;
+				transform: translateY(calc(-100% - 2rem));
 			}
-
-			.nav-slab__brand {
-				display: flex;
+			.skip-link:focus { transform: none; }
+			.frame { width: min(100%, 100rem); margin-inline: auto; }
+			.site-header {
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) auto auto;
+				align-items: center;
+				gap: clamp(1rem, 3vw, 3rem);
+				min-height: 5.5rem;
+				padding: var(--bk-space-md) clamp(1.25rem, 4vw, 4rem);
+				border-bottom: 2px solid var(--bk-ink);
+			}
+			.brand {
+				display: inline-flex;
 				align-items: center;
 				gap: var(--bk-space-xs);
-				text-decoration: none;
-				flex-shrink: 0;
-			}
-
-			.nav-slab__logo {
-				width: auto;
-				height: 2rem;
-				display: block;
-			}
-
-			.nav-slab__mark {
+				width: fit-content;
+				color: var(--bk-ink);
 				font-family: var(--bk-font-display);
-				font-weight: 800;
 				font-size: var(--bk-text-lg);
-				letter-spacing: -0.01em;
-				color: var(--bk-ink);
-			}
-
-			.nav-slab nav {
-				margin-left: auto;
-			}
-
-			.nav-slab__links {
-				display: flex;
-				gap: var(--bk-space-xl);
-				list-style: none;
-				padding: 0;
-				margin: 0;
-				flex-shrink: 0;
-			}
-
-			.nav-slab__link {
-				font-size: var(--bk-text-sm);
-				font-weight: 600;
-				letter-spacing: 0.08em;
-				text-transform: uppercase;
+				font-weight: 800;
+				letter-spacing: -0.02em;
 				text-decoration: none;
+			}
+			.brand__logo { display: block; width: auto; height: 1.9rem; }
+			.site-header__links {
+				display: flex;
+				align-items: center;
+				gap: clamp(1rem, 2.5vw, 2.5rem);
+				margin: 0;
+				padding: 0;
+				list-style: none;
+			}
+			.site-header__links a,
+			.site-footer a {
 				color: var(--bk-ink);
-				transition: color var(--bk-dur-micro) var(--bk-ease-out);
+				font-family: var(--bk-font-display);
+				font-size: var(--bk-text-sm);
+				font-weight: 700;
+				text-decoration: underline;
+				text-decoration-color: transparent;
+				text-underline-offset: 0.28em;
+				transition: color var(--bk-dur-micro) var(--bk-ease-out), text-decoration-color var(--bk-dur-micro) var(--bk-ease-out);
 			}
-
-			.nav-slab__link:hover {
-				color: var(--bk-accent);
-			}
-
-			.nav-slab__link:focus-visible {
-				outline: 2px solid var(--bk-accent);
-				outline-offset: 3px;
-			}
-
-			.nav-slab__cta {
-				flex-shrink: 0;
-				padding: var(--bk-space-sm) var(--bk-space-lg);
+			.site-header__links a:hover,
+			.site-footer a:hover { color: var(--bk-accent); text-decoration-color: currentColor; }
+			.button {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				min-height: 3.25rem;
+				padding: var(--bk-space-sm) var(--bk-space-xl);
+				border: 2px solid var(--bk-ink);
 				background: var(--bk-ink);
 				color: var(--bk-paper);
 				font-family: var(--bk-font-display);
 				font-size: var(--bk-text-sm);
 				font-weight: 700;
-				letter-spacing: 0.04em;
-				text-transform: uppercase;
+				letter-spacing: 0.02em;
+				text-align: center;
 				text-decoration: none;
+				white-space: nowrap;
+				transition: background var(--bk-dur-short) var(--bk-ease-out), border-color var(--bk-dur-short) var(--bk-ease-out), color var(--bk-dur-short) var(--bk-ease-out), transform var(--bk-dur-short) var(--bk-ease-out);
+			}
+			.button:hover { border-color: var(--bk-accent); background: var(--bk-accent); color: var(--bk-paper); transform: translateY(-2px); }
+			.button:active { transform: none; }
+			.button--outline { background: transparent; color: var(--bk-ink); }
+			.button--compact { min-height: 2.75rem; padding-inline: var(--bk-space-lg); }
+			:is(a, button):focus-visible { outline: 2px solid var(--bk-accent); outline-offset: 4px; }
+			.hero,
+			.workflow,
+			.product-view,
+			.closing { border-bottom: 2px solid var(--bk-ink); }
+			.hero { padding: clamp(4rem, 9vw, 9rem) clamp(1.25rem, 4vw, 4rem) clamp(4rem, 8vw, 8rem); }
+			.hero h1 {
+				max-width: 14ch;
+				margin: 0;
+				font-family: var(--bk-font-display);
+				font-size: clamp(4.5rem, 9.2vw, 9.25rem);
+				font-weight: 800;
+				letter-spacing: -0.065em;
+				line-height: 0.86;
+				text-wrap: balance;
+			}
+			.hero__lower {
+				display: grid;
+				grid-template-columns: repeat(12, minmax(0, 1fr));
+				gap: clamp(2rem, 5vw, 6rem);
+				align-items: end;
+				margin-top: clamp(4rem, 9vw, 9rem);
+				padding-top: var(--bk-space-xl);
+				border-top: 2px solid var(--bk-ink);
+			}
+			.hero__intro { grid-column: 1 / 6; }
+			.hero__intro > p {
+				max-width: 34ch;
+				margin: 0 0 var(--bk-space-xl);
+				font-size: clamp(1.35rem, 2.3vw, 2.25rem);
+				line-height: 1.2;
+				text-wrap: pretty;
+			}
+			.button-row { display: flex; flex-wrap: wrap; gap: var(--bk-space-md); }
+			.install-command { grid-column: 7 / -1; }
+			.install-command pre {
+				overflow-x: auto;
+				margin: 0;
+				padding: var(--bk-space-lg);
 				border: 2px solid var(--bk-ink);
-				cursor: pointer;
-				transition:
-					background var(--bk-dur-micro) var(--bk-ease-out),
-					border-color var(--bk-dur-micro) var(--bk-ease-out);
+				background: var(--bk-paper-2);
+				font-family: var(--bk-font-mono);
+				font-size: var(--bk-text-sm);
+				line-height: 1.65;
 			}
-
-			.nav-slab__cta:hover {
-				background: var(--bk-accent);
-				border-color: var(--bk-accent);
+			.install-command p { margin: var(--bk-space-md) 0 0; color: var(--bk-muted); font-size: var(--bk-text-sm); }
+			.install-command p code { font-family: var(--bk-font-mono); color: var(--bk-ink); }
+			.workflow,
+			.product-view,
+			.closing { padding: clamp(5rem, 10vw, 10rem) clamp(1.25rem, 4vw, 4rem); }
+			.section-heading,
+			.product-view__intro {
+				display: grid;
+				grid-template-columns: repeat(12, minmax(0, 1fr));
+				gap: var(--bk-space-xl);
+				align-items: end;
+				margin-bottom: clamp(4rem, 8vw, 8rem);
 			}
-
-			.nav-slab__cta:active {
-				transform: translateY(1px);
+			.section-heading h2,
+			.product-view__intro h2 {
+				grid-column: 1 / 9;
+				margin: 0;
+				font-family: var(--bk-font-display);
+				font-size: clamp(3.5rem, 7vw, 7.5rem);
+				font-weight: 800;
+				letter-spacing: -0.055em;
+				line-height: 0.9;
+				text-wrap: balance;
 			}
-
-			.nav-slab__cta:focus-visible {
-				outline: 2px solid var(--bk-accent);
-				outline-offset: 3px;
+			.section-heading > p,
+			.product-view__intro > p {
+				grid-column: 9 / -1;
+				margin: 0;
+				color: var(--bk-muted);
+				font-size: var(--bk-text-md);
+				line-height: 1.55;
+				text-wrap: pretty;
 			}
-
-			@media (max-width: 40rem) {
-				.nav-slab {
-					padding: var(--bk-space-md);
-					gap: var(--bk-space-md);
-				}
-				.nav-slab__mark {
-					font-size: var(--bk-text-base);
-				}
-				.nav-slab__logo {
-					height: 1.5rem;
-				}
-				.nav-slab__links {
-					display: none;
-				}
-				.nav-slab__cta {
-					font-size: var(--bk-text-xs);
-					padding: var(--bk-space-sm) var(--bk-space-md);
-				}
-			}
-
-			/* ====== SECTIONS ====== */
-			.bk-section {
-				padding: var(--bk-space-2xl) var(--bk-space-xl);
+			.workflow__list { border-top: 2px solid var(--bk-ink); }
+			.workflow__item {
+				display: grid;
+				grid-template-columns: repeat(12, minmax(0, 1fr));
+				gap: var(--bk-space-xl);
+				align-items: start;
+				padding: clamp(2.5rem, 5vw, 5rem) 0;
 				border-bottom: 2px solid var(--bk-ink);
 			}
-
-			.js .bk-section.reveal {
-				opacity: 0;
-				transform: translateY(8px);
-				animation: bk-reveal var(--bk-dur-long) var(--bk-ease-out) forwards;
-			}
-
-			.js .bk-section.reveal:nth-of-type(2) {
-				animation-delay: 60ms;
-			}
-			.js .bk-section.reveal:nth-of-type(3) {
-				animation-delay: 120ms;
-			}
-			.js .bk-section.reveal:nth-of-type(4) {
-				animation-delay: 180ms;
-			}
-
-			.section__head {
+			.workflow__item h3 {
+				grid-column: 1 / 7;
+				margin: 0;
 				font-family: var(--bk-font-display);
-				font-size: clamp(2rem, 3.5vw + 0.5rem, 3.25rem);
+				font-size: clamp(2.75rem, 5.5vw, 6rem);
 				font-weight: 800;
-				line-height: 1.05;
-				text-transform: uppercase;
-				letter-spacing: -0.02em;
-				margin: 0 0 var(--bk-space-lg) 0;
-				color: var(--bk-ink);
-				overflow-wrap: anywhere;
-				min-width: 0;
+				letter-spacing: -0.045em;
+				line-height: 0.92;
+				text-wrap: balance;
 			}
-
-			.section__body {
-				font-size: var(--bk-text-base);
-				line-height: 1.65;
-				max-width: 65ch;
-				margin: 0 0 var(--bk-space-lg) 0;
-				color: var(--bk-neutral);
-			}
-
-			/* ====== HERO ====== */
-			.hero__content {
-				max-width: 62rem;
-			}
-
-			.hero__display {
-				font-family: var(--bk-font-display);
-				font-size: var(--bk-text-display);
-				font-weight: 800;
-				line-height: 1.1;
-				letter-spacing: -0.02em;
-				margin: 0 0 var(--bk-space-lg) 0;
-				color: var(--bk-ink);
-				overflow-wrap: anywhere;
-				min-width: 0;
-			}
-
-			.js .hero__display {
-				animation: bk-reveal var(--bk-dur-long) var(--bk-ease-out) forwards;
-				opacity: 0;
-				transform: translateY(8px);
-			}
-
-			.hero__subhead {
-				font-size: var(--bk-text-lg);
-				line-height: 1.45;
-				margin: 0 0 var(--bk-space-lg) 0;
-				max-width: 65ch;
-				color: var(--bk-neutral);
-			}
-
-			.js .hero__subhead {
-				animation: bk-reveal var(--bk-dur-long) var(--bk-ease-out) forwards;
-				animation-delay: 60ms;
-				opacity: 0;
-				transform: translateY(8px);
-			}
-
-			.hero__cta-group {
-				display: flex;
-				gap: var(--bk-space-md);
-				margin-bottom: var(--bk-space-xl);
-				flex-wrap: wrap;
-			}
-
-			.cta {
-				flex: 0 1 auto;
-				padding: var(--bk-space-md) var(--bk-space-xl);
-				font-family: var(--bk-font-display);
-				font-size: var(--bk-text-sm);
-				font-weight: 700;
-				letter-spacing: 0.04em;
-				text-transform: uppercase;
-				text-decoration: none;
-				border: 2px solid var(--bk-ink);
-				background: var(--bk-ink);
-				color: var(--bk-paper);
-				cursor: pointer;
-				transition:
-					background var(--bk-dur-short) var(--bk-ease-out),
-					border-color var(--bk-dur-short) var(--bk-ease-out),
-					transform var(--bk-dur-short) var(--bk-ease-out);
-				white-space: nowrap;
-			}
-
-			.cta:hover {
-				background: var(--bk-accent);
-				border-color: var(--bk-accent);
-				transform: translateY(-2px);
-			}
-
-			.cta:active {
-				transform: translateY(0);
-			}
-
-			.cta:focus-visible {
-				outline: 2px solid var(--bk-accent);
-				outline-offset: 3px;
-			}
-
-			.cta--secondary {
-				background: transparent;
-				color: var(--bk-ink);
-			}
-
-			.cta--secondary:hover {
-				background: var(--bk-accent);
-				border-color: var(--bk-accent);
-				color: var(--bk-paper);
-			}
-
-			/* ====== CODE BLOCK ====== */
-			.code-block {
-				background: var(--bk-paper-2);
-				border: 1px solid var(--bk-rule);
-				padding: var(--bk-space-lg);
-				margin: 0 0 var(--bk-space-lg) 0;
-				overflow-x: auto;
-			}
-
-			.js .code-block {
-				animation: bk-reveal var(--bk-dur-long) var(--bk-ease-out) forwards;
-				animation-delay: 120ms;
-				opacity: 0;
-				transform: translateY(8px);
-			}
-
-			.code-block__pre {
-				font-family: var(--bk-font-mono);
-				font-size: var(--bk-text-sm);
-				line-height: 1.5;
+			.workflow__item p {
+				grid-column: 8 / -1;
 				margin: 0;
-				color: var(--bk-ink);
-				white-space: pre;
-			}
-
-			@keyframes bk-reveal {
-				to {
-					opacity: 1;
-					transform: none;
-				}
-			}
-
-			@media (prefers-reduced-motion: reduce) {
-				.js .hero__display,
-				.js .hero__subhead,
-				.js .code-block,
-				.js .bk-section.reveal {
-					animation: none !important;
-					opacity: 1;
-					transform: none;
-				}
-			}
-
-			@media (max-width: 40rem) {
-				.bk-section {
-					padding: var(--bk-space-2xl) var(--bk-space-lg);
-				}
-				.hero__display {
-					font-size: clamp(1.75rem, 4vw, 3rem);
-				}
-				.hero__cta-group {
-					flex-direction: column;
-					gap: var(--bk-space-sm);
-				}
-				.cta {
-					width: 100%;
-					text-align: center;
-					padding: var(--bk-space-md) var(--bk-space-lg);
-					font-size: var(--bk-text-xs);
-				}
-				.code-block {
-					padding: var(--bk-space-md);
-				}
-				.code-block__pre {
-					font-size: var(--bk-text-xs);
-				}
-			}
-
-			/* ====== WORKFLOW ====== */
-			.workflow {
-				display: grid;
-				grid-template-columns: 1fr;
-				gap: var(--bk-space-2xl);
-				margin-top: var(--bk-space-xl);
-			}
-
-			@media (min-width: 64rem) {
-				.workflow {
-					grid-template-columns: repeat(3, minmax(0, 1fr));
-					gap: var(--bk-space-xl);
-				}
-			}
-
-			.workflow__step {
-				border-left: 2px solid var(--bk-ink);
-				padding-left: var(--bk-space-lg);
-			}
-
-			.workflow__step__title {
-				font-family: var(--bk-font-display);
-				font-size: var(--bk-text-xl);
-				font-weight: 700;
-				text-transform: uppercase;
-				letter-spacing: 0.04em;
-				margin: 0 0 var(--bk-space-md) 0;
-				color: var(--bk-ink);
-			}
-
-			.workflow__step__desc {
-				font-size: var(--bk-text-base);
-				line-height: 1.6;
-				margin: 0;
-				max-width: 65ch;
-				color: var(--bk-neutral);
-			}
-
-			@media (max-width: 40rem) {
-				.workflow {
-					gap: var(--bk-space-xl);
-				}
-			}
-
-			/* ====== FIGURE ====== */
-			.bk-section figure {
-				margin: 0;
-				padding: 0;
-				border: 1px solid var(--bk-rule);
-				max-width: 56rem;
-			}
-
-			.bk-section figure img {
-				display: block;
-				width: 100%;
-				height: auto;
-				background: var(--bk-paper);
-			}
-
-			.bk-section figcaption {
-				padding: var(--bk-space-md) var(--bk-space-lg);
-				font-size: var(--bk-text-sm);
+				max-width: 50ch;
 				color: var(--bk-muted);
-				line-height: 1.5;
-				border-top: 1px solid var(--bk-rule);
+				font-size: var(--bk-text-md);
+				line-height: 1.65;
+				text-wrap: pretty;
 			}
-
-			/* ====== FOOTER ====== */
-			footer {
-				padding: var(--bk-space-2xl) var(--bk-space-xl);
-				background: var(--bk-paper);
+			.workflow__item:nth-child(2) h3 { grid-column: 7 / -1; }
+			.workflow__item:nth-child(2) p { grid-column: 1 / 6; grid-row: 1; }
+			.product-view figure { margin: 0; border: 2px solid var(--bk-ink); }
+			.product-view img { display: block; width: 100%; height: auto; background: var(--bk-paper); }
+			.product-view figcaption { padding: var(--bk-space-md) var(--bk-space-lg); border-top: 2px solid var(--bk-ink); color: var(--bk-muted); font-size: var(--bk-text-sm); }
+			.closing__grid {
+				display: grid;
+				grid-template-columns: repeat(12, minmax(0, 1fr));
+				gap: clamp(2rem, 6vw, 7rem);
+				align-items: end;
 			}
-
-			.foot-dense {
-				font-family: var(--bk-font-mono);
-				font-size: var(--bk-text-sm);
-				line-height: 1.8;
-				color: var(--bk-neutral);
-				max-width: 80ch;
-			}
-
-			.foot-dense p {
+			.closing h2 {
+				grid-column: 1 / 9;
 				margin: 0;
+				font-family: var(--bk-font-display);
+				font-size: clamp(3.75rem, 8vw, 8.5rem);
+				font-weight: 800;
+				letter-spacing: -0.06em;
+				line-height: 0.88;
 			}
+			.closing__action { grid-column: 9 / -1; }
+			.closing__action > p { margin: 0 0 var(--bk-space-xl); color: var(--bk-muted); font-size: var(--bk-text-md); line-height: 1.55; }
+			.site-footer { padding: clamp(3rem, 6vw, 6rem) clamp(1.25rem, 4vw, 4rem); }
+			.site-footer__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--bk-space-2xl); }
+			.brand--footer { margin-bottom: var(--bk-space-lg); }
+			.site-footer p { margin: 0; max-width: 42ch; color: var(--bk-muted); font-size: var(--bk-text-sm); }
+			.site-footer__details { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; text-align: right; }
+			.site-footer__details p:last-child { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--bk-space-lg); }
+			.js .reveal { opacity: 0; transform: translateY(8px); transition: opacity var(--bk-dur-long) var(--bk-ease-out), transform var(--bk-dur-long) var(--bk-ease-out); }
+			.js .reveal.is-visible { opacity: 1; transform: none; }
 
-			.foot-dense a {
-				color: var(--bk-accent);
-				text-decoration: none;
-				transition: color var(--bk-dur-micro) var(--bk-ease-out);
+			@media (max-width: 64rem) {
+				.hero__intro { grid-column: 1 / 7; }
+				.install-command { grid-column: 7 / -1; }
+				.section-heading h2,
+				.product-view__intro h2,
+				.closing h2 { grid-column: 1 / 8; }
+				.section-heading > p,
+				.product-view__intro > p,
+				.closing__action { grid-column: 8 / -1; }
 			}
-
-			.foot-dense a:hover {
-				color: var(--bk-ink);
+			@media (max-width: 48rem) {
+				.site-header { grid-template-columns: minmax(0, 1fr) auto; min-height: 4.75rem; }
+				.site-header nav { display: none; }
+				.brand { font-size: var(--bk-text-md); }
+				.brand__logo { height: 1.55rem; }
+				.button { width: 100%; }
+				.button--compact { width: auto; }
+				.hero h1 { max-width: none; font-size: clamp(3.2rem, 16vw, 5.5rem); line-height: 0.9; }
+				.hero__lower,
+				.section-heading,
+				.product-view__intro,
+				.workflow__item,
+				.closing__grid,
+				.site-footer__grid { display: block; }
+				.hero__intro,
+				.install-command,
+				.section-heading h2,
+				.section-heading > p,
+				.product-view__intro h2,
+				.product-view__intro > p,
+				.workflow__item h3,
+				.workflow__item p,
+				.workflow__item:nth-child(2) h3,
+				.workflow__item:nth-child(2) p,
+				.closing h2,
+				.closing__action { grid-column: auto; grid-row: auto; }
+				.hero__intro { margin-bottom: var(--bk-space-2xl); }
+				.button-row { flex-direction: column; }
+				.section-heading h2,
+				.product-view__intro h2 { margin-bottom: var(--bk-space-xl); font-size: clamp(3rem, 15vw, 5.25rem); }
+				.workflow__item h3 { margin-bottom: var(--bk-space-xl); font-size: clamp(2.75rem, 13vw, 4.5rem); }
+				.closing h2 { margin-bottom: var(--bk-space-2xl); font-size: clamp(3rem, 14vw, 5rem); }
+				.site-footer__details { align-items: flex-start; margin-top: var(--bk-space-2xl); text-align: left; }
+				.site-footer__details p:last-child { justify-content: flex-start; margin-top: var(--bk-space-lg); }
 			}
-
-			.foot-dense a:focus-visible {
-				outline: 2px solid var(--bk-accent);
-				outline-offset: 2px;
-			}
-
-			@media (max-width: 40rem) {
-				.foot-dense {
-					font-size: var(--bk-text-xs);
-				}
+			@media (prefers-reduced-motion: reduce) {
+				html { scroll-behavior: auto; }
+				*, *::before, *::after { transition-duration: 0.01ms !important; }
+				.js .reveal { opacity: 1; transform: none; }
 			}
 		</style>
 	</body>

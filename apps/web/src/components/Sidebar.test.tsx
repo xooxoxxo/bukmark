@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
+import { useFilters } from '../state/filters';
 import { makeWrapper } from '../test/utils';
 import { Sidebar } from './Sidebar';
 
@@ -20,6 +21,17 @@ function renderSidebar() {
 }
 
 describe('Sidebar', () => {
+  beforeEach(() => {
+    useFilters.getState().reset();
+    vi.mocked(client.fetchStats).mockResolvedValue({
+      links: 243,
+      active: 201,
+      archived: 42,
+      hubs: 2,
+      unassigned: 17,
+    });
+  });
+
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -33,6 +45,7 @@ describe('Sidebar', () => {
     });
     renderSidebar();
     expect(screen.getByRole('link', { name: 'All links' })).toHaveAttribute('href', '/');
+    expect(await screen.findByRole('button', { name: 'Unassigned 17' })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: 'AI 120' })).toHaveAttribute('href', '/hubs/h1');
     expect(screen.getByRole('link', { name: 'Rust 80' })).toHaveAttribute('href', '/hubs/h2');
   });
@@ -53,5 +66,18 @@ describe('Sidebar', () => {
     renderSidebar();
     await userEvent.click(screen.getByRole('button', { name: 'Add' }));
     expect(client.createHub).not.toHaveBeenCalled();
+  });
+
+  it('uses the Unassigned item as a filter and All links clears it', async () => {
+    vi.mocked(client.fetchHubs).mockResolvedValue({ items: [] });
+    renderSidebar();
+    const unassigned = await screen.findByRole('button', { name: 'Unassigned 17' });
+
+    await userEvent.click(unassigned);
+    expect(useFilters.getState().unassigned).toBe(true);
+    expect(unassigned).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(screen.getByRole('link', { name: 'All links' }));
+    expect(useFilters.getState().unassigned).toBe(false);
   });
 });

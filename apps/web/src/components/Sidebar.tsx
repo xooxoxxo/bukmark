@@ -1,12 +1,19 @@
 import { useState, type FormEvent } from 'react';
-import { NavLink } from 'react-router-dom';
-import { useCreateHub, useHubs } from '../api/queries';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useCreateHub, useHubs, useStats } from '../api/queries';
+import { useFilters } from '../state/filters';
 import styles from './Sidebar.module.css';
 
 export function Sidebar() {
   const { data } = useHubs();
+  const { data: stats } = useStats();
   const createHub = useCreateHub();
   const [name, setName] = useState('');
+  const unassigned = useFilters((state) => state.unassigned);
+  const setUnassigned = useFilters((state) => state.setUnassigned);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const atRoot = location.pathname === '/';
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -21,14 +28,32 @@ export function Sidebar() {
         <img src="/logo-mark.png" alt="" className={styles.logo} />
         bukmark
       </h1>
-      <NavLink to="/" end className={({ isActive }) => (isActive ? styles.active : styles.item)}>
+      <NavLink
+        to="/"
+        end
+        onClick={() => setUnassigned(false)}
+        className={({ isActive }) => (isActive && !unassigned ? styles.active : styles.item)}
+      >
         All links
       </NavLink>
+      <button
+        type="button"
+        className={`${atRoot && unassigned ? styles.active : styles.item} ${styles.filterItem}`}
+        onClick={() => {
+          setUnassigned(true);
+          navigate('/');
+        }}
+        aria-pressed={atRoot && unassigned}
+      >
+        Unassigned
+        {stats ? <span className={styles.count}>{stats.unassigned}</span> : null}
+      </button>
       <ul className={styles.hubList}>
         {(data?.items ?? []).map((hub) => (
           <li key={hub.id}>
             <NavLink
               to={`/hubs/${hub.id}`}
+              onClick={() => setUnassigned(false)}
               className={({ isActive }) => (isActive ? styles.active : styles.item)}
             >
               {hub.name} <span className={styles.count}>{hub.linkCount}</span>
