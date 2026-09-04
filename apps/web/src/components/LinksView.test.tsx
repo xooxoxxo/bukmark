@@ -119,12 +119,30 @@ describe('LinksView', () => {
     });
     renderView();
     await screen.findByText('First link');
+    await userEvent.click(screen.getByLabelText('Select First link'));
     expect(screen.getByLabelText('Links list')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Grid' }));
     expect(screen.getByLabelText('Links grid')).toBeInTheDocument();
     expect(screen.queryByLabelText('Links list')).not.toBeInTheDocument();
     expect(screen.getByText('First link')).toBeInTheDocument();
+    expect(useSelection.getState().selected.has('a')).toBe(true);
     await userEvent.click(screen.getByRole('button', { name: 'List' }));
     expect(screen.getByLabelText('Links list')).toBeInTheDocument();
+  });
+
+  it('clears selection when the result scope changes', async () => {
+    vi.mocked(client.fetchLinks).mockResolvedValue({
+      items: [link('a', 'First link')],
+      total: 1,
+    });
+    renderView();
+    await screen.findByText('First link');
+    await userEvent.click(screen.getByLabelText('Select First link'));
+    expect(useSelection.getState().selected.has('a')).toBe(true);
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Status' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Archived' }));
+
+    await waitFor(() => expect(useSelection.getState().selected.size).toBe(0));
   });
 });

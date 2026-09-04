@@ -60,6 +60,10 @@ to it. Amend intentionally — the file is the rule.
 - Dense rows are content-driven with a stable minimum height. Responsive
   layouts may recompose, but preserve every control, avoid page-level
   horizontal scrolling, and keep action labels on one line.
+- Section identity and section-scoped actions share a compact structural
+  header. Keep the action menu adjacent to its title; do not add a separate
+  action band or oversized page title when the sidebar already establishes
+  hierarchy.
 
 ## Motion stance
 - 2–3 primitives max per page: reveal (opacity + 8px translateY), CTA lift,

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useLinksInfinite } from '../api/queries';
 import { useFilters } from '../state/filters';
 import { useSelection } from '../state/selection';
@@ -15,6 +16,10 @@ export function LinksView({ hubId }: { hubId?: string }) {
   const view = useFilters((s) => s.view);
   const selected = useSelection((s) => s.selected);
   const setMany = useSelection((s) => s.setMany);
+  const clear = useSelection((s) => s.clear);
+
+  const scopeKey = `${hubId ?? 'all'}\u0000${q}\u0000${unassigned}\u0000${status}`;
+  useEffect(() => clear(), [scopeKey, clear]);
 
   const query = useLinksInfinite({
     q: q || undefined,
@@ -24,6 +29,7 @@ export function LinksView({ hubId }: { hubId?: string }) {
   });
   const rows = query.data?.pages.flatMap((p) => p.items) ?? [];
   const total = query.data?.pages[0]?.total ?? 0;
+  const selectedLinks = rows.filter((row) => selected.has(row.id));
   const allLoadedSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
   const filtered = Boolean(q || unassigned || status === 'archived' || hubId);
 
@@ -45,7 +51,7 @@ export function LinksView({ hubId }: { hubId?: string }) {
             />
             Select all loaded
           </label>
-          <BulkBar />
+          <BulkBar selectedLinks={selectedLinks} />
         </div>
       ) : null}
       {query.isPending ? (

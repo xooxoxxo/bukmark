@@ -1,119 +1,170 @@
-import * as Popover from '@radix-ui/react-popover';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useEffect, useState } from 'react';
 import { errorMessage } from '../api/client';
 import { useBulkLinks, useHubs } from '../api/queries';
+import type { LinkDto } from '../api/types';
 import { useSelection } from '../state/selection';
 import styles from './BulkBar.module.css';
-import { Select } from './ui/Select';
 
-export function BulkBar() {
-  const selected = useSelection((s) => s.selected);
-  const clear = useSelection((s) => s.clear);
+export function BulkBar({ selectedLinks }: { selectedLinks: LinkDto[] }) {
+  const selected = useSelection((state) => state.selected);
+  const clear = useSelection((state) => state.clear);
   const { data: hubs } = useHubs();
   const bulk = useBulkLinks();
-  const [hubId, setHubId] = useState('');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [open, setOpen] = useState(false);
+  const [pendingHubIds, setPendingHubIds] = useState<ReadonlySet<string>>(new Set());
+  const [hubError, setHubError] = useState<string | null>(null);
 
   useEffect(() => {
     setConfirmingDelete(false);
   }, [selected]);
 
   if (selected.size === 0) return null;
-  const ids = [...selected];
 
-  function run(action: 'archive' | 'assign' | 'delete') {
+  const ids = [...selected];
+  const commonHubIds = new Set(
+    selectedLinks[0]?.hubIds.filter((hubId) =>
+      selectedLinks.every((link) => link.hubIds.includes(hubId)),
+    ) ?? [],
+  );
+  const orderedHubs = [...(hubs?.items ?? [])].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+  );
+
+  function run(action: 'archive' | 'delete') {
     bulk.mutate(
-      action === 'assign' ? { ids, action, hubId } : { ids, action },
-      { onSuccess: () => clear() },
+      { ids, action },
+      {
+        onSuccess: () => {
+          setOpen(false);
+          clear();
+        },
+      },
     );
+  }
+
+  async function toggleHub(hubId: string, checked: boolean) {
+    setHubError(null);
+    setPendingHubIds((current) => new Set(current).add(hubId));
+    try {
+      await bulk.mutateAsync({
+        ids,
+        action: checked ? 'unassign' : 'assign',
+        hubId,
+      });
+    } catch (error) {
+      setHubError(errorMessage(error));
+    } finally {
+      setPendingHubIds((current) => {
+        const next = new Set(current);
+        next.delete(hubId);
+        return next;
+      });
+    }
   }
 
   return (
     <div className={styles.summary}>
       <span className={styles.selectedCount}>{selected.size} selected</span>
-      <Popover.Root
+      <DropdownMenu.Root
         open={open}
         onOpenChange={(next) => {
           setOpen(next);
-          if (!next) setConfirmingDelete(false);
+          if (!next) {
+            setConfirmingDelete(false);
+            setHubError(null);
+          }
         }}
       >
-        <Popover.Trigger asChild>
+        <DropdownMenu.Trigger asChild>
           <button type="button" className={styles.trigger}>
             Actions
           </button>
-        </Popover.Trigger>
-        <Popover.Portal>
-          <Popover.Content
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content
             className={styles.content}
             align="end"
             sideOffset={6}
             collisionPadding={12}
             aria-label="Bulk actions"
           >
-            <p className={styles.heading}>{selected.size} selected</p>
-            <div className={styles.assignRow}>
-              <Select
-                value={hubId}
-                onValueChange={setHubId}
-                options={(hubs?.items ?? []).map((hub) => ({
-                  value: hub.id,
-                  label: hub.name,
-                }))}
-                placeholder="Choose hub…"
-                ariaLabel="Assign to hub"
-                className={styles.hubSelect}
-              />
-              <button
-                type="button"
-                onClick={() => run('assign')}
-                disabled={!hubId || bulk.isPending}
-              >
-                Assign
-              </button>
-            </div>
-            <div className={styles.actions}>
-              <button type="button" onClick={() => run('archive')} disabled={bulk.isPending}>
-                Archive
-              </button>
-              {confirmingDelete ? (
-                <button
-                  type="button"
-                  className={styles.danger}
-                  onClick={() => run('delete')}
-                  disabled={bulk.isPending}
-                >
-                  Really delete {selected.size}?
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.danger}
-                  onClick={() => setConfirmingDelete(true)}
-                >
-                  Delete
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  clear();
+            <DropdownMenu.Group className={styles.hubList}>
+              {orderedHubs.map((hub) => {
+                const checked = commonHubIds.has(hub.id);
+                const pending = pendingHubIds.has(hub.id);
+                return (
+                  <DropdownMenu.CheckboxItem
+                    key={hub.id}
+                    className={styles.checkItem}
+                    checked={checked}
+                    disabled={pending}
+                    aria-busy={pending}
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      void toggleHub(hub.id, checked);
+                    }}
+                  >
+                    <span className={styles.box} aria-hidden="true">
+                      <DropdownMenu.ItemIndicator className={styles.indicator}>
+                        ✓
+                      </DropdownMenu.ItemIndicator>
+                    </span>
+                    <span className={styles.hubName}>{hub.name}</span>
+                  </DropdownMenu.CheckboxItem>
+                );
+              })}
+              {orderedHubs.length === 0 ? (
+                <DropdownMenu.Item className={styles.empty} disabled>
+                  No hubs yet
+                </DropdownMenu.Item>
+              ) : null}
+            </DropdownMenu.Group>
+            <DropdownMenu.Separator className={styles.separator} />
+            <DropdownMenu.Item
+              className={styles.menuItem}
+              disabled={bulk.isPending}
+              onSelect={(event) => {
+                event.preventDefault();
+                run('archive');
+              }}
+            >
+              Archive
+            </DropdownMenu.Item>
+            {confirmingDelete ? (
+              <DropdownMenu.Item
+                className={`${styles.menuItem} ${styles.danger}`}
+                disabled={bulk.isPending}
+                onSelect={(event) => {
+                  event.preventDefault();
+                  run('delete');
                 }}
-                className={styles.ghost}
               >
-                Clear
-              </button>
-            </div>
-            {bulk.isError ? (
+                Really delete {selected.size}?
+              </DropdownMenu.Item>
+            ) : (
+              <DropdownMenu.Item
+                className={`${styles.menuItem} ${styles.danger}`}
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setConfirmingDelete(true);
+                }}
+              >
+                Delete
+              </DropdownMenu.Item>
+            )}
+            <DropdownMenu.Item className={`${styles.menuItem} ${styles.clear}`} onSelect={clear}>
+              Clear selection
+            </DropdownMenu.Item>
+            {hubError || bulk.isError ? (
               <p className={styles.error} role="alert" aria-live="polite">
-                {errorMessage(bulk.error)}
+                {hubError ?? errorMessage(bulk.error)}
               </p>
             ) : null}
-          </Popover.Content>
-        </Popover.Portal>
-      </Popover.Root>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
     </div>
   );
 }
