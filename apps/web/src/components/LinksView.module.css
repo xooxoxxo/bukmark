@@ -5,6 +5,7 @@
   gap: var(--bk-space-md);
   min-width: 0;
   min-height: 3.75rem;
+  padding-inline: var(--bk-space-sm);
   border-bottom: 1px solid var(--bk-rule);
 }
 

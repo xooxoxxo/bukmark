@@ -127,10 +127,6 @@
 }
 
 @media (max-width: 32rem) {
-  .row {
-    padding-inline: 0;
-  }
-
   .titleLine a {
     white-space: normal;
   }

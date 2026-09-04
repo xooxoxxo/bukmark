@@ -39,7 +39,9 @@ to it. Amend intentionally — the file is the rule.
 ## Component voice
 - Borders are structural: 2px solid ink for primary separations (nav, section
   breaks, active states), 1px rule for quiet containment. No shadows, no
-  gradients, no rounded corners.
+  gradients, no rounded corners. Scrollbar thumbs are the sole shadow
+  exception: a hard, zero-blur inset ink edge may sharpen the accent thumb;
+  tracks remain transparent.
 - Primary action · solid ink block, paper text, uppercase display font,
   hover → accent fill + 2px lift. Secondary · 2px ink outline, transparent.
 - Logo mark (`apps/site/public/logo-mark.png`) sits left in any header,

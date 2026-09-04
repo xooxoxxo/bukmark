@@ -31,22 +31,29 @@
 }
 
 .more {
-  flex: 0 0 2.5rem;
+  position: relative;
+  flex: 0 0 2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2rem;
+  height: 2rem;
   padding: 0;
   border: 2px solid var(--bk-ink);
   background: var(--bk-paper);
   color: var(--bk-ink);
   font-family: var(--bk-font-body);
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   line-height: 1;
   transition: background var(--bk-dur-micro) var(--bk-ease-out), color var(--bk-dur-micro) var(--bk-ease-out), border-color var(--bk-dur-micro) var(--bk-ease-out);
+}
+
+.more::before {
+  position: absolute;
+  inset: -0.375rem;
+  content: '';
 }
 
 .more:hover,

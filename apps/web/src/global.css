@@ -54,6 +54,31 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-color: var(--bk-accent) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 2.5rem;
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: var(--bk-accent);
+  background-clip: padding-box;
+  box-shadow: inset -2px -2px 0 var(--bk-ink);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  box-shadow: inset 2px 2px 0 var(--bk-ink);
 }
 
 html,
