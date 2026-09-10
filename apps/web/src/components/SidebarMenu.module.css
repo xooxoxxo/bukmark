@@ -1,0 +1,108 @@
+.wrap {
+  margin-top: var(--bk-space-md);
+}
+
+/* Kept in the layout but out of sight: the menu item drives it. */
+.file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--bk-space-xs) var(--bk-space-md);
+  border: 2px solid var(--bk-ink);
+  background: transparent;
+  color: var(--bk-ink);
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background var(--bk-dur-micro) var(--bk-ease-out),
+    border-color var(--bk-dur-micro) var(--bk-ease-out),
+    color var(--bk-dur-micro) var(--bk-ease-out);
+}
+
+.trigger:hover,
+.trigger[data-state='open'] {
+  border-color: var(--bk-accent);
+  background: var(--bk-accent);
+  color: var(--bk-paper);
+}
+
+.menu {
+  z-index: 70;
+  min-width: 14rem;
+  max-width: calc(100vw - 1.5rem);
+  padding: var(--bk-space-2xs);
+  border: 2px solid var(--bk-ink);
+  background: var(--bk-paper);
+  color: var(--bk-ink);
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: var(--bk-space-xs) var(--bk-space-sm);
+  color: var(--bk-ink);
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-sm);
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  outline: none;
+  cursor: default;
+  user-select: none;
+}
+
+.menuItem[data-highlighted] {
+  background: var(--bk-ink);
+  color: var(--bk-paper);
+}
+
+.menuItem[data-disabled] {
+  opacity: 0.45;
+}
+
+.separator {
+  height: 1px;
+  margin: var(--bk-space-2xs) 0;
+  background: var(--bk-rule);
+}
+
+.note {
+  max-width: 22ch;
+  margin: var(--bk-space-xs) var(--bk-space-sm);
+  color: var(--bk-neutral);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.note a {
+  color: var(--bk-accent);
+}
+
+.status,
+.statusError {
+  margin: var(--bk-space-sm) 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.status {
+  color: var(--bk-neutral);
+}
+
+.statusError {
+  color: var(--danger);
+}

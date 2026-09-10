@@ -65,6 +65,26 @@ export function bulkLinks(body: {
   return http('/links/bulk', jsonInit('POST', body));
 }
 
+export interface ImportItem {
+  url: string;
+  title?: string;
+  folderPath?: string;
+}
+
+export interface ImportResult {
+  created: number;
+  updated: number;
+  skippedDeleted: number;
+  invalid: { url: string; reason: string }[];
+}
+
+/** The server caps one request at 200 items; callers chunk to this size. */
+export const IMPORT_BATCH_SIZE = 200;
+
+export function importLinks(items: ImportItem[]): Promise<ImportResult> {
+  return http('/links/import', jsonInit('POST', { items }));
+}
+
 export function fetchHubs(): Promise<{ items: HubDto[] }> {
   return http('/hubs');
 }

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useCreateHub, useHubs, useStats } from '../api/queries';
 import { useFilters } from '../state/filters';
+import { SidebarMenu } from './SidebarMenu';
 import styles from './Sidebar.module.css';
 
 export function Sidebar() {
@@ -71,6 +72,7 @@ export function Sidebar() {
         <button type="submit">Add</button>
       </form>
       {createHub.isError ? <p className={styles.error}>{createHub.error.message}</p> : null}
+      <SidebarMenu />
     </nav>
   );
 }

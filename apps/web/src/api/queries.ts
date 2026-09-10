@@ -58,6 +58,38 @@ export function useBulkLinks() {
   });
 }
 
+/**
+ * Import in batches, because a bookmark tree is routinely thousands of links
+ * and the route accepts 200 at a time. Batches are sent in sequence rather than
+ * in parallel: every one of them writes the same tables, and a browser export
+ * is not worth a thundering herd against a self-hosted Postgres.
+ */
+export function useImportLinks() {
+  const invalidate = useInvalidate('links', 'hubs', 'stats');
+  return useMutation({
+    mutationFn: async ({
+      items,
+      onProgress,
+    }: {
+      items: api.ImportItem[];
+      onProgress?: (done: number, total: number) => void;
+    }): Promise<api.ImportResult> => {
+      const total: api.ImportResult = { created: 0, updated: 0, skippedDeleted: 0, invalid: [] };
+      for (let i = 0; i < items.length; i += api.IMPORT_BATCH_SIZE) {
+        const batch = items.slice(i, i + api.IMPORT_BATCH_SIZE);
+        const res = await api.importLinks(batch);
+        total.created += res.created;
+        total.updated += res.updated;
+        total.skippedDeleted += res.skippedDeleted;
+        total.invalid.push(...res.invalid);
+        onProgress?.(Math.min(i + batch.length, items.length), items.length);
+      }
+      return total;
+    },
+    onSuccess: () => invalidate(),
+  });
+}
+
 export function useCreateHub() {
   const invalidate = useInvalidate('hubs', 'stats');
   return useMutation({

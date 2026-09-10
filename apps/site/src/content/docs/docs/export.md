@@ -1,12 +1,43 @@
 ---
-title: Export
-description: Export bukmark data as HTML, JSON, or CSV for backups and other uses.
+title: Import & Export
+description: Bring bookmarks in from your browser, and get bukmark data out as HTML, JSON, or CSV.
 sidebar:
   order: 4
 ---
 
-Get your data out — as a file a browser will import, a backup you can restore,
-or a spreadsheet.
+Bring your existing bookmarks in, and get your data back out — as a file a
+browser will import, a backup, or a spreadsheet.
+
+## Import
+
+**Settings → Import bookmarks…** in the sidebar takes a bookmarks HTML file
+exported from Chrome, Firefox or Safari, or a JSON backup from bukmark itself.
+
+Everything you import lands **unsorted**, on purpose. The browser folder a link
+came from is kept as a hint on the capture rather than turned into a hub, so
+your existing hubs stay as you left them and the sort stays a decision you make
+— see [Sorting with Claude](/docs/sorting/), which reads those hints.
+
+What import does with links you already have:
+
+| Situation | What happens |
+| -- | -- |
+| Link is already in bukmark | Left alone. An empty title gets filled in; a title you have edited is never overwritten. |
+| Link was deleted here | Stays deleted. Re-importing a browser tree does not undo your deletions. |
+| Same link in two folders | Imported once. |
+| Bookmarklet, `place:` query, feed | Skipped — only `http` and `https` links are imported. |
+
+The result line reports each of those counts, so a run that skipped things says
+so rather than quietly dropping them.
+
+:::caution[A JSON backup restores links, not hub membership]
+Because import creates no hubs, restoring a backup brings your links back
+unsorted, carrying their old hub names as a hint. Notes are not restored
+either. A backup is a safety net for the links themselves, not yet a
+full-fidelity snapshot.
+:::
+
+## Export
 
 ## Export Examples
 
@@ -30,7 +61,7 @@ filters.
 | Format | Use it for |
 | -- | -- |
 | `html` | Importing into Chrome, Firefox or Safari. Hubs become folders; notes become descriptions. A link in several hubs appears in each. |
-| `json` | Backups. Versioned, carries every field, and references hubs by name so it restores into a fresh database. |
+| `json` | Backups. Versioned, carries every field, and references hubs by name rather than id. Note the caution above: importing one restores links, not hub membership. |
 | `csv` | Spreadsheets. One row per link, hubs semicolon-separated. |
 
 ## Filters

@@ -39,6 +39,20 @@ class ResizeObserverStub {
 }
 globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
 
+// jsdom 25 ships Blob without the text() reader every browser has had since
+// 2020. The import flow uses it, so the environment gets the shim rather than
+// the app getting a FileReader detour.
+if (typeof Blob.prototype.text !== 'function') {
+  Blob.prototype.text = function (this: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(this);
+    });
+  };
+}
+
 // Radix Select relies on pointer-capture and scrolling APIs that jsdom omits.
 HTMLElement.prototype.hasPointerCapture = () => false;
 HTMLElement.prototype.setPointerCapture = () => undefined;

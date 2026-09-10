@@ -15,7 +15,7 @@ make at 1am with sixty tabs open.
 - **[Install](/docs/install)** — Run bukmark with Docker Compose in four commands
 - **[Browser Extension](/docs/extension)** — Chrome and Brave extension for quick capturing and bookmark import
 - **[Sorting with Claude](/docs/sorting)** — Use Claude Code and MCP to intelligently sort your bookmarks
-- **[Export](/docs/export)** — Export your data as HTML, JSON, or CSV for backups and other uses
+- **[Import & Export](/docs/export)** — Bring bookmarks in from your browser; take your data out as HTML, JSON, or CSV
 - **[API reference](/docs/api)** — Every REST endpoint bukmark serves, with parameters and response schemas
 - **[CLI](/docs/cli)** — Batch-triage exports from OneTab, Chrome, or Safari using the v0 CLI tool
 - **[Development](/docs/development)** — Set up a local development environment and understand the monorepo
