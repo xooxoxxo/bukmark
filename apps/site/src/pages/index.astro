@@ -106,7 +106,7 @@ docker compose up -d</code></pre>
 					<figure>
 						<img
 							src="/screenshot.png"
-							alt="bukmark interface showing a left sidebar of hub categories, aggregate link counts at the top, and a list of bookmarks with titles and brief notes."
+							alt="bukmark interface showing a left sidebar of hub categories with their link counts, a search and filter row above the list, and a list of bookmarks with titles and brief notes."
 						/>
 						<figcaption>
 							The seeded demo workbench. Hubs on the left, search and filters above the list,
@@ -452,6 +452,11 @@ docker compose up -d</code></pre>
 			@media (prefers-reduced-motion: reduce) {
 				html { scroll-behavior: auto; }
 				*, *::before, *::after { transition-duration: 0.01ms !important; }
+				.js .reveal { opacity: 1; transform: none; }
+			}
+			/* Printing never scrolls, so the observer that clears .reveal never
+			   fires and every section below the fold would come out blank. */
+			@media print {
 				.js .reveal { opacity: 1; transform: none; }
 			}
 		</style>
