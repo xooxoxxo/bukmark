@@ -106,3 +106,45 @@
 .statusError {
   color: var(--danger);
 }
+
+.label {
+  padding: var(--bk-space-xs) var(--bk-space-sm) var(--bk-space-2xs);
+  color: var(--bk-neutral);
+  font-family: var(--bk-font-display);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.radioItem {
+  display: flex;
+  align-items: center;
+  gap: var(--bk-space-xs);
+  min-height: 2.5rem;
+  padding: var(--bk-space-2xs) var(--bk-space-sm);
+  color: var(--bk-ink);
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-sm);
+  font-weight: 600;
+  outline: none;
+  cursor: default;
+  user-select: none;
+}
+
+.radioItem[data-highlighted] {
+  background: var(--bk-ink);
+  color: var(--bk-paper);
+}
+
+/* Fixed-width so the labels stay on one baseline whether ticked or not. */
+.radioMark {
+  display: inline-flex;
+  justify-content: center;
+  width: 1rem;
+  color: var(--bk-accent);
+}
+
+.radioItem[data-highlighted] .radioMark {
+  color: var(--bk-paper);
+}

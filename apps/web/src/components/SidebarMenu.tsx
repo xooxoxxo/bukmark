@@ -3,10 +3,17 @@ import { useRef, useState, type ChangeEvent } from 'react';
 import { errorMessage } from '../api/client';
 import { useImportLinks } from '../api/queries';
 import { UnsupportedFileError, parseImportFile } from '../import/parseBookmarks';
+import { applyThemeChoice, readThemeChoice, type ThemeChoice } from '../theme';
 import styles from './SidebarMenu.module.css';
 
 const DOCS_URL = 'https://bukmark.it/docs/';
 const AUTH_DOCS_URL = 'https://bukmark.it/docs/install/#authentication-warning';
+
+const THEMES: [ThemeChoice, string][] = [
+  ['auto', 'System'],
+  ['light', 'Light'],
+  ['dark', 'Dark'],
+];
 
 interface Status {
   kind: 'reading' | 'importing' | 'done' | 'error';
@@ -16,6 +23,7 @@ interface Status {
 export function SidebarMenu() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status | null>(null);
+  const [theme, setTheme] = useState<ThemeChoice>(readThemeChoice);
   const importLinks = useImportLinks();
 
   async function onFileChosen(event: ChangeEvent<HTMLInputElement>) {
@@ -92,6 +100,32 @@ export function SidebarMenu() {
                 Documentation
               </a>
             </DropdownMenu.Item>
+            <DropdownMenu.Separator className={styles.separator} />
+            <DropdownMenu.Label className={styles.label}>Theme</DropdownMenu.Label>
+            <DropdownMenu.RadioGroup
+              value={theme}
+              onValueChange={(next) => {
+                const choice = next as ThemeChoice;
+                setTheme(choice);
+                applyThemeChoice(choice);
+              }}
+            >
+              {THEMES.map(([value, label]) => (
+                <DropdownMenu.RadioItem
+                  key={value}
+                  className={styles.radioItem}
+                  value={value}
+                  // Radix closes the menu on select; keep it open so the
+                  // choice can be compared against what is behind it.
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  <span className={styles.radioMark} aria-hidden="true">
+                    <DropdownMenu.ItemIndicator>&#x2713;</DropdownMenu.ItemIndicator>
+                  </span>
+                  {label}
+                </DropdownMenu.RadioItem>
+              ))}
+            </DropdownMenu.RadioGroup>
             <DropdownMenu.Separator className={styles.separator} />
             {/* Stated plainly rather than implied by a missing sign-out: this
                 instance has no accounts and no auth on any route. */}

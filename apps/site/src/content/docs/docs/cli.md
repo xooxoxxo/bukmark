@@ -6,14 +6,14 @@ sidebar:
 ---
 
 > **Note:** The CLI is the v0 tool and operates on `data/store.json`, not the Postgres
-> database the server uses. For current sorting, use [the MCP server with Claude](/docs/sorting).
+> database the server uses. For current sorting, use [the MCP server](/docs/sorting).
 
-For bulk-importing a tab dump and having Claude triage it in batches:
+For bulk-importing a tab dump and having an AI assistant triage it in batches:
 
 ```bash
 pnpm cli ingest path/to/onetab-export.txt   # parse, normalize, dedupe, junk-filter
 pnpm cli prepare                            # → work/batch-N.json
-# a Claude session writes work/batch-N.result.json
+# your AI assistant writes work/batch-N.result.json
 pnpm cli merge-triage
 pnpm cli render                             # → output/INDEX.md + per-category + junk report
 pnpm cli status
@@ -26,7 +26,7 @@ Re-ingesting the same file is a no-op. To rescue a junked link, add its URL or a
 
 ## Result Schema
 
-Claude writes this JSON schema for each batch:
+Your AI assistant writes this JSON schema for each batch:
 
 ```json
 { "batch": 1, "results": [ { "urlHash": "…", "category": "homelab", "keep": true,

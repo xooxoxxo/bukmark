@@ -16,6 +16,25 @@ import '../styles/custom.css';
 		<link rel="icon" href="/favicon.png" type="image/png" />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<script is:inline>
+			// The landing page is not a Starlight page, but it shares the theme with
+			// the docs: read the key Starlight's own toggle writes so a choice made
+			// in /docs carries over here. Inline and in <head> so the first paint is
+			// already correct -- a flash of the wrong paper is worse than no toggle.
+			try {
+				const stored = localStorage.getItem('starlight-theme');
+				const theme =
+					stored === 'light' || stored === 'dark'
+						? stored
+						: matchMedia('(prefers-color-scheme: dark)').matches
+							? 'dark'
+							: 'light';
+				document.documentElement.dataset.theme = theme;
+			} catch {
+				// Private mode can throw on localStorage; the CSS media-query
+				// fallback already covers this case.
+			}
+		</script>
 	</head>
 	<body>
 		<a class="skip-link" href="#content">Skip to content</a>
@@ -41,7 +60,7 @@ import '../styles/custom.css';
 					<div class="hero__lower">
 						<div class="hero__intro">
 							<p>
-								Capture anything with one click. Sort deliberately with Claude. Self-hosted,
+								Capture anything with one click. Sort deliberately with AI. Self-hosted,
 								open source. No accounts. No lock-in.
 							</p>
 							<div class="button-row">
@@ -76,9 +95,9 @@ docker compose up -d</code></pre>
 							</p>
 						</article>
 						<article class="workflow__item">
-							<h3>Sort with Claude</h3>
+							<h3>Sort with AI</h3>
 							<p>
-								Connect the MCP server and ask Claude to sort your unsorted links. It proposes
+								Connect the MCP server and ask your assistant to sort your unsorted links. It proposes
 								assignments to your existing hubs; you approve or reassign them in one batch.
 								Sorting happens on your schedule, not at capture time.
 							</p>
@@ -104,13 +123,19 @@ docker compose up -d</code></pre>
 						</p>
 					</header>
 					<figure>
+						{/* Two files rather than <picture>: the theme follows data-theme, which a
+						    media query cannot see, so CSS picks one. Only the shown image carries
+						    the alt text; the hidden one is aria-hidden so a screen reader is not
+						    given the same figure twice. */}
 						<img
+							class="shot shot--light"
 							src="/screenshot.png"
 							alt="bukmark interface showing a left sidebar of hub categories with their link counts, a search and filter row above the list, and a list of bookmarks with titles and brief notes."
 						/>
+						<img class="shot shot--dark" src="/screenshot-dark.png" alt="" aria-hidden="true" />
 						<figcaption>
 							The seeded demo workbench. Hubs on the left, search and filters above the list,
-							and deliberate sorting through Claude.
+							and deliberate sorting through any MCP client.
 						</figcaption>
 					</figure>
 				</div>
@@ -142,7 +167,7 @@ docker compose up -d</code></pre>
 					<p>Self-hosted bookmark triage. Open source and built to leave.</p>
 				</div>
 				<div class="site-footer__details">
-					<p>Postgres · Docker · Claude MCP</p>
+					<p>Postgres · Docker · MCP</p>
 					<p>
 						<a href="https://github.com/xooxoxxo/bukmark">GitHub</a>
 						<a href="https://github.com/xooxoxxo/bukmark/blob/main/LICENSE">MIT license</a>
@@ -377,6 +402,13 @@ docker compose up -d</code></pre>
 			.workflow__item:nth-child(2) p { grid-column: 1 / 6; grid-row: 1; }
 			.product-view figure { margin: 0; border: 2px solid var(--bk-ink); }
 			.product-view img { display: block; width: 100%; height: auto; background: var(--bk-paper); }
+			.product-view .shot--dark { display: none; }
+			:root[data-theme='dark'] .product-view .shot--light { display: none; }
+			:root[data-theme='dark'] .product-view .shot--dark { display: block; }
+			@media (prefers-color-scheme: dark) {
+				:root:not([data-theme='light']) .product-view .shot--light { display: none; }
+				:root:not([data-theme='light']) .product-view .shot--dark { display: block; }
+			}
 			.product-view figcaption { padding: var(--bk-space-md) var(--bk-space-lg); border-top: 2px solid var(--bk-ink); color: var(--bk-muted); font-size: var(--bk-text-sm); }
 			.closing__grid {
 				display: grid;

@@ -16,7 +16,7 @@ exported from Chrome, Firefox or Safari, or a JSON backup from bukmark itself.
 Everything you import lands **unsorted**, on purpose. The browser folder a link
 came from is kept as a hint on the capture rather than turned into a hub, so
 your existing hubs stay as you left them and the sort stays a decision you make
-— see [Sorting with Claude](/docs/sorting/), which reads those hints.
+— see [Sorting with MCP](/docs/sorting/), which reads those hints.
 
 What import does with links you already have:
 

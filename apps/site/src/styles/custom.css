@@ -13,6 +13,7 @@
   --bk-neutral: oklch(56% 0.008 40);
   --bk-muted: oklch(40% 0.008 40);
   --bk-ink: #0e0f13;              /* logo wordmark ink (exact) */
+  --bk-code-bg: oklch(95% 0.005 60);
   --bk-accent: #fd441d;           /* logo orange (exact) */
 
   /* Typography */
@@ -63,29 +64,55 @@
   --sl-font-headings: var(--bk-font-display);
   --sl-content-width: 52rem;
   --sl-text-5xl: clamp(2.75rem, 6vw, 5.5rem);
+}
+
+:root[data-theme='light'] {
   color-scheme: light;
 }
 
-/* The product has one deliberate paper theme. Keep Starlight's generated dark
-   mode from drifting away from the canonical identity. */
+/* Dark mode. The palette inverts rather than restyling: --bk-ink stays "the
+   high-contrast foreground", so every `2px solid var(--bk-ink)` structural
+   border keeps its weight without one rule changing. --bk-muted and
+   --bk-neutral swap direction for the same reason -- muted stays the more
+   prominent of the two in both modes.
+
+   The accent does not drift. #fd441d is pinned to the logo and measures
+   5.57:1 on this paper, so it carries links, focus rings and small
+   highlights here exactly as it does on cream. */
 :root[data-theme='dark'] {
-  --sl-color-accent: var(--bk-accent);
-  --sl-color-accent-low: #ffe2d8;
-  --sl-color-text: var(--bk-ink);
-  --sl-color-text-accent: var(--bk-accent);
-  --sl-color-bg: var(--bk-paper);
-  --sl-color-bg-nav: var(--bk-paper);
-  --sl-color-bg-sidebar: var(--bk-paper);
-  --sl-color-hairline: var(--bk-rule);
+  --bk-paper: oklch(16% 0.008 40);
+  --bk-paper-2: oklch(22% 0.010 40);
+  --bk-rule: oklch(34% 0.008 40);
+  --bk-neutral: oklch(68% 0.008 40);
+  --bk-muted: oklch(82% 0.008 40);
+  --bk-ink: oklch(94% 0.006 40);
+  --bk-code-bg: oklch(20% 0.006 60);
+
+  --sl-color-accent-low: oklch(32% 0.09 33);
   --sl-color-gray-1: var(--bk-muted);
-  --sl-color-gray-2: var(--bk-neutral);
   --sl-color-gray-3: var(--bk-neutral);
   --sl-color-gray-4: var(--bk-rule);
   --sl-color-gray-5: var(--bk-paper-2);
-  --sl-color-gray-6: var(--bk-paper-2);
   --sl-color-black: var(--bk-paper);
   --sl-color-white: var(--bk-ink);
-  color-scheme: light;
+  color-scheme: dark;
+}
+
+/* Fallback for before/without JS. Starlight's script always sets data-theme,
+   and the landing page reads the same stored key, so this covers the first
+   paint and the no-JS case. Guarded so an explicit light choice always wins. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bk-paper: oklch(16% 0.008 40);
+    --bk-paper-2: oklch(22% 0.010 40);
+    --bk-rule: oklch(34% 0.008 40);
+    --bk-neutral: oklch(68% 0.008 40);
+    --bk-muted: oklch(82% 0.008 40);
+    --bk-ink: oklch(94% 0.006 40);
+    --bk-code-bg: oklch(20% 0.006 60);
+    --sl-color-accent-low: oklch(32% 0.09 33);
+    color-scheme: dark;
+  }
 }
 
 /* Starlight chrome. Stable element/component selectors are preferred over its
@@ -221,11 +248,22 @@ header.header {
   font-family: var(--bk-font-mono);
 }
 
-.sl-markdown-content pre,
-.expressive-code figure {
+/* Drive Expressive Code through its own variables. It already ships a light
+   and a dark theme and swaps them on data-theme, so only the surface and the
+   border need to become ours; its syntax colours are left alone. */
+.expressive-code {
+  --ec-brdCol: var(--bk-ink);
+  --ec-brdRad: 0;
+  --ec-brdWd: 2px;
+  --ec-codeBg: var(--bk-code-bg);
+  --ec-codeFontFml: var(--bk-font-mono);
+  --ec-focusBrd: var(--bk-accent);
+}
+
+.sl-markdown-content pre {
   border: 2px solid var(--bk-ink);
   border-radius: 0;
-  background: var(--bk-paper-2);
+  background: var(--bk-code-bg);
   box-shadow: none;
 }
 

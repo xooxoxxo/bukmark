@@ -2,15 +2,15 @@
 
 A self-hosted bookmark manager built around triage rather than storage. Capture
 a page in one click, and everything lands **unsorted** on purpose — sorting is a
-separate, deliberate pass you run later by asking Claude, not a decision you make
+separate, deliberate pass you run later by asking your AI assistant, not a decision you make
 at 1am with sixty tabs open.
 
 - **Web UI** — virtualized list and grid over tens of thousands of links, full-text
   search, hubs (categories), bulk actions.
 - **Browser extension** — Chrome/Brave. Toolbar popup, a keyboard shortcut for
   silent saves, and one-shot import of your existing browser bookmarks.
-- **MCP server** — lets Claude read your unsorted pile and file it, with your
-  approval, from any Claude session.
+- **MCP server** — lets any MCP client read your unsorted pile and file it, with your
+  approval, from any MCP-compatible tool or session.
 - **CLI** — batch-triage OneTab/Chrome/Safari exports into ranked markdown.
 
 ## Requirements

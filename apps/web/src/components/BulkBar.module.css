@@ -126,7 +126,9 @@
 
 .danger[data-highlighted] {
   background: var(--danger);
-  color: white;
+  /* Paper, not white: --danger lightens in dark mode, where white on it
+     measures 2.88:1. Paper inverts with the theme and holds 4.5:1 in both. */
+  color: var(--bk-paper);
 }
 
 .clear {

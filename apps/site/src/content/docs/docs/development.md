@@ -22,7 +22,7 @@ Bukmark is organized as a monorepo with the following structure:
 - `apps/server` — Fastify + Drizzle (API backend)
 - `apps/web` — React 19 + Vite (web UI)
 - `apps/extension` — MV3, vanilla TypeScript (browser extension)
-- `apps/mcp` — stdio MCP server (Claude integration)
+- `apps/mcp` — MCP server (for any MCP-compatible client)
 - `apps/cli` — CLI tool for batch triage
 - `packages/shared` — shared types and utilities
 

@@ -52,6 +52,40 @@
   --radius: 0;
 }
 
+/* Dark mode. Only the six palette tokens move -- every legacy alias below
+   them is a var() reference, and the structural borders are var(--bk-ink), so
+   `2px solid var(--bk-ink)` stays the high-contrast edge in both modes without
+   a component stylesheet changing. --bk-accent is deliberately absent: the
+   logo orange measures 5.57:1 on this paper and stays pinned.
+
+   --danger lightens, because #dc2626 is a light-mode red and drops under
+   4.5:1 against a near-black paper. */
+:root[data-theme='dark'] {
+  --bk-paper: oklch(16% 0.008 40);
+  --bk-paper-2: oklch(22% 0.010 40);
+  --bk-rule: oklch(34% 0.008 40);
+  --bk-neutral: oklch(68% 0.008 40);
+  --bk-muted: oklch(82% 0.008 40);
+  --bk-ink: oklch(94% 0.006 40);
+  --accent-soft: oklch(32% 0.09 33);
+  --danger: oklch(70% 0.17 25);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bk-paper: oklch(16% 0.008 40);
+    --bk-paper-2: oklch(22% 0.010 40);
+    --bk-rule: oklch(34% 0.008 40);
+    --bk-neutral: oklch(68% 0.008 40);
+    --bk-muted: oklch(82% 0.008 40);
+    --bk-ink: oklch(94% 0.006 40);
+    --accent-soft: oklch(32% 0.09 33);
+    --danger: oklch(70% 0.17 25);
+    color-scheme: dark;
+  }
+}
+
 * {
   box-sizing: border-box;
   scrollbar-color: var(--bk-accent) transparent;

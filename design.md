@@ -7,7 +7,8 @@ to it. Amend intentionally — the file is the rule.
 - Genre · editorial (brutalist-product voice)
 - Macrostructure · Manifesto×Workbench hybrid (site landing); app UI follows tokens + voice, not the macrostructure
 - Theme · custom (vibe: "warm brutalist, logo-anchored, deliberate")
-- Axes · light paper / heavy grotesque display / warm orange accent
+- Axes · warm paper / heavy grotesque display / warm orange accent
+- Modes · light and dark. The palette inverts; the accent does not move.
 
 ## Tokens (canonical · `apps/site/src/styles/custom.css` is the source of truth)
 ```css
@@ -35,6 +36,41 @@ to it. Amend intentionally — the file is the rule.
   /* Radius: 0 — hard corners everywhere. Brutalist bones. */
 }
 ```
+
+### Dark mode
+
+Six tokens move and nothing else does. `--bk-ink` means "the high-contrast
+foreground", so every `2px solid var(--bk-ink)` structural border keeps its
+weight on dark paper without a component stylesheet changing. `--bk-muted` and
+`--bk-neutral` swap direction for the same reason: muted stays the more
+prominent of the two in both modes.
+
+```css
+:root[data-theme='dark'] {
+  --bk-paper: oklch(16% 0.008 40);
+  --bk-paper-2: oklch(22% 0.010 40);
+  --bk-rule: oklch(34% 0.008 40);
+  --bk-neutral: oklch(68% 0.008 40);
+  --bk-muted: oklch(82% 0.008 40);
+  --bk-ink: oklch(94% 0.006 40);
+}
+```
+
+`--bk-accent` is deliberately absent: #fd441d is pinned to the logo and
+measures 5.57:1 on the dark paper, so it carries links, focus rings and small
+highlights in both modes unchanged.
+
+Rules that follow from this:
+
+- A foreground colour paired with a coloured fill uses `var(--bk-paper)`, never
+  `white`. `--danger` lightens in dark mode, where white on it measures 2.88:1.
+- Both surfaces honour an explicit choice and fall back to the system:
+  `:root[data-theme='dark']` plus a `prefers-color-scheme` block guarded on
+  `:not([data-theme='light'])`. The choice is stored per browser — the site
+  under Starlight's `starlight-theme` key, the app under `bukmark-theme` — and
+  stamped on `<html>` before first paint so there is no flash.
+- The logo mark is a transparent PNG. It sits on both papers; anything with a
+  baked-in background reads as a bright tile on dark.
 
 ## Component voice
 - Borders are structural: 2px solid ink for primary separations (nav, section
