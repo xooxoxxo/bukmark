@@ -1,12 +1,13 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { createQueryClient } from './api/queryClient';
+import { AuthGate } from './components/AuthGate';
 import { Layout } from './components/Layout';
 import { HubPage } from './pages/HubPage';
 import { LinksPage } from './pages/LinksPage';
+import { TokensPage } from './pages/TokensPage';
 
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
-});
+const queryClient = createQueryClient();
 
 export function AppRoutes() {
   return (
@@ -14,6 +15,7 @@ export function AppRoutes() {
       <Route element={<Layout />}>
         <Route index element={<LinksPage />} />
         <Route path="hubs/:hubId" element={<HubPage />} />
+        <Route path="settings/tokens" element={<TokensPage />} />
       </Route>
     </Routes>
   );
@@ -23,7 +25,9 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AppRoutes />
+        <AuthGate>
+          <AppRoutes />
+        </AuthGate>
       </BrowserRouter>
     </QueryClientProvider>
   );

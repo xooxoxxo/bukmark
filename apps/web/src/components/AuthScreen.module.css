@@ -1,0 +1,109 @@
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--bk-paper);
+  color: var(--bk-ink);
+  padding: var(--bk-space-sm);
+}
+
+.box {
+  width: 100%;
+  max-width: 380px;
+  border: 2px solid var(--bk-ink);
+  padding: var(--bk-space-lg);
+  background-color: var(--bk-paper);
+}
+
+.box h1 {
+  margin: 0 0 var(--bk-space-sm) 0;
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-lg);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.instructions {
+  margin: 0 0 var(--bk-space-md) 0;
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-sm);
+  color: var(--bk-neutral);
+}
+
+.field {
+  margin-bottom: var(--bk-space-md);
+}
+
+.field label {
+  display: block;
+  margin-bottom: var(--bk-space-xs);
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.field input {
+  width: 100%;
+  padding: var(--bk-space-sm);
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-sm);
+  border: 1px solid var(--bk-rule);
+  background-color: var(--bk-paper-2);
+  color: var(--bk-ink);
+  box-sizing: border-box;
+}
+
+.field input:read-only {
+  opacity: 0.6;
+}
+
+.requirement {
+  margin: var(--bk-space-xs) 0 0 0;
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-xs);
+  color: var(--bk-muted);
+}
+
+.error {
+  padding: var(--bk-space-sm);
+  margin: 0 0 var(--bk-space-md) 0;
+  background-color: var(--bk-paper-2);
+  border: 1px solid var(--bk-rule);
+  color: var(--danger);
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-sm);
+}
+
+.button {
+  width: 100%;
+  padding: var(--bk-space-sm) var(--bk-space-md);
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-sm);
+  font-weight: 800;
+  text-transform: uppercase;
+  background-color: var(--bk-ink);
+  color: var(--bk-paper);
+  border: 2px solid var(--bk-ink);
+  cursor: pointer;
+  transition: all var(--bk-dur-micro) var(--bk-ease-out);
+}
+
+.button:hover:not(:disabled) {
+  background-color: var(--bk-accent);
+  border-color: var(--bk-accent);
+  transform: translateY(-2px);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.connecting {
+  margin: 0;
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-sm);
+  color: var(--bk-neutral);
+}

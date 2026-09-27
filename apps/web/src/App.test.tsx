@@ -9,6 +9,10 @@ vi.mock('./api/client');
 
 describe('App shell', () => {
   it('renders title, contextual header, unassigned count and links view at /', async () => {
+    vi.mocked(client.fetchAuthStatus).mockResolvedValue({
+      setupComplete: true,
+      authenticated: true,
+    });
     vi.mocked(client.fetchHubs).mockResolvedValue({ items: [] });
     vi.mocked(client.fetchStats).mockResolvedValue({
       links: 1,

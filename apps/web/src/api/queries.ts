@@ -3,6 +3,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from '@tanstack/react-query';
 import * as api from './client';
 import type { BulkAction, HubPatch, LinkPatch } from './types';
@@ -111,5 +112,97 @@ export function useDeleteHub() {
   return useMutation({
     mutationFn: (id: string) => api.deleteHub(id),
     onSuccess: () => invalidate(),
+  });
+}
+
+// Auth hooks
+
+export function useAuthStatus() {
+  return useQuery({
+    queryKey: ['auth-status'],
+    queryFn: api.fetchAuthStatus,
+    retry: false,
+  });
+}
+
+function refetchAuthStatus(queryClient: QueryClient) {
+  return queryClient.invalidateQueries({ queryKey: ['auth-status'] });
+}
+
+export function useSetupOwner() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (password: string) => api.setupOwner(password),
+    onSuccess: () => refetchAuthStatus(queryClient),
+    // Setup finished elsewhere (another tab): the status now leads to the login screen.
+    onError: (error) =>
+      error instanceof api.ApiError && error.code === 'already_setup'
+        ? refetchAuthStatus(queryClient)
+        : undefined,
+  });
+}
+
+export function useLogin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (password: string) => api.login(password),
+    onSuccess: () => refetchAuthStatus(queryClient),
+    // The owner was reset while this screen was open: the status now leads to setup.
+    onError: (error) =>
+      error instanceof api.ApiError && error.code === 'setup_required'
+        ? refetchAuthStatus(queryClient)
+        : undefined,
+  });
+}
+
+/**
+ * Drops everything the session loaded, except ['auth-status']. AuthGate is still
+ * observing that query when this runs; queryClient.clear() would remove it from
+ * under the observer, nothing would refetch it, and the app would stay on screen.
+ */
+async function forgetSession(queryClient: QueryClient) {
+  queryClient.setQueryData<api.AuthStatus>(
+    ['auth-status'],
+    (status) => status && { ...status, authenticated: false },
+  );
+  queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'auth-status' });
+  queryClient.getMutationCache().clear();
+  await refetchAuthStatus(queryClient);
+}
+
+export function useLogout() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.logout(),
+    onSuccess: () => forgetSession(queryClient),
+    // A 401 means the session had already ended, which is what logging out asked for.
+    onError: (error) =>
+      error instanceof api.ApiError && error.status === 401
+        ? forgetSession(queryClient)
+        : undefined,
+  });
+}
+
+export function useListTokens() {
+  return useQuery({
+    queryKey: ['auth-tokens'],
+    queryFn: api.listTokens,
+  });
+}
+
+export function useCreateToken() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.createToken(name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['auth-tokens'] }),
+  });
+}
+
+export function useDeleteToken() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteToken(id),
+    // Also after a failure: a 404 means the row on screen is already stale.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['auth-tokens'] }),
   });
 }

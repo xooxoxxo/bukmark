@@ -7,7 +7,12 @@ import { SidebarMenu } from './SidebarMenu';
 
 vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof client>();
-  return { ...actual, importLinks: vi.fn() };
+  return { ...actual, importLinks: vi.fn(), logout: vi.fn() };
+});
+
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return { ...actual, useNavigate: () => vi.fn() };
 });
 
 function renderMenu() {
@@ -45,12 +50,21 @@ describe('SidebarMenu', () => {
     vi.clearAllMocks();
   });
 
-  it('states that the instance has no account rather than offering a sign-out', async () => {
+  it('offers access tokens and log out', async () => {
     renderMenu();
     await userEvent.click(screen.getByRole('button', { name: 'Settings' }));
 
-    expect(await screen.findByText(/No account/)).toBeInTheDocument();
-    expect(screen.queryByText(/log ?out|sign ?out/i)).not.toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: 'Access tokens' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Log out' })).toBeInTheDocument();
+  });
+
+  it('logs out through the API', async () => {
+    vi.mocked(client.logout).mockResolvedValue({ ok: true });
+    renderMenu();
+    await userEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Log out' }));
+
+    await waitFor(() => expect(client.logout).toHaveBeenCalledTimes(1));
   });
 
   it('offers importing bookmarks', async () => {

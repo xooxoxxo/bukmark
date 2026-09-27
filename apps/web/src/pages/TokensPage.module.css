@@ -1,0 +1,276 @@
+/* Layout's shell hides overflow on desktop, so this page is its own scroller,
+   as LinksGrid and LinksTable are. Below 56rem the body scrolls instead. */
+.container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--bk-space-lg);
+  padding: var(--bk-space-md) 0;
+}
+
+.description {
+  margin: 0;
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-sm);
+  color: var(--bk-neutral);
+  max-width: 60ch;
+}
+
+.error {
+  padding: var(--bk-space-sm);
+  background-color: var(--bk-paper-2);
+  border: 1px solid var(--bk-rule);
+  color: var(--danger);
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-sm);
+}
+
+.newTokenBox {
+  border: 2px solid var(--bk-accent);
+  padding: var(--bk-space-md);
+  background-color: var(--bk-paper-2);
+}
+
+.newTokenLabel {
+  margin: 0 0 var(--bk-space-xs) 0;
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.newTokenWarning {
+  margin: 0 0 var(--bk-space-sm) 0;
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-xs);
+  color: var(--bk-muted);
+}
+
+.tokenDisplay {
+  display: flex;
+  gap: var(--bk-space-xs);
+}
+
+.tokenInput {
+  flex: 1;
+  padding: var(--bk-space-sm);
+  font-family: var(--bk-font-mono);
+  font-size: var(--bk-text-xs);
+  border: 1px solid var(--bk-rule);
+  background-color: var(--bk-paper);
+  color: var(--bk-ink);
+  box-sizing: border-box;
+}
+
+.copyButton {
+  padding: var(--bk-space-sm) var(--bk-space-md);
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  background-color: var(--bk-ink);
+  color: var(--bk-paper);
+  border: 2px solid var(--bk-ink);
+  cursor: pointer;
+  transition: all var(--bk-dur-micro) var(--bk-ease-out);
+}
+
+.copyButton:hover {
+  background-color: var(--bk-accent);
+  border-color: var(--bk-accent);
+  transform: translateY(-2px);
+}
+
+.copyStatus,
+.copyFailed {
+  min-height: 1.6em;
+  margin: var(--bk-space-xs) 0 var(--bk-space-sm) 0;
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-xs);
+  color: var(--bk-muted);
+}
+
+.copyFailed {
+  color: var(--danger);
+}
+
+.secondaryButton {
+  flex-shrink: 0;
+  padding: var(--bk-space-xs) var(--bk-space-sm);
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-xs);
+  font-weight: 600;
+  background: transparent;
+  border: 2px solid var(--bk-ink);
+  color: var(--bk-ink);
+  cursor: pointer;
+  transition: background var(--bk-dur-micro) var(--bk-ease-out), color var(--bk-dur-micro) var(--bk-ease-out);
+}
+
+.secondaryButton:hover:not(:disabled) {
+  background: var(--bk-ink);
+  color: var(--bk-paper);
+}
+
+.secondaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.section {
+  border-top: 1px solid var(--bk-rule);
+  padding-top: var(--bk-space-md);
+}
+
+.section h3 {
+  margin: 0 0 var(--bk-space-sm) 0;
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.form {
+  display: flex;
+  gap: var(--bk-space-sm);
+  align-items: flex-end;
+}
+
+.field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--bk-space-xs);
+}
+
+.field label {
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.field input {
+  padding: var(--bk-space-sm);
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-sm);
+  border: 1px solid var(--bk-rule);
+  background-color: var(--bk-paper-2);
+  color: var(--bk-ink);
+  box-sizing: border-box;
+}
+
+.field input:read-only {
+  opacity: 0.6;
+}
+
+.createButton {
+  padding: var(--bk-space-sm) var(--bk-space-md);
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  background-color: var(--bk-ink);
+  color: var(--bk-paper);
+  border: 2px solid var(--bk-ink);
+  cursor: pointer;
+  transition: all var(--bk-dur-micro) var(--bk-ease-out);
+}
+
+.createButton:hover:not(:disabled) {
+  background-color: var(--bk-accent);
+  border-color: var(--bk-accent);
+  transform: translateY(-2px);
+}
+
+.createButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loading,
+.empty {
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-sm);
+  color: var(--bk-neutral);
+  margin: 0;
+}
+
+.loadError {
+  display: flex;
+  align-items: center;
+  gap: var(--bk-space-sm);
+  margin-bottom: var(--bk-space-sm);
+}
+
+.loadError p {
+  margin: 0;
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-sm);
+  color: var(--danger);
+}
+
+.tokenList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bk-space-sm);
+}
+
+.tokenRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--bk-space-sm);
+  border: 1px solid var(--bk-rule);
+  background-color: var(--bk-paper-2);
+}
+
+.tokenInfo {
+  flex: 1;
+}
+
+.tokenName {
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-sm);
+  font-weight: 700;
+  margin-bottom: var(--bk-space-xs);
+}
+
+.tokenMeta {
+  font-family: var(--bk-font-mono);
+  font-size: var(--bk-text-xs);
+  color: var(--bk-muted);
+}
+
+.tokenActions {
+  display: flex;
+  gap: var(--bk-space-xs);
+  flex-shrink: 0;
+}
+
+.confirmDelete {
+  display: flex;
+  gap: var(--bk-space-xs);
+}
+
+.confirmButton {
+  padding: var(--bk-space-xs) var(--bk-space-sm);
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-xs);
+  font-weight: 600;
+  background-color: var(--danger);
+  color: var(--bk-paper);
+  border: 2px solid var(--danger);
+  cursor: pointer;
+}
+
+.confirmButton:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+.confirmButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -1,13 +1,13 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { useNavigate } from 'react-router-dom';
 import { useRef, useState, type ChangeEvent } from 'react';
 import { errorMessage } from '../api/client';
-import { useImportLinks } from '../api/queries';
+import { useImportLinks, useLogout } from '../api/queries';
 import { UnsupportedFileError, parseImportFile } from '../import/parseBookmarks';
 import { applyThemeChoice, readThemeChoice, type ThemeChoice } from '../theme';
 import styles from './SidebarMenu.module.css';
 
 const DOCS_URL = 'https://bukmark.it/docs/';
-const AUTH_DOCS_URL = 'https://bukmark.it/docs/install/#authentication-warning';
 
 const THEMES: [ThemeChoice, string][] = [
   ['auto', 'System'],
@@ -21,10 +21,12 @@ interface Status {
 }
 
 export function SidebarMenu() {
+  const navigate = useNavigate();
   const fileInput = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [theme, setTheme] = useState<ThemeChoice>(readThemeChoice);
   const importLinks = useImportLinks();
+  const logout = useLogout();
 
   async function onFileChosen(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -58,6 +60,15 @@ export function SidebarMenu() {
     } catch (error) {
       const message =
         error instanceof UnsupportedFileError ? error.message : errorMessage(error);
+      setStatus({ kind: 'error', message });
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await logout.mutateAsync();
+    } catch (error) {
+      const message = errorMessage(error);
       setStatus({ kind: 'error', message });
     }
   }
@@ -127,15 +138,19 @@ export function SidebarMenu() {
               ))}
             </DropdownMenu.RadioGroup>
             <DropdownMenu.Separator className={styles.separator} />
-            {/* Stated plainly rather than implied by a missing sign-out: this
-                instance has no accounts and no auth on any route. */}
-            <p className={styles.note}>
-              No account. This instance is{' '}
-              <a href={AUTH_DOCS_URL} target="_blank" rel="noreferrer">
-                unauthenticated
-              </a>
-              .
-            </p>
+            <DropdownMenu.Item
+              className={styles.menuItem}
+              onSelect={() => navigate('/settings/tokens')}
+            >
+              Access tokens
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              className={styles.menuItem}
+              disabled={logout.isPending}
+              onSelect={() => handleLogout()}
+            >
+              {logout.isPending ? 'Logging out…' : 'Log out'}
+            </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>

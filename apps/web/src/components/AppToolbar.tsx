@@ -1,6 +1,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useMatch, useNavigate, useParams } from 'react-router-dom';
 import { errorMessage } from '../api/client';
 import { buildExportUrl, type ExportFormat } from '../api/exportUrl';
 import { useDeleteHub, useHubs, usePatchHub } from '../api/queries';
@@ -15,6 +15,7 @@ const FORMATS: [ExportFormat, string][] = [
 
 export function AppToolbar() {
   const { hubId } = useParams<{ hubId: string }>();
+  const onTokens = useMatch('/settings/tokens') !== null;
   const { data: hubs } = useHubs();
   const hub = hubs?.items.find((item) => item.id === hubId);
   const q = useFilters((state) => state.q);
@@ -62,6 +63,16 @@ export function AppToolbar() {
       event.preventDefault();
       cancelRename();
     }
+  }
+
+  if (onTokens) {
+    return (
+      <header className={styles.bar} aria-label="Application toolbar">
+        <div className={styles.identity}>
+          <h2 className={styles.title}>Access tokens</h2>
+        </div>
+      </header>
+    );
   }
 
   return (

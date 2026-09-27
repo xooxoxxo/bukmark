@@ -17,6 +17,7 @@ function renderAt(path = '/') {
         <Routes>
           <Route path="/" element={<AppToolbar />} />
           <Route path="/hubs/:hubId" element={<AppToolbar />} />
+          <Route path="/settings/tokens" element={<AppToolbar />} />
         </Routes>
       </MemoryRouter>
     </Wrapper>,
@@ -75,6 +76,15 @@ describe('AppToolbar', () => {
       'href',
       expect.stringContaining('q=rust'),
     );
+  });
+
+  it('names the access tokens page and offers no link actions there', async () => {
+    useFilters.getState().setUnassigned(true);
+    renderAt('/settings/tokens');
+
+    expect(await screen.findByRole('heading', { name: 'Access tokens' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Unassigned' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Actions for/ })).not.toBeInTheDocument();
   });
 
   it('shows hub identity and hub-only actions next to the name', async () => {
