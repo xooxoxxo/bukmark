@@ -8,7 +8,7 @@ import '../styles/custom.css';
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-		<title>bukmark — bookmarks you actually revisit</title>
+		<title>bukmark — bookmarks you own</title>
 		<meta
 			name="description"
 			content="Self-hosted bookmark manager built around triage. Capture in one click. Everything lands unsorted on purpose — sorting is a separate, deliberate pass you run when you choose."
@@ -56,7 +56,7 @@ import '../styles/custom.css';
 		<main id="content">
 			<section class="hero">
 				<div class="frame reveal">
-					<h1>Bookmarks you actually revisit.</h1>
+					<h1>Bookmarks you own.</h1>
 					<div class="hero__lower">
 						<div class="hero__intro">
 							<p>
@@ -312,7 +312,7 @@ docker compose up -d</code></pre>
 				display: grid;
 				grid-template-columns: repeat(12, minmax(0, 1fr));
 				gap: clamp(2rem, 5vw, 6rem);
-				align-items: end;
+				align-items: start;
 				margin-top: clamp(4rem, 9vw, 9rem);
 				padding-top: var(--bk-space-xl);
 				border-top: 2px solid var(--bk-ink);
@@ -332,7 +332,7 @@ docker compose up -d</code></pre>
 				margin: 0;
 				padding: var(--bk-space-lg);
 				border: 2px solid var(--bk-ink);
-				background: var(--bk-paper-2);
+				background: var(--bk-code-bg);
 				font-family: var(--bk-font-mono);
 				font-size: var(--bk-text-sm);
 				line-height: 1.65;
@@ -347,7 +347,7 @@ docker compose up -d</code></pre>
 				display: grid;
 				grid-template-columns: repeat(12, minmax(0, 1fr));
 				gap: var(--bk-space-xl);
-				align-items: end;
+				align-items: start;
 				margin-bottom: clamp(4rem, 8vw, 8rem);
 			}
 			.section-heading h2,
@@ -398,8 +398,9 @@ docker compose up -d</code></pre>
 				line-height: 1.65;
 				text-wrap: pretty;
 			}
-			.workflow__item:nth-child(2) h3 { grid-column: 7 / -1; }
+			.workflow__item:nth-child(2) h3 { grid-column: 7 / -1; text-align: right; }
 			.workflow__item:nth-child(2) p { grid-column: 1 / 6; grid-row: 1; }
+			.workflow__item:last-child { border-bottom: 0; }
 			.product-view figure { margin: 0; border: 2px solid var(--bk-ink); }
 			.product-view img { display: block; width: 100%; height: auto; background: var(--bk-paper); }
 			.product-view .shot--dark { display: none; }
@@ -414,7 +415,7 @@ docker compose up -d</code></pre>
 				display: grid;
 				grid-template-columns: repeat(12, minmax(0, 1fr));
 				gap: clamp(2rem, 6vw, 7rem);
-				align-items: end;
+				align-items: start;
 			}
 			.closing h2 {
 				grid-column: 1 / 9;
@@ -472,6 +473,7 @@ docker compose up -d</code></pre>
 				.workflow__item:nth-child(2) p,
 				.closing h2,
 				.closing__action { grid-column: auto; grid-row: auto; }
+				.workflow__item:nth-child(2) h3 { text-align: left; }
 				.hero__intro { margin-bottom: var(--bk-space-2xl); }
 				.button-row { flex-direction: column; }
 				.section-heading h2,

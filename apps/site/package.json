@@ -8,7 +8,7 @@
     "preview": "astro preview",
     "typecheck": "astro check",
     "test": "vitest run --passWithNoTests",
-    "deploy:pages": "astro build && wrangler pages deploy dist --project-name=bukmark"
+    "deploy:pages": "rm -rf .astro node_modules/.astro && astro build && wrangler pages deploy dist --project-name=bukmark"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.41.6",

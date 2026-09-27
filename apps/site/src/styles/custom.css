@@ -13,7 +13,7 @@
   --bk-neutral: oklch(56% 0.008 40);
   --bk-muted: oklch(40% 0.008 40);
   --bk-ink: #0e0f13;              /* logo wordmark ink (exact) */
-  --bk-code-bg: oklch(95% 0.005 60);
+  --bk-code-bg: #e8e7e4;  /* = bukmarkLight bg in code-themes.mjs */
   --bk-accent: #fd441d;           /* logo orange (exact) */
 
   /* Typography */
@@ -86,7 +86,7 @@
   --bk-neutral: oklch(68% 0.008 40);
   --bk-muted: oklch(82% 0.008 40);
   --bk-ink: oklch(94% 0.006 40);
-  --bk-code-bg: oklch(20% 0.006 60);
+  --bk-code-bg: #26221f;  /* = bukmarkDark bg */
 
   --sl-color-accent-low: oklch(32% 0.09 33);
   --sl-color-gray-1: var(--bk-muted);
@@ -109,7 +109,7 @@
     --bk-neutral: oklch(68% 0.008 40);
     --bk-muted: oklch(82% 0.008 40);
     --bk-ink: oklch(94% 0.006 40);
-    --bk-code-bg: oklch(20% 0.006 60);
+    --bk-code-bg: #26221f;
     --sl-color-accent-low: oklch(32% 0.09 33);
     color-scheme: dark;
   }
@@ -217,10 +217,16 @@ header.header {
   line-height: 0.94;
 }
 
-.sl-markdown-content h2 {
+/* The section rule belongs on the wrapper: Starlight renders the h2 itself
+   inline, beside its anchor link, so a border on the h2 spans only the words
+   and reads as a stray stub rather than a section break. */
+.sl-markdown-content .sl-heading-wrapper.level-h2 {
   margin-top: var(--bk-space-2xl);
   padding-top: var(--bk-space-lg);
   border-top: 2px solid var(--bk-ink);
+}
+
+.sl-markdown-content h2 {
   font-size: clamp(1.8rem, 3vw, 2.75rem);
   line-height: 1.05;
 }
@@ -347,5 +353,85 @@ select {
   .sl-markdown-content table {
     display: block;
     overflow-x: auto;
+  }
+}
+
+/* Search dialog. Starlight gives the desktop dialog a 15rem floor sized for a
+   results list, which reads as a tall empty panel before anything is typed;
+   without it the blank state hugs the input and grows with results. The
+   attribute and id selectors are there to outrank Starlight's scoped styles. */
+site-search dialog[open] {
+  min-height: 0;
+  border: 2px solid var(--bk-ink);
+  border-radius: 0;
+  background: var(--bk-paper);
+  box-shadow: none;
+}
+
+site-search #starlight__search {
+  --pagefind-ui-border-radius: 0;
+  --pagefind-ui-border-width: 2px;
+  --pagefind-ui-border: var(--bk-ink);
+  --pagefind-ui-background: var(--bk-paper);
+  --pagefind-ui-text: var(--bk-ink);
+  --pagefind-ui-font: var(--bk-font-body);
+  --sl-search-corners: 0;
+}
+
+site-search #starlight__search input:focus {
+  --pagefind-ui-border: var(--bk-accent);
+}
+
+/* One focus signal: the accent border above. The global focus-visible ring
+   would draw a second outline 3px outside it. */
+site-search #starlight__search .pagefind-ui__search-input:focus-visible {
+  outline: none;
+}
+
+/* Page-to-page navigation. Native cross-document view transitions rather than
+   a client-side router: Starlight's sidebar, search and theme toggle assume a
+   full page load, and a router breaks them in quiet ways. Browsers without
+   support simply navigate as before. Paired with prefetch in astro.config, the
+   next page is usually already in cache, so the transition is all you see.
+
+   The header and sidebar are named so they hold still across pages; only the
+   content fades out and rises in, which is what makes it read as one app. */
+@view-transition {
+  navigation: auto;
+}
+
+header.header {
+  view-transition-name: bk-header;
+}
+
+.sidebar-pane {
+  view-transition-name: bk-sidebar;
+}
+
+.main-frame {
+  view-transition-name: bk-main;
+}
+
+::view-transition-old(bk-main) {
+  animation: bk-vt-out var(--bk-dur-short) var(--bk-ease-out) both;
+}
+
+::view-transition-new(bk-main) {
+  animation: bk-vt-in var(--bk-dur-long) var(--bk-ease-out) both;
+}
+
+@keyframes bk-vt-out {
+  to { opacity: 0; }
+}
+
+@keyframes bk-vt-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }

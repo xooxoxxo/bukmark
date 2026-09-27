@@ -1,8 +1,14 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import { bukmarkDark, bukmarkLight } from './src/code-themes.mjs';
 
 export default defineConfig({
   site: 'https://bukmark.it',
+  // Fetch a page as soon as its link scrolls into view. The docs are a handful
+  // of small static pages, so this is cheap, and it means a click lands on a
+  // page that is already in cache -- the view transition in custom.css is the
+  // only thing the reader waits for.
+  prefetch: { prefetchAll: true, defaultStrategy: 'viewport' },
   integrations: [
     starlight({
       title: 'bukmark',
@@ -15,17 +21,19 @@ export default defineConfig({
       ],
       customCss: ['./src/styles/custom.css'],
       expressiveCode: {
-        // No window chrome. Expressive Code frames shell blocks with a fake
-        // terminal -- titlebar plus three traffic-light dots -- which is the
-        // re-drawn chrome design.md rules out: the reader has a real terminal.
+        themes: [bukmarkDark, bukmarkLight],
+        // 'code', not the default 'auto': 'auto' gives shell languages a fake
+        // terminal frame -- titlebar and three traffic-light dots -- which is
+        // re-drawn chrome design.md rules out. 'none' looks like the right
+        // value but is ignored for shell blocks; 'code' drops the titlebar and
+        // keeps the copy button.
         //
-        // Nothing else is configured here on purpose. styleOverrides values
-        // feed Expressive Code's own colour maths, and passing it var(--bk-*)
-        // silently stopped it emitting the rules that colour syntax tokens,
-        // leaving every block one flat ink colour. Appearance is set from
-        // custom.css through its --ec-* variables instead, which is the hook
-        // meant for it and leaves its themes intact.
-        defaultProps: { frame: 'none' },
+        // Colours come from the themes above, never styleOverrides with
+        // var(--bk-*): those feed Expressive Code's colour maths and silently
+        // stop it emitting the rules that colour syntax tokens.
+        // Wrap rather than scroll: a docs reader should see the whole command
+        // and its trailing comment without dragging a scrollbar.
+        defaultProps: { frame: 'code', wrap: true },
       },
       // The landing page at / is ours, not Starlight's.
       disable404Route: false,
