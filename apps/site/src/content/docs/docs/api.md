@@ -7,15 +7,149 @@ sidebar:
 
 ## Authentication
 
-**There is no authentication on any endpoint.** Every endpoint below is reachable
-by anything that can reach the port. Use firewall rules or a reverse proxy with
-authentication (like Authelia) if you want to restrict access.
+Every `/api` endpoint needs credentials except the public ones listed below:
+either the session cookie the web app gets when you sign in, or an access token
+sent as a bearer token. Without them the server answers `401`.
+
+### Public endpoints
+
+These need no credentials:
+
+- `GET /healthz` — liveness check
+- `GET /api/auth/status` — whether the server is set up, and whether this request is signed in
+- `POST /api/auth/setup` — create the owner password (first run only)
+- `POST /api/auth/login` — sign in with the owner password
+- `POST /api/auth/token` — exchange an authorization code for an access token (the browser extension's login)
+- `GET /authorize`, `POST /authorize` — the sign-in and Allow page the extension
+  opens in a window (authorization code flow with PKCE, `S256` only); an HTML
+  page for people, not a JSON API
+
+Setup, login and `POST /authorize` also require a same-host `Origin` header
+([403](#403-cross-site-request-refused)), and they are rate-limited along with
+the token exchange ([429](#429-too-many-requests)).
+
+### Bearer tokens
+
+Create a token in the web app under **Settings → Access tokens** and send it in
+the `Authorization` header:
+
+```bash
+curl -H "Authorization: Bearer $BUKMARK_TOKEN" http://localhost:3000/api/links
+```
+
+A token is valid only on the server that issued it. A request that carries a
+bearer header is judged by that token alone — a valid session cookie next to a
+wrong token does not help — and a revoked token gets `401` with
+`unauthenticated`.
+
+### Session cookies
+
+`POST /api/auth/setup` and `POST /api/auth/login` set a `bukmark_session`
+cookie. A session lasts 30 days and is extended when used, at most once a day.
+The cookie is:
+
+- `HttpOnly` (not readable by JavaScript)
+- `Path=/` (sent to all routes)
+- `SameSite=Lax` (not sent on cross-site POSTs, but sent on navigations from links)
+- `Secure` only when the request arrived over HTTPS — behind a proxy that
+  terminates TLS, the server can tell only with `TRUST_PROXY=true`. On
+  plain-HTTP installs the cookie is sent without it, so logging in over a LAN
+  or tailnet address works.
+- `Max-Age=2592000` (30 days)
+
+A POST, PUT, PATCH or DELETE authenticated by the cookie must also carry a
+matching `Origin` header; browsers send it on their own.
+
+### Error responses
+
+#### 401 Unauthenticated
+
+Returned when no valid credentials are provided, or the token or session has
+expired or been revoked.
+
+```json
+{
+  "error": "Not authenticated",
+  "code": "unauthenticated"
+}
+```
+
+The `error` text names the cause (`Invalid token`, `Session expired`); match on
+`code`.
+
+#### 401 Setup required
+
+Returned by every protected endpoint until the owner password is set (first
+run). Open the web app to set it.
+
+```json
+{
+  "error": "Setup required",
+  "code": "setup_required"
+}
+```
+
+#### 403 Cross-site request refused
+
+```json
+{
+  "error": "Cross-site request refused",
+  "code": "bad_origin"
+}
+```
+
+Returned when the `Origin` header is missing, or its host (port included)
+differs from the `Host` header, on:
+
+- `POST /api/auth/setup` and `POST /api/auth/login`, always;
+- any POST, PUT, PATCH or DELETE authenticated by the session cookie.
+
+`POST /authorize` makes the same check and answers with an HTML error page.
+Requests authenticated by a bearer token are exempt. Browsers send `Origin`
+themselves; from curl or a script, add it, for example
+`-H 'Origin: http://localhost:3000'`. Behind a reverse proxy, the proxy must
+forward the original `Host` header or every browser sign-in gets this error —
+see [Behind a reverse proxy](/docs/install/#behind-a-reverse-proxy).
+
+#### 429 Too many requests
+
+```json
+{
+  "error": "Too many login attempts",
+  "code": "rate_limited",
+  "retryAfter": 842
+}
+```
+
+The response also carries a `Retry-After` header with the same number of
+seconds. Limits count per client IP (per `/64` for IPv6) over a 15-minute
+window that starts with the first attempt, and live in memory, so a restart
+clears them:
+
+| Endpoint | Allowed per 15 minutes |
+| -- | -- |
+| `POST /api/auth/login` and signing in on `/authorize` (one shared count) | 10 failed attempts; a successful login resets the count |
+| `POST /api/auth/setup` | 10 attempts |
+| `POST /api/auth/token` | 30 attempts |
+
+Behind a reverse proxy the server sees the proxy's address for every client
+unless `TRUST_PROXY=true`, so all clients share one count.
 
 ## Quick Reference
 
 | Method | Path | Description |
 | -- | -- | -- |
 | GET | `/healthz` | Liveness check |
+| GET | `/api/auth/status` | Check setup and authentication status |
+| POST | `/api/auth/setup` | Create the owner password (first run only) |
+| POST | `/api/auth/login` | Log in with owner password |
+| POST | `/api/auth/token` | Exchange an authorization code for an access token |
+| GET | `/authorize` | Extension sign-in and Allow page (HTML) |
+| POST | `/authorize` | Sign-in, Allow and Deny form posts (HTML) |
+| POST | `/api/auth/logout` | Log out and clear session/token |
+| GET | `/api/auth/tokens` | List all access tokens |
+| POST | `/api/auth/tokens` | Create a new access token |
+| DELETE | `/api/auth/tokens/:id` | Revoke an access token |
 | GET | `/api/links` | List links with search and filters |
 | POST | `/api/links` | Create or update a link |
 | POST | `/api/links/import` | Import a batch of links |
@@ -498,13 +632,366 @@ Where `<scope>` is:
 
 **Example:**
 
+These need an access token (**Settings → Access tokens**) in `BUKMARK_TOKEN`.
+`-f` makes curl fail on an error status instead of writing the error body into
+the file.
+
 ```bash
 # Export all active links as CSV
-curl "http://localhost:3000/api/export?format=csv" -o links.csv
+curl -f -H "Authorization: Bearer $BUKMARK_TOKEN" "http://localhost:3000/api/export?format=csv" -o links.csv
 
 # Export links in "Resources" hub as HTML
-curl "http://localhost:3000/api/export?format=html&hub=<hub-id>" -o resources.html
+curl -f -H "Authorization: Bearer $BUKMARK_TOKEN" "http://localhost:3000/api/export?format=html&hub=<hub-id>" -o resources.html
 
 # Export unassigned links as JSON
-curl "http://localhost:3000/api/export?format=json&unassigned=true" -o unsorted.json
+curl -f -H "Authorization: Bearer $BUKMARK_TOKEN" "http://localhost:3000/api/export?format=json&unassigned=true" -o unsorted.json
+```
+
+## Authentication endpoints
+
+### GET /api/auth/status
+
+Check whether the server has a configured owner and whether the current request is authenticated.
+
+**Response (200):**
+
+```json
+{
+  "setupComplete": true,
+  "authenticated": true
+}
+```
+
+- `setupComplete` (boolean) — Whether the owner password has been set
+- `authenticated` (boolean) — Whether the request has valid credentials
+
+### POST /api/auth/setup
+
+Create the owner password on first run. This endpoint is public until the owner
+is set; afterward it returns 409. Like login, it needs an `Origin` header whose
+host matches `Host` (browsers send it; with curl add
+`-H 'Origin: http://localhost:3000'`) and is rate-limited.
+
+**Request Body:**
+
+```json
+{
+  "password": "your password here"
+}
+```
+
+- `password` (string, required) — 12–1024 characters
+
+**Response (201):**
+
+```json
+{
+  "ok": true
+}
+```
+
+Sets a `bukmark_session` cookie and signs in the user who set the password.
+
+**Response (400):** the password is missing, shorter than 12 or longer than 1024
+characters. Length is counted in Unicode characters, so an emoji counts once.
+
+```json
+{
+  "error": "Password must be 12 to 1024 characters.",
+  "code": "invalid_password"
+}
+```
+
+**Response (403):** `bad_origin` — see [403](#403-cross-site-request-refused).
+
+**Response (409):**
+
+```json
+{
+  "error": "Setup already complete",
+  "code": "already_setup"
+}
+```
+
+**Response (429):** `rate_limited` after 10 attempts in 15 minutes — see
+[429](#429-too-many-requests).
+
+### POST /api/auth/login
+
+Log in with the owner password. Needs an `Origin` header whose host matches
+`Host` (browsers send it; with curl add `-H 'Origin: http://localhost:3000'`).
+
+**Request Body:**
+
+```json
+{
+  "password": "your password"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "ok": true
+}
+```
+
+Sets a `bukmark_session` cookie and signs in the user.
+
+**Response (401):**
+
+```json
+{
+  "error": "Wrong password",
+  "code": "bad_password"
+}
+```
+
+**Response (403):** `bad_origin` — see [403](#403-cross-site-request-refused).
+
+**Response (409):**
+
+```json
+{
+  "error": "Setup required",
+  "code": "setup_required"
+}
+```
+
+**Response (429):** `rate_limited` after 10 failed attempts in 15 minutes; a
+successful login resets the count — see [429](#429-too-many-requests).
+
+### POST /api/auth/token
+
+Exchange a one-time authorization code from [`/authorize`](#get-authorize-post-authorize)
+for an access token. The browser extension does this when you log in; you only
+need it to write another client.
+
+**Request Body:**
+
+```json
+{
+  "grant_type": "authorization_code",
+  "code": "<code from the redirect>",
+  "code_verifier": "<PKCE verifier>",
+  "redirect_uri": "https://<extension-id>.chromiumapp.org/bukmark"
+}
+```
+
+- `grant_type` (string, required) — `authorization_code`
+- `code` (string, required) — the `code` that `/authorize` redirected back with;
+  valid once, for 2 minutes
+- `code_verifier` (string, required) — the PKCE verifier whose S256 hash was sent
+  as `code_challenge`: 43–128 characters of `A–Z a–z 0–9 - . _ ~`
+- `redirect_uri` (string, required) — the same `redirect_uri` the authorization
+  request used
+
+**Response (200):**
+
+```json
+{
+  "token": "bkm_...",
+  "tokenId": "123e4567-e89b-12d3-a456-426614174000",
+  "name": "bukmark capture"
+}
+```
+
+The token is named after the authorization request's `client_name` and appears
+under **Settings → Access tokens** like any other.
+
+**Response (400):**
+
+```json
+{
+  "error": "Invalid or expired authorization code",
+  "code": "invalid_grant"
+}
+```
+
+Every failure gets this same answer — unknown, used or expired code, wrong
+verifier, different `redirect_uri`, malformed body — so a failed exchange does
+not reveal which part was wrong. The first exchange that presents a valid code
+uses it up, even if its verifier or `redirect_uri` is wrong.
+
+**Response (429):** `rate_limited` after 30 attempts in 15 minutes — see
+[429](#429-too-many-requests).
+
+### GET /authorize, POST /authorize
+
+The page the extension opens with `chrome.identity.launchWebAuthFlow`:
+server-rendered HTML with no JavaScript, not a JSON API.
+
+```
+GET /authorize?response_type=code&redirect_uri=…&state=…&code_challenge=…&code_challenge_method=S256&client_name=…
+```
+
+- `redirect_uri` — a Chrome extension redirect URL,
+  `https://<32-letter extension id>.chromiumapp.org/<path>`, with no query or fragment
+- `code_challenge` — 43 base64url characters; `code_challenge_method` must be `S256`
+- `state` — 16–256 characters of `A–Z a–z 0–9 - . _ ~`, returned unchanged
+- `client_name` — 1–60 characters, shown as the name of what is asking
+
+An invalid request gets an error page with status `400` and is never
+redirected. Otherwise the page asks for the owner password if this browser has
+no session, then shows the extension ID with **Allow** and **Deny** buttons.
+`POST /authorize` receives those forms. It needs a same-host `Origin` (the
+browser sends it), and its password attempts share the login rate limit
+(beyond it, the page comes back with status `429`). Allow redirects with `303`
+to `redirect_uri?code=…&state=…`, and Deny to
+`redirect_uri?error=access_denied&state=…`.
+
+### POST /api/auth/logout
+
+Log out and invalidate the session cookie or token.
+
+**Response (200):**
+
+```json
+{
+  "ok": true
+}
+```
+
+- If using a session cookie: deletes the session and clears the `bukmark_session` cookie.
+- If using a bearer token: deletes that token from the database.
+
+**Response (401):**
+
+```json
+{
+  "error": "Not authenticated",
+  "code": "unauthenticated"
+}
+```
+
+### GET /api/auth/tokens
+
+List all access tokens, newest first.
+
+**Response (200):**
+
+```json
+{
+  "items": [
+    {
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "name": "Claude Code",
+      "prefix": "bkm_abcd1234",
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "lastUsedAt": "2024-01-16T14:22:30.000Z",
+      "current": false
+    }
+  ]
+}
+```
+
+- `id` (UUID) — Token ID, used for revocation
+- `name` (string) — Token name (e.g., "Claude Code", "bukmark capture")
+- `prefix` (string) — First 12 characters of the token (for identification)
+- `createdAt` (ISO string) — When the token was created
+- `lastUsedAt` (ISO string or null) — Last time this token was used for an API request
+- `current` (boolean) — True if this token made the current request
+
+**Response (401):**
+
+```json
+{
+  "error": "Not authenticated",
+  "code": "unauthenticated"
+}
+```
+
+### POST /api/auth/tokens
+
+Create a new access token.
+
+**Request Body:**
+
+```json
+{
+  "name": "My Script"
+}
+```
+
+- `name` (string, required) — 1–100 characters, trimmed
+
+**Response (201):**
+
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "name": "My Script",
+  "prefix": "bkm_abcd1234",
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "token": "bkm_abcd1234EFGH5678ijkl9012MNOP3456qrst7890UVW"
+}
+```
+
+**Important:** The plaintext `token` is returned only once. Save it immediately.
+
+- `id`, `name`, `prefix`, `createdAt` — As documented in GET /api/auth/tokens
+- `token` (string) — The full token (47 characters: `bkm_` + 43 base64url chars)
+
+**Response (400):** the name is missing, or is empty or longer than 100
+characters after surrounding whitespace is trimmed:
+
+```json
+{
+  "error": "Token name must be 1 to 100 characters.",
+  "code": "invalid_name"
+}
+```
+
+**Response (401):**
+
+```json
+{
+  "error": "Not authenticated",
+  "code": "unauthenticated"
+}
+```
+
+**Response (409):**
+
+```json
+{
+  "error": "Too many tokens",
+  "code": "too_many_tokens"
+}
+```
+
+Maximum 50 tokens per instance.
+
+### DELETE /api/auth/tokens/:id
+
+Revoke an access token by ID.
+
+**Path Parameters:**
+
+- `id` (UUID, required) — Token ID
+
+**Response (200):**
+
+```json
+{
+  "ok": true
+}
+```
+
+**Response (401):**
+
+```json
+{
+  "error": "Not authenticated",
+  "code": "unauthenticated"
+}
+```
+
+**Response (404):**
+
+```json
+{
+  "error": "Token not found"
+}
 ```

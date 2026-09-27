@@ -41,15 +41,20 @@ full-fidelity snapshot.
 
 ## Export Examples
 
+The export endpoint needs an access token: create one in the web app under
+**Settings → Access tokens** and set `BUKMARK_TOKEN` to it. `-f` makes curl
+fail when the server refuses the request, instead of saving the error response
+as your backup and exiting as if nothing went wrong.
+
 ```bash
 # everything, as a restorable backup (includes archived links)
-curl -OJ 'http://localhost:3000/api/export?format=json&status=all'
+curl -fOJ -H "Authorization: Bearer $BUKMARK_TOKEN" 'http://localhost:3000/api/export?format=json&status=all'
 
 # one collection, importable by Chrome, Firefox or Safari
-curl -OJ 'http://localhost:3000/api/export?format=html&hub=<hub-id>'
+curl -fOJ -H "Authorization: Bearer $BUKMARK_TOKEN" 'http://localhost:3000/api/export?format=html&hub=<hub-id>'
 
 # whatever matches a search, as a spreadsheet
-curl -OJ 'http://localhost:3000/api/export?format=csv&q=rust'
+curl -fOJ -H "Authorization: Bearer $BUKMARK_TOKEN" 'http://localhost:3000/api/export?format=csv&q=rust'
 ```
 
 Or use the **Export** button in the web UI header, which exports exactly what

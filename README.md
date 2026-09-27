@@ -28,15 +28,11 @@ curl localhost:3000/healthz   # {"ok":true}
 ```
 
 That builds the server image, starts Postgres, applies migrations on boot, and
-serves the API and web UI on <http://localhost:3000>.
+serves the API and web UI on <http://localhost:3000>. Open the URL and set an
+owner password on first run.
 
 > **Ports taken?** If port 5432 or 3000 is already in use, set `POSTGRES_PORT` and/or `PORT`
 > to free ports in `.env` before running `docker compose up`.
-
-> **The API has no authentication.** None, on any route. It is built to run on a
-> trusted network — your LAN, or a Tailscale tailnet — and it must not be exposed
-> to the internet. There is no login to add; anyone who can reach the port has
-> full read and write access to your bookmarks.
 
 ## Documentation
 

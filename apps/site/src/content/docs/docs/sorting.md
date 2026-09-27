@@ -16,13 +16,25 @@ The MCP server runs this command:
 pnpm exec tsx apps/mcp/src/index.ts
 ```
 
-It expects one environment variable:
+It requires two environment variables:
 
 ```bash
 BUKMARK_API_URL=http://localhost:3000
+BUKMARK_API_TOKEN=<your token>
 ```
 
-**Claude Code example:** Copy `.mcp.json.example` to `.mcp.json` and edit the `BUKMARK_API_URL` if needed:
+### Getting an API token
+
+1. Open the bukmark web app and log in.
+2. Go to **Settings → Access tokens**.
+3. Under *New token*, enter a name (e.g. "Claude Code") and click **Create token**, then **Copy**.
+4. Paste it into your MCP client config right away — the page shows it only once.
+
+Without a valid token, every tool call fails with "bukmark rejected the request (401)".
+
+### Claude Code example
+
+Copy `.mcp.json.example` to `.mcp.json` and fill in your token:
 
 ```bash
 cp .mcp.json.example .mcp.json
@@ -36,13 +48,16 @@ The `.mcp.json` file at the repo root is Claude Code's configuration format:
     "bukmark": {
       "command": "pnpm",
       "args": ["exec", "tsx", "apps/mcp/src/index.ts"],
-      "env": { "BUKMARK_API_URL": "http://localhost:3000" }
+      "env": {
+        "BUKMARK_API_URL": "http://localhost:3000",
+        "BUKMARK_API_TOKEN": "bkm_..."
+      }
     }
   }
 }
 ```
 
-Other MCP clients take the same command, args, and environment variable in their own configuration format. Refer to your client's MCP documentation for how to set it up—the details differ per tool, but the server command stays the same. If you need help, the [Model Context Protocol docs](https://modelcontextprotocol.io) cover MCP server integration for popular clients.
+Other MCP clients take the same command, args, and environment variables in their own configuration format. Refer to your client's MCP documentation for how to set it up—the details differ per tool, but the server command stays the same. If you need help, the [Model Context Protocol docs](https://modelcontextprotocol.io) cover MCP server integration for popular clients.
 
 After configuring your MCP client, restart it so it picks up the server.
 

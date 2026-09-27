@@ -15,6 +15,25 @@ pnpm test                        # full suite
 pnpm typecheck
 ```
 
+## First run and authentication
+
+On first run, the web app shows a setup screen: enter and confirm a password
+(12+ characters), then click **Create password**. You are signed in immediately.
+
+The Vite dev server (`pnpm --filter @bukmark/web dev`) proxies `/api` to the
+backend on `localhost:3000`, preserving same-origin for session cookies. Bearer
+tokens work without any special configuration.
+
+To reset and start over, run:
+
+```bash
+pnpm --filter @bukmark/server auth:reset-owner
+```
+
+This deletes the owner and all sessions and shows the setup screen again.
+Access tokens keep working unless you add `--revoke-tokens`
+(`pnpm --filter @bukmark/server auth:reset-owner --revoke-tokens`).
+
 ## Monorepo Layout
 
 Bukmark is organized as a monorepo with the following structure:
