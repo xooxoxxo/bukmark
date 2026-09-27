@@ -1,0 +1,475 @@
+---
+// A working miniature of the web app for the landing page, in place of a
+// screenshot: same tokens, same sidebar-and-list shape, sample links from the
+// demo seed (apps/server/scripts/seedDemo.ts). It filters and switches views in
+// the browser; nothing is saved and nothing talks to a server.
+//
+// Every item is rendered here at build time, so without JavaScript the full
+// list still shows -- the script only hides and reveals what is already there.
+
+interface DemoLink {
+	url: string;
+	title: string;
+	note: string;
+	hub?: string;
+}
+
+const LINKS: DemoLink[] = [
+	{ url: 'https://doc.rust-lang.org/book/', title: 'The Rust Programming Language', note: 'The book. Start at ch. 4 for ownership.', hub: 'rust' },
+	{ url: 'https://tokio.rs/tokio/tutorial', title: 'Tokio Tutorial', note: 'Async runtime, worth doing end to end.', hub: 'rust' },
+	{ url: 'https://without.boats/blog/', title: 'without.boats', note: 'Async Rust design history from the inside.', hub: 'rust' },
+	{ url: 'https://tailscale.com/kb/1017/install/', title: 'Tailscale install docs', note: 'Tailnet setup for the homelab.', hub: 'homelab' },
+	{ url: 'https://docs.docker.com/compose/compose-file/', title: 'Compose file reference', note: 'Healthcheck syntax, every single time.', hub: 'homelab' },
+	{ url: 'https://caddyserver.com/docs/caddyfile', title: 'Caddyfile docs', note: 'Reverse proxy config.', hub: 'homelab' },
+	{ url: 'https://www.postgresql.org/docs/current/indexes.html', title: 'PostgreSQL: Indexes', note: 'Partial indexes section is the useful bit.', hub: 'postgres' },
+	{ url: 'https://use-the-index-luke.com/', title: 'Use The Index, Luke!', note: 'Best SQL indexing explainer there is.', hub: 'postgres' },
+	{ url: 'https://github.com/pgvector/pgvector', title: 'pgvector', note: 'Embeddings in Postgres, no extra service.', hub: 'postgres' },
+	{ url: 'https://practicaltypography.com/', title: "Butterick's Practical Typography", note: 'Read the summary of key rules.', hub: 'design' },
+	{ url: 'https://inclusive-components.design/', title: 'Inclusive Components', note: 'Accessible patterns worth copying.', hub: 'design' },
+	{ url: 'https://www.nngroup.com/articles/ten-usability-heuristics/', title: 'Ten Usability Heuristics', note: 'The checklist that still holds up.', hub: 'design' },
+	{ url: 'https://danluu.com/', title: 'Dan Luu', note: 'Long posts, high signal.', hub: 'reading' },
+	{ url: 'https://www.hillelwayne.com/post/', title: 'Hillel Wayne', note: 'Formal methods, made approachable.', hub: 'reading' },
+	{ url: 'https://apenwarr.ca/log/', title: 'apenwarr', note: 'Networking and org design.', hub: 'reading' },
+	// Unsorted on purpose: this pile is what the section is about.
+	{ url: 'https://modelcontextprotocol.io/docs', title: 'Model Context Protocol', note: 'Tool schema reference.' },
+	{ url: 'https://orm.drizzle.team/docs/overview', title: 'Drizzle ORM', note: 'Migration workflow.' },
+	{ url: 'https://developers.cloudflare.com/pages/', title: 'Cloudflare Pages', note: 'Direct upload with wrangler.' },
+	{ url: 'https://sqlite.org/whentouse.html', title: 'When To Use SQLite', note: 'Honest about its limits.' },
+	{ url: 'https://jvns.ca/', title: 'Julia Evans', note: 'Debugging zines.' },
+];
+
+const HUBS = ['rust', 'homelab', 'postgres', 'design', 'reading'];
+const count = (hub?: string) => LINKS.filter((l) => l.hub === hub).length;
+const host = (url: string) => new URL(url).hostname.replace(/^www\./, '');
+---
+
+<div class="demo" data-view="list" data-demo>
+	<aside class="demo__side">
+		<p class="demo__brand">
+			<img src="/logo-mark.png" alt="" width="140" height="200" />
+			bukmark
+		</p>
+		<ul class="demo__hubs" aria-label="Filter by hub">
+			<li>
+				<button type="button" data-hub="all" aria-pressed="true">
+					All links <span>{LINKS.length}</span>
+				</button>
+			</li>
+			<li>
+				<button type="button" data-hub="unsorted" aria-pressed="false">
+					Unsorted <span>{count(undefined)}</span>
+				</button>
+			</li>
+			{
+				HUBS.map((hub) => (
+					<li>
+						<button type="button" data-hub={hub} aria-pressed="false">
+							{hub} <span>{count(hub)}</span>
+						</button>
+					</li>
+				))
+			}
+		</ul>
+	</aside>
+
+	<div class="demo__main">
+		<div class="demo__bar">
+			<input type="search" placeholder="Search links…" aria-label="Search links" data-search />
+			<div class="demo__views" role="group" aria-label="View">
+				<button type="button" data-view-btn="list" aria-pressed="true">List</button>
+				<button type="button" data-view-btn="grid" aria-pressed="false">Grid</button>
+			</div>
+			<p class="demo__count" aria-live="polite" data-count>{LINKS.length} links</p>
+		</div>
+
+		<ul class="demo__items">
+			{
+				LINKS.map((l) => (
+					<li class="demo__item" data-hub={l.hub ?? 'unsorted'} data-text={`${l.title} ${l.note} ${host(l.url)}`.toLowerCase()}>
+						<a href={l.url} target="_blank" rel="noopener noreferrer">
+							{l.title}
+						</a>
+						<p class="demo__note">{l.note}</p>
+						<p class="demo__meta">
+							<span class="demo__host">{host(l.url)}</span>
+							{l.hub ? <span class="demo__tag">{l.hub}</span> : <span class="demo__tag demo__tag--open">unsorted</span>}
+						</p>
+					</li>
+				))
+			}
+		</ul>
+		<p class="demo__empty" hidden data-empty>No links match.</p>
+	</div>
+</div>
+
+<script>
+	for (const root of document.querySelectorAll<HTMLElement>('[data-demo]')) {
+		const items = [...root.querySelectorAll<HTMLElement>('.demo__item')];
+		const hubButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-hub]')].filter(
+			(el) => el.tagName === 'BUTTON',
+		);
+		const viewButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-view-btn]')];
+		const search = root.querySelector<HTMLInputElement>('[data-search]')!;
+		const countEl = root.querySelector<HTMLElement>('[data-count]')!;
+		const empty = root.querySelector<HTMLElement>('[data-empty]')!;
+		let hub = 'all';
+
+		const apply = () => {
+			const q = search.value.trim().toLowerCase();
+			let shown = 0;
+			for (const item of items) {
+				const match =
+					(hub === 'all' || item.dataset.hub === hub) && (q === '' || item.dataset.text!.includes(q));
+				item.hidden = !match;
+				if (match) shown += 1;
+			}
+			countEl.textContent = `${shown} ${shown === 1 ? 'link' : 'links'}`;
+			empty.hidden = shown !== 0;
+		};
+
+		for (const btn of hubButtons) {
+			btn.addEventListener('click', () => {
+				hub = btn.dataset.hub!;
+				for (const b of hubButtons) b.setAttribute('aria-pressed', String(b === btn));
+				apply();
+			});
+		}
+		for (const btn of viewButtons) {
+			btn.addEventListener('click', () => {
+				root.dataset.view = btn.dataset.viewBtn!;
+				for (const b of viewButtons) b.setAttribute('aria-pressed', String(b === btn));
+			});
+		}
+		search.addEventListener('input', apply);
+		root.classList.add('is-live');
+	}
+</script>
+
+<style>
+	.demo {
+		display: grid;
+		grid-template-columns: 13rem minmax(0, 1fr);
+		border: 2px solid var(--bk-ink);
+		background: var(--bk-paper);
+		color: var(--bk-ink);
+		font-family: var(--bk-font-body);
+		text-align: left;
+	}
+
+	/* ---- Sidebar ---- */
+	.demo__side {
+		border-right: 2px solid var(--bk-ink);
+		padding-bottom: var(--bk-space-md);
+	}
+
+	.demo__brand {
+		display: flex;
+		align-items: center;
+		gap: var(--bk-space-xs);
+		margin: 0 0 var(--bk-space-sm);
+		padding: var(--bk-space-md);
+		border-bottom: 2px solid var(--bk-ink);
+		font-family: var(--bk-font-display);
+		font-size: var(--bk-text-md);
+		font-weight: 800;
+		letter-spacing: -0.02em;
+	}
+
+	.demo__brand img {
+		width: auto;
+		height: 1.3rem;
+	}
+
+	.demo__hubs {
+		margin: 0;
+		padding: 0 var(--bk-space-sm);
+		list-style: none;
+	}
+
+	.demo__hubs button {
+		display: flex;
+		justify-content: space-between;
+		width: 100%;
+		min-height: 2.25rem;
+		padding: var(--bk-space-2xs) var(--bk-space-sm);
+		border: 0;
+		border-left: 2px solid transparent;
+		background: none;
+		color: var(--bk-ink);
+		font: inherit;
+		font-size: var(--bk-text-sm);
+		text-align: left;
+		cursor: pointer;
+		transition: color var(--bk-dur-micro) var(--bk-ease-out);
+	}
+
+	.demo__hubs button span {
+		color: var(--bk-neutral);
+		font-family: var(--bk-font-mono);
+		font-size: 0.8125rem;
+	}
+
+	.demo__hubs button:hover {
+		color: var(--bk-accent);
+	}
+
+	.demo__hubs button[aria-pressed='true'] {
+		border-left-color: var(--bk-accent);
+		color: var(--bk-accent);
+		font-weight: 700;
+	}
+
+	/* ---- Toolbar ---- */
+	.demo__main {
+		min-width: 0;
+	}
+
+	.demo__bar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--bk-space-sm);
+		padding: var(--bk-space-md);
+		border-bottom: 2px solid var(--bk-ink);
+	}
+
+	.demo__bar input {
+		flex: 1 1 14rem;
+		min-width: 0;
+		min-height: 2.5rem;
+		padding: 0 var(--bk-space-sm);
+		border: 2px solid var(--bk-ink);
+		border-radius: 0;
+		background: var(--bk-paper);
+		color: var(--bk-ink);
+		font: inherit;
+		font-size: var(--bk-text-sm);
+	}
+
+	.demo__bar input::placeholder {
+		color: var(--bk-neutral);
+	}
+
+	.demo__views {
+		display: flex;
+		border: 2px solid var(--bk-ink);
+	}
+
+	.demo__views button {
+		min-height: 2.25rem;
+		padding: 0 var(--bk-space-md);
+		border: 0;
+		background: var(--bk-paper);
+		color: var(--bk-ink);
+		font-family: var(--bk-font-display);
+		font-size: var(--bk-text-sm);
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	.demo__views button + button {
+		border-left: 2px solid var(--bk-ink);
+	}
+
+	.demo__views button[aria-pressed='true'] {
+		background: var(--bk-ink);
+		color: var(--bk-paper);
+	}
+
+	.demo__count {
+		margin: 0 0 0 auto;
+		color: var(--bk-neutral);
+		font-family: var(--bk-font-mono);
+		font-size: 0.8125rem;
+		white-space: nowrap;
+	}
+
+	/* The controls do nothing until the script has wired them, so they are
+	   inert before then; the full list is readable either way. */
+	.demo:not(.is-live) :is(.demo__bar input, .demo__views, .demo__hubs button) {
+		pointer-events: none;
+	}
+
+	.demo button:focus-visible,
+	.demo input:focus-visible,
+	.demo a:focus-visible {
+		outline: 2px solid var(--bk-accent);
+		outline-offset: 2px;
+	}
+
+	/* ---- Items: list ---- */
+	.demo__items {
+		margin: 0;
+		padding: 0 var(--bk-space-md);
+		list-style: none;
+	}
+
+	.demo__item {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		column-gap: var(--bk-space-lg);
+		padding: var(--bk-space-sm) 0;
+		border-bottom: 1px solid var(--bk-rule);
+	}
+
+	.demo__item[hidden] {
+		display: none;
+	}
+
+	.demo__item a {
+		overflow: hidden;
+		color: var(--bk-ink);
+		font-size: 0.9375rem;
+		font-weight: 650;
+		text-decoration: none;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.demo__item a:hover {
+		color: var(--bk-accent);
+		text-decoration: underline;
+		text-underline-offset: 0.2em;
+	}
+
+	.demo__note {
+		grid-column: 1;
+		margin: var(--bk-space-2xs) 0 0;
+		color: var(--bk-neutral);
+		font-size: 0.8125rem;
+		line-height: 1.45;
+	}
+
+	.demo__meta {
+		grid-column: 2;
+		grid-row: 1 / 3;
+		display: flex;
+		align-items: center;
+		gap: var(--bk-space-sm);
+		margin: 0;
+	}
+
+	.demo__host {
+		color: var(--bk-neutral);
+		font-family: var(--bk-font-mono);
+		font-size: 0.75rem;
+	}
+
+	.demo__tag {
+		padding: var(--bk-space-2xs) var(--bk-space-xs);
+		border: 1px solid var(--bk-rule);
+		color: var(--bk-muted);
+		font-size: 0.75rem;
+		line-height: 1.3;
+		white-space: nowrap;
+	}
+
+	.demo__tag--open {
+		border-style: dashed;
+	}
+
+	.demo__empty {
+		margin: 0;
+		padding: var(--bk-space-xl) var(--bk-space-md);
+		color: var(--bk-neutral);
+	}
+
+	/* ---- Items: grid. 5 / 4 / 2 / 1 columns by screen width. ---- */
+	.demo[data-view='grid'] .demo__items {
+		display: grid;
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+		gap: var(--bk-space-sm);
+		padding: var(--bk-space-md);
+	}
+
+	.demo[data-view='grid'] .demo__item {
+		display: flex;
+		flex-direction: column;
+		min-height: 9rem;
+		padding: var(--bk-space-sm);
+		border: 1px solid var(--bk-rule);
+	}
+
+	.demo[data-view='grid'] .demo__item a {
+		white-space: normal;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+	}
+
+	/* Hostname above tag, always. Side by side, a long hostname pushes the tag
+	   onto its own line in narrow cards and the card bottoms stop lining up. */
+	.demo[data-view='grid'] .demo__meta {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--bk-space-xs);
+		margin-top: auto;
+		padding-top: var(--bk-space-sm);
+	}
+
+	.demo[data-view='grid'] .demo__host {
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	@media (max-width: 80rem) {
+		.demo[data-view='grid'] .demo__items {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+	}
+
+	/* Below this the sidebar folds into a row of hub chips above the list. */
+	@media (max-width: 64rem) {
+		.demo {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.demo__side {
+			border-right: 0;
+			border-bottom: 2px solid var(--bk-ink);
+			padding-bottom: var(--bk-space-sm);
+		}
+
+		.demo__hubs {
+			display: flex;
+			flex-wrap: wrap;
+			gap: var(--bk-space-xs);
+		}
+
+		.demo__hubs button {
+			width: auto;
+			gap: var(--bk-space-xs);
+			border: 1px solid var(--bk-rule);
+		}
+
+		.demo__hubs button[aria-pressed='true'] {
+			border-color: var(--bk-accent);
+		}
+
+		.demo[data-view='grid'] .demo__items {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 37.5rem) {
+		.demo[data-view='grid'] .demo__items {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.demo__item {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.demo__meta {
+			grid-column: 1;
+			grid-row: auto;
+			margin-top: var(--bk-space-xs);
+		}
+
+		.demo__count {
+			margin-left: 0;
+		}
+	}
+</style>

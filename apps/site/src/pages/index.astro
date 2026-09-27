@@ -1,6 +1,7 @@
 ---
 // The landing page is intentionally independent from Starlight's docs layout.
 import '../styles/custom.css';
+import DemoApp from '../components/DemoApp.astro';
 ---
 
 <!doctype html>
@@ -123,19 +124,9 @@ docker compose up -d</code></pre>
 						</p>
 					</header>
 					<figure>
-						{/* Two files rather than <picture>: the theme follows data-theme, which a
-						    media query cannot see, so CSS picks one. Only the shown image carries
-						    the alt text; the hidden one is aria-hidden so a screen reader is not
-						    given the same figure twice. */}
-						<img
-							class="shot shot--light"
-							src="/screenshot.png"
-							alt="bukmark interface showing a left sidebar of hub categories with their link counts, a search and filter row above the list, and a list of bookmarks with titles and brief notes."
-						/>
-						<img class="shot shot--dark" src="/screenshot-dark.png" alt="" aria-hidden="true" />
+						<DemoApp />
 						<figcaption>
-							The seeded demo workbench. Hubs on the left, search and filters above the list,
-							and deliberate sorting through any MCP client.
+							A working demo with sample links. Filter by hub, search, or switch to the grid.
 						</figcaption>
 					</figure>
 				</div>
@@ -401,16 +392,8 @@ docker compose up -d</code></pre>
 			.workflow__item:nth-child(2) h3 { grid-column: 7 / -1; text-align: right; }
 			.workflow__item:nth-child(2) p { grid-column: 1 / 6; grid-row: 1; }
 			.workflow__item:last-child { border-bottom: 0; }
-			.product-view figure { margin: 0; border: 2px solid var(--bk-ink); }
-			.product-view img { display: block; width: 100%; height: auto; background: var(--bk-paper); }
-			.product-view .shot--dark { display: none; }
-			:root[data-theme='dark'] .product-view .shot--light { display: none; }
-			:root[data-theme='dark'] .product-view .shot--dark { display: block; }
-			@media (prefers-color-scheme: dark) {
-				:root:not([data-theme='light']) .product-view .shot--light { display: none; }
-				:root:not([data-theme='light']) .product-view .shot--dark { display: block; }
-			}
-			.product-view figcaption { padding: var(--bk-space-md) var(--bk-space-lg); border-top: 2px solid var(--bk-ink); color: var(--bk-muted); font-size: var(--bk-text-sm); }
+			.product-view figure { margin: 0; }
+			.product-view figcaption { padding-top: var(--bk-space-sm); color: var(--bk-muted); font-size: var(--bk-text-sm); }
 			.closing__grid {
 				display: grid;
 				grid-template-columns: repeat(12, minmax(0, 1fr));

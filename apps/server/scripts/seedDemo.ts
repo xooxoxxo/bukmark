@@ -1,7 +1,8 @@
 /**
- * Seeds a throwaway database with plausible demo data for the bukmark.it
- * screenshot. Never point this at a real database — it is for publishing
- * an image of the UI, and the real instance holds personal bookmarks.
+ * Seeds a throwaway database with plausible demo data, for trying the UI or
+ * capturing it. Never point this at a real database — the real instance holds
+ * personal bookmarks. The landing page's interactive demo
+ * (apps/site/src/components/DemoApp.astro) uses a subset of these links.
  *
  *   pnpm --filter @bukmark/server exec tsx scripts/seedDemo.ts
  */
