@@ -1,0 +1,1 @@
+ALTER TABLE "owner" ADD CONSTRAINT "owner_single_row" CHECK ("owner"."id" = 1);

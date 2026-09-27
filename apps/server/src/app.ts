@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import cors from '@fastify/cors';
+import cookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
@@ -10,29 +11,62 @@ import { linkRoutes } from './routes/links.js';
 import { hubRoutes } from './routes/hubs.js';
 import { exportRoutes } from './routes/export.js';
 import { fetchOgImage as defaultFetchOgImage } from './og/fetchOgImage.js';
+import { RateLimiter } from './auth/rateLimit.js';
+import { requireAuth } from './auth/plugin.js';
+import { publicAuthRoutes } from './auth/routes.js';
+import { protectedAuthRoutes } from './auth/protectedRoutes.js';
+import { authorizePage } from './auth/authorizePage.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
     db: Db;
     fetchOgImage: (url: string) => Promise<string | null>;
+    rateLimiter: RateLimiter;
+    registeredRoutes: { method: string; url: string }[];
   }
 }
+
+// Default serializers already leave headers out; this guards any future log
+// line that includes them.
+export const LOG_REDACT = [
+  'req.headers.authorization',
+  'req.headers.cookie',
+  'headers.authorization',
+  'headers.cookie',
+  'res.headers["set-cookie"]',
+];
 
 export async function buildApp(
   opts: {
     databaseUrl?: string;
     fetchOgImage?: (url: string) => Promise<string | null>;
     corsOrigins?: string[];
+    trustProxy?: boolean | number | string;
+    logStream?: NodeJS.WritableStream;
   } = {},
 ): Promise<FastifyInstance> {
-  const app = Fastify({ logger: true }).withTypeProvider<TypeBoxTypeProvider>();
+  const app = Fastify({
+    logger: { redact: LOG_REDACT, ...(opts.logStream ? { stream: opts.logStream } : {}) },
+    trustProxy: opts.trustProxy ?? config.trustProxy,
+  }).withTypeProvider<TypeBoxTypeProvider>();
+
+  const registeredRoutes: { method: string; url: string }[] = [];
+  app.addHook('onRoute', (route) => {
+    for (const method of [route.method].flat()) registeredRoutes.push({ method, url: route.url });
+  });
+  app.decorate('registeredRoutes', registeredRoutes);
+
   const { db, sql } = getDb(opts.databaseUrl);
   app.decorate('db', db);
   app.decorate('fetchOgImage', opts.fetchOgImage ?? defaultFetchOgImage);
   app.addHook('onClose', async () => { await sql.end(); });
 
-  // Explicit allowlist, never a wildcard: the API has no auth, so the set of
-  // origins that may call it from a browser is the only thing narrowing it.
+  const rateLimiter = new RateLimiter();
+  app.decorate('rateLimiter', rateLimiter);
+  app.addHook('onClose', () => { rateLimiter.close(); });
+
+  // Explicit allowlist, never a wildcard: it decides which other origins may
+  // read API responses from a browser.
   const corsOrigins = opts.corsOrigins ?? config.corsOrigins;
   if (corsOrigins.length > 0) {
     await app.register(cors, {
@@ -42,9 +76,18 @@ export async function buildApp(
   }
 
   app.get('/healthz', async () => ({ ok: true }));
-  await app.register(linkRoutes, { prefix: '/api' });
-  await app.register(hubRoutes, { prefix: '/api' });
-  await app.register(exportRoutes, { prefix: '/api' });
+
+  await app.register(cookie);
+  await app.register(publicAuthRoutes, { prefix: '/api/auth' });
+  await app.register(authorizePage);
+
+  await app.register(async (api) => {
+    api.addHook('onRequest', requireAuth);
+    await api.register(protectedAuthRoutes, { prefix: '/auth' });
+    await api.register(linkRoutes);
+    await api.register(hubRoutes);
+    await api.register(exportRoutes);
+  }, { prefix: '/api' });
 
   const webDist = join(import.meta.dirname, '../../web/dist');
   if (existsSync(webDist)) {

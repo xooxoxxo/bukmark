@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
-  boolean, index, integer, jsonb, pgTable, primaryKey, real, text, timestamp, uniqueIndex, uuid,
+  boolean, check, index, integer, jsonb, pgTable, primaryKey, real, text, timestamp, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 
 export const links = pgTable('links', {
@@ -68,4 +68,36 @@ export const importJobs = pgTable('import_jobs', {
 export const deletedHashes = pgTable('deleted_hashes', {
   urlHash: text('url_hash').primaryKey(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const owner = pgTable('owner', {
+  id: integer('id').primaryKey().default(1),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [check('owner_single_row', sql`${t.id} = 1`)]);
+
+export const sessions = pgTable('sessions', {
+  idHash: text('id_hash').primaryKey(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  renewedAt: timestamp('renewed_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const apiTokens = pgTable('api_tokens', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  name: text('name').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  prefix: text('prefix').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+});
+
+export const authCodes = pgTable('auth_codes', {
+  codeHash: text('code_hash').primaryKey(),
+  codeChallenge: text('code_challenge').notNull(),
+  redirectUri: text('redirect_uri').notNull(),
+  clientName: text('client_name').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
 });

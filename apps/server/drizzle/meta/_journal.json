@@ -29,6 +29,20 @@
       "when": 1784663104298,
       "tag": "0003_wooden_sprite",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790536216027,
+      "tag": "0004_solid_thor_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790539583404,
+      "tag": "0005_ambitious_captain_america",
+      "breakpoints": true
     }
   ]
 }

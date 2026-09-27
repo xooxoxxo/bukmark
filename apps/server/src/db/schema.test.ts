@@ -17,7 +17,7 @@ describe('schema', () => {
 
   it('inserts link, FTS column populated, url_hash unique', async () => {
     const { db, sql } = getDb(TEST_URL);
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, import_jobs CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, import_jobs, owner, sessions, api_tokens, auth_codes CASCADE`);
     try {
       await db.insert(links).values({ url: 'https://a.com/x', urlHash: 'h1', title: 'Alpha Docs' });
       const hit = await db.execute(
@@ -28,7 +28,7 @@ describe('schema', () => {
         db.insert(links).values({ url: 'https://a.com/x2', urlHash: 'h1' }),
       ).rejects.toThrow();
     } finally {
-      await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, import_jobs CASCADE`);
+      await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, import_jobs, owner, sessions, api_tokens, auth_codes CASCADE`);
       await sql.end();
     }
   });

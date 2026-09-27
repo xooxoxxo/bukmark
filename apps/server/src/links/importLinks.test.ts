@@ -16,10 +16,10 @@ describe('importLinks', () => {
     db = h.db; end = () => h.sql.end();
   });
   beforeEach(async () => {
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, owner, sessions, api_tokens, auth_codes CASCADE`);
   });
   afterAll(async () => {
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, owner, sessions, api_tokens, auth_codes CASCADE`);
     await end();
   });
 
