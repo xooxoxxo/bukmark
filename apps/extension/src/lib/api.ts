@@ -1,3 +1,4 @@
+import { AuthRequiredError, clearAuth, type Auth } from './auth';
 import { chunk, type FlatBookmark } from './bookmarks';
 
 const IMPORT_BATCH = 200; // matches the server's maxItems cap
@@ -33,8 +34,21 @@ export interface ImportTotals {
   invalid: number;
 }
 
-async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
+/**
+ * What a request needs. The URL is built from the token's own server, so a
+ * token cannot be sent anywhere else.
+ */
+export type Credentials = Pick<Auth, 'server' | 'token'>;
+
+async function request<T>(auth: Credentials, path: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers);
+  headers.set('authorization', `Bearer ${auth.token}`);
+  const res = await fetch(`${auth.server}${path}`, { ...init, headers });
+
+  if (res.status === 401) {
+    await clearAuth();
+    throw new AuthRequiredError();
+  }
   if (!res.ok) {
     const msg = await res
       .json()
@@ -45,31 +59,31 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-function postJson<T>(url: string, body: unknown): Promise<T> {
-  return request<T>(url, {
+function postJson<T>(auth: Credentials, path: string, body: unknown): Promise<T> {
+  return request<T>(auth, path, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
 }
 
-export function saveLink(baseUrl: string, input: SaveInput): Promise<SaveResult> {
+export function saveLink(auth: Credentials, input: SaveInput): Promise<SaveResult> {
   // Send only what was filled in: an empty string would overwrite a title or
   // note that already exists on a link being re-saved.
   const body: Record<string, unknown> = { url: input.url };
   if (input.title) body.title = input.title;
   if (input.note) body.note = input.note;
   if (input.hub) body.hub = input.hub;
-  return postJson<SaveResult>(`${baseUrl}/api/links`, body);
+  return postJson<SaveResult>(auth, '/api/links', body);
 }
 
-export async function listHubs(baseUrl: string): Promise<Hub[]> {
-  const body = await request<{ items: Hub[] }>(`${baseUrl}/api/hubs`);
+export async function listHubs(auth: Credentials): Promise<Hub[]> {
+  const body = await request<{ items: Hub[] }>(auth, '/api/hubs');
   return body.items;
 }
 
 export async function runImport(
-  baseUrl: string,
+  auth: Credentials,
   items: FlatBookmark[],
   onProgress?: (p: ImportProgress) => void,
 ): Promise<ImportTotals> {
@@ -78,7 +92,7 @@ export async function runImport(
   for (const batch of chunk(items, IMPORT_BATCH)) {
     const res = await postJson<{
       created: number; updated: number; skippedDeleted: number; invalid: unknown[];
-    }>(`${baseUrl}/api/links/import`, { items: batch });
+    }>(auth, '/api/links/import', { items: batch });
     totals.created += res.created;
     totals.updated += res.updated;
     totals.skippedDeleted += res.skippedDeleted;
@@ -98,13 +112,14 @@ export async function runImport(
  * the import again — whereas a spin loop is not.
  */
 export async function runBackfill(
-  baseUrl: string,
+  auth: Credentials,
   onProgress?: (remaining: number) => void,
 ): Promise<number> {
   let processed = 0;
   for (;;) {
     const res = await postJson<{ processed: number; remaining: number }>(
-      `${baseUrl}/api/links/og-backfill`,
+      auth,
+      '/api/links/og-backfill',
       { limit: BACKFILL_BATCH },
     );
     if (res.processed === 0) return processed;

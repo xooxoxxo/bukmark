@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "bukmark capture",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Save the current tab to bukmark, and import your existing browser bookmarks.",
-  "permissions": ["activeTab", "tabs", "bookmarks", "storage"],
+  "permissions": ["activeTab", "tabs", "bookmarks", "storage", "identity"],
   "host_permissions": ["http://localhost:3000/*"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "action": { "default_popup": "popup.html", "default_title": "Save to bukmark" },
