@@ -3,7 +3,7 @@
     "bukmark": {
       "command": "pnpm",
       "args": ["exec", "tsx", "apps/mcp/src/index.ts"],
-      "env": { "BUKMARK_API_URL": "http://localhost:3000" }
+      "env": { "BUKMARK_API_URL": "http://localhost:3000", "BUKMARK_API_TOKEN": "" }
     }
   }
 }

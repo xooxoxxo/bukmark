@@ -9,6 +9,11 @@ import {
 } from './sorting.js';
 
 const API = process.env.BUKMARK_API_URL ?? 'http://localhost:3000';
+const TOKEN = process.env.BUKMARK_API_TOKEN;
+
+if (!TOKEN) {
+  console.error('Warning: BUKMARK_API_TOKEN is not set. API requests will be unauthenticated.');
+}
 
 const itemShape = {
   url: z.string(),
@@ -20,19 +25,11 @@ const itemShape = {
 
 async function postItem(item: BookmarkItem): Promise<ItemResult> {
   try {
-    const res = await fetch(`${API}/api/links`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(toRequestBody(item)),
-    });
-    if (!res.ok) {
-      const msg = await res.json().then((b: { error?: string }) => b.error).catch(() => null);
-      return { url: item.url, error: msg ?? `HTTP ${res.status}` };
-    }
-    const body = (await res.json()) as { outcome: ItemResult['outcome'] };
-    return { url: item.url, outcome: body.outcome };
+    const res = await postJson<{ outcome: ItemResult['outcome'] }>('/api/links', toRequestBody(item));
+    return { url: item.url, outcome: res.outcome };
   } catch (err) {
-    return { url: item.url, error: err instanceof Error ? err.message : 'request failed' };
+    const msg = err instanceof Error ? err.message : 'request failed';
+    return { url: item.url, error: msg };
   }
 }
 
