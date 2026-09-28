@@ -8,6 +8,7 @@ export interface SelectOption {
 }
 
 export function Select({
+  id,
   value,
   onValueChange,
   options,
@@ -16,6 +17,7 @@ export function Select({
   disabled = false,
   className,
 }: {
+  id?: string;
   value?: string;
   onValueChange: (value: string) => void;
   options: SelectOption[];
@@ -31,6 +33,7 @@ export function Select({
       disabled={disabled}
     >
       <SelectPrimitive.Trigger
+        id={id}
         className={[styles.trigger, className].filter(Boolean).join(' ')}
         aria-label={ariaLabel}
       >

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
 import { ApiError, type ApiToken } from '../api/client';
+import { bookmarklet } from '../save/bookmarklet';
 import { TokensPage } from './TokensPage';
 import { makeWrapper } from '../test/utils';
 
@@ -185,6 +186,29 @@ describe('TokensPage', () => {
     expect(screen.getByRole('button', { name: 'Revoke MCP Server (bkm_abc12345)' })).toHaveFocus();
     expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
     expect(client.deleteToken).not.toHaveBeenCalled();
+  });
+
+  it('sends iPhone and iPad owners to the iOS Shortcut guide', async () => {
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'iPhone and iPad' })).toBeInTheDocument();
+    const guide = screen.getByRole('link', { name: 'Set up the iOS Shortcut' });
+    expect(guide).toHaveAttribute('href', 'https://bukmark.it/docs/phone/#ios-shortcut');
+    expect(guide).toHaveAttribute('target', '_blank');
+    expect(guide).toHaveAttribute('rel', 'noreferrer');
+  });
+
+  it("offers a bookmarklet for this server's save page that holds no token", async () => {
+    renderPage();
+    await createScriptToken();
+
+    const link = screen.getByRole('link', { name: 'Save to bukmark' });
+    const href = link.getAttribute('href') ?? '';
+    expect(href).toBe(bookmarklet(window.location.origin));
+    expect(href).toContain(`${window.location.origin}/save?url=`);
+    expect(href).not.toContain(PLAINTEXT);
+    // Clicked here rather than dragged, it would only save this page.
+    expect(fireEvent.click(link)).toBe(false);
   });
 
   it('announces a failed revoke and refreshes the stale list', async () => {

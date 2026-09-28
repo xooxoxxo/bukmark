@@ -274,3 +274,55 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.captureText,
+.captureNote {
+  max-width: 60ch;
+  font-family: var(--bk-font-body);
+}
+
+.captureText {
+  margin: 0 0 var(--bk-space-sm) 0;
+  font-size: var(--bk-text-sm);
+  color: var(--bk-neutral);
+}
+
+.captureText:last-child {
+  margin-bottom: 0;
+}
+
+.captureNote {
+  margin: var(--bk-space-sm) 0 0 0;
+  font-size: var(--bk-text-xs);
+  color: var(--bk-muted);
+}
+
+/* Ink, not accent: the accent is under 4.5:1 on light paper. Underlined,
+   because in running text colour alone would not mark it as a link. */
+.docsLink {
+  color: var(--bk-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.docsLink:hover {
+  color: var(--bk-accent);
+}
+
+/* A link to drag, not a button to press. */
+.bookmarklet {
+  display: inline-flex;
+  padding: var(--bk-space-xs) var(--bk-space-md);
+  border: 2px solid var(--bk-ink);
+  color: var(--bk-ink);
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-sm);
+  font-weight: 700;
+  cursor: grab;
+  transition: background-color var(--bk-dur-micro) var(--bk-ease-out), color var(--bk-dur-micro) var(--bk-ease-out);
+}
+
+.bookmarklet:hover {
+  background-color: var(--bk-ink);
+  color: var(--bk-paper);
+}

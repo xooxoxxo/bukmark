@@ -42,6 +42,18 @@ function useInvalidate(...keys: string[]) {
   return () => Promise.all(keys.map((k) => queryClient.invalidateQueries({ queryKey: [k] })));
 }
 
+export function useSaveLink() {
+  const invalidate = useInvalidate('links', 'hubs', 'stats');
+  return useMutation({
+    mutationFn: (input: api.SaveLinkInput) => api.saveLink(input),
+    // Not awaited: the save page shows none of these lists, so its outcome
+    // should not wait for them to refetch.
+    onSuccess: () => {
+      void invalidate();
+    },
+  });
+}
+
 export function usePatchLink() {
   const invalidate = useInvalidate('links', 'stats');
   return useMutation({

@@ -1,12 +1,19 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { errorMessage } from '../api/client';
 import { useCreateToken, useDeleteToken, useListTokens } from '../api/queries';
+import { DOCS_URL } from '../docs';
+import { bookmarklet } from '../save/bookmarklet';
 import styles from './TokensPage.module.css';
 
 interface NewToken {
   id: string;
   token: string;
   name: string;
+}
+
+/** React blocks javascript: URLs in href, and a bookmarklet is one by definition. */
+function setBookmarkletHref(link: HTMLAnchorElement | null) {
+  link?.setAttribute('href', bookmarklet(window.location.origin));
 }
 
 export function TokensPage() {
@@ -95,8 +102,8 @@ export function TokensPage() {
   return (
     <div className={styles.container}>
       <p className={styles.description}>
-        Tokens let the MCP server and scripts use this server. The browser extension creates its
-        own token when you log in from it. You see each token once.
+        Tokens let the MCP server, scripts and an iOS Shortcut use this server. The browser
+        extension creates its own token when you log in from it. You see each token once.
       </p>
 
       {error && (
@@ -242,6 +249,40 @@ export function TokensPage() {
             })}
           </div>
         )}
+      </div>
+
+      <div className={styles.section}>
+        <h3>iPhone and iPad</h3>
+        <p className={styles.captureText}>
+          A Shortcut in the Share sheet can save links from any app, using a token you create
+          here.{' '}
+          <a
+            className={styles.docsLink}
+            href={`${DOCS_URL}phone/#ios-shortcut`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Set up the iOS Shortcut
+          </a>
+        </p>
+      </div>
+
+      <div className={styles.section}>
+        <h3>Bookmarklet</h3>
+        <p className={styles.captureText}>
+          For a browser without the extension: drag this to your bookmarks bar, then click it on
+          any page to open a save window for that page.
+        </p>
+        <a
+          ref={setBookmarkletHref}
+          className={styles.bookmarklet}
+          onClick={(e) => e.preventDefault()}
+        >
+          Save to bukmark
+        </a>
+        <p className={styles.captureNote}>
+          It holds no token. The window it opens uses this browser's sign-in to this server.
+        </p>
       </div>
     </div>
   );

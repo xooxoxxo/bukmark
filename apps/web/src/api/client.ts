@@ -57,6 +57,29 @@ export function fetchLinks(query: LinksQuery = {}): Promise<{ items: LinkDto[]; 
   return http(qs ? `/links?${qs}` : '/links');
 }
 
+export interface SaveLinkInput {
+  url: string;
+  title?: string;
+  note?: string;
+  /** Hub name; the server creates the hub if it does not exist. */
+  hub?: string;
+}
+
+export interface SaveLinkResult {
+  outcome: 'created' | 'updated' | 'resurrected';
+  link: LinkDto;
+}
+
+export function saveLink(input: SaveLinkInput): Promise<SaveLinkResult> {
+  // Only what was filled in: an empty string would overwrite the title or note
+  // a link being saved again already has.
+  const body: SaveLinkInput = { url: input.url };
+  if (input.title) body.title = input.title;
+  if (input.note) body.note = input.note;
+  if (input.hub) body.hub = input.hub;
+  return http('/links', jsonInit('POST', body));
+}
+
 export function patchLink(id: string, body: LinkPatch): Promise<LinkDto> {
   return http(`/links/${id}`, jsonInit('PATCH', body));
 }

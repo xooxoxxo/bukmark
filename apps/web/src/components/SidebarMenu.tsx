@@ -3,11 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useRef, useState, type ChangeEvent } from 'react';
 import { errorMessage } from '../api/client';
 import { useImportLinks, useLogout } from '../api/queries';
+import { DOCS_URL } from '../docs';
 import { UnsupportedFileError, parseImportFile } from '../import/parseBookmarks';
 import { applyThemeChoice, readThemeChoice, type ThemeChoice } from '../theme';
 import styles from './SidebarMenu.module.css';
-
-const DOCS_URL = 'https://bukmark.it/docs/';
 
 const THEMES: [ThemeChoice, string][] = [
   ['auto', 'System'],
