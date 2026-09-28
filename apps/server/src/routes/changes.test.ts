@@ -326,6 +326,97 @@ describe('changes feed and PATCH hubs', () => {
     });
   });
 
+  describe('PATCH /api/links/:id addHubs and removeHubs', () => {
+    const patch = (id: string, payload: Record<string, unknown>) =>
+      app.inject({ method: 'PATCH', url: `/api/links/${id}`, headers, payload });
+    async function hubsOf(id: string): Promise<{ name: string; assignedBy: string }[]> {
+      return db.select({ name: hubs.name, assignedBy: hubLinks.assignedBy })
+        .from(hubLinks).innerJoin(hubs, eq(hubs.id, hubLinks.hubId))
+        .where(eq(hubLinks.linkId, id)).orderBy(hubs.name);
+    }
+    async function filed(url: string, names: string[]): Promise<string> {
+      const id = await link(url);
+      const rows = await db.insert(hubs).values(names.map((name) => ({ name }))).returning();
+      await db.insert(hubLinks).values(rows.map((h) => ({ hubId: h.id, linkId: id, assignedBy: 'auto' as const })));
+      return id;
+    }
+
+    it('moves a link between two hubs and keeps a hub added on the server meanwhile', async () => {
+      // The browser pulled [dev]; the web app has since filed it into reading too.
+      const id = await filed('https://a.dev/m', ['dev', 'reading']);
+      const res = await patch(id, { removeHubs: ['dev'], addHubs: ['rust'] });
+      expect(res.statusCode).toBe(200);
+      expect(await hubsOf(id)).toEqual([{ name: 'reading', assignedBy: 'auto' }, { name: 'rust', assignedBy: 'user' }]);
+      const rust = (await db.select().from(hubs).where(eq(hubs.name, 'rust')))[0]!;
+      expect(res.json().hubIds).toContain(rust.id);
+    });
+
+    it('adds by name, creating a missing hub and bringing back an archived one', async () => {
+      const id = await filed('https://a.dev/n', ['keep']);
+      await db.insert(hubs).values({ name: 'old', status: 'archived' });
+      await patch(id, { addHubs: ['old', 'new', 'new', 'keep'] });
+      expect(await hubsOf(id)).toEqual([
+        { name: 'keep', assignedBy: 'auto' }, { name: 'new', assignedBy: 'user' }, { name: 'old', assignedBy: 'user' },
+      ]);
+      const [old] = await db.select().from(hubs).where(eq(hubs.name, 'old'));
+      expect(old!.status).toBe('active');
+    });
+
+    it('removes only the named hubs, and a name the link is not in changes nothing', async () => {
+      const id = await filed('https://a.dev/o', ['a', 'b']);
+      await patch(id, { removeHubs: ['a', 'nowhere'] });
+      expect((await hubsOf(id)).map((h) => h.name)).toEqual(['b']);
+      expect((await db.select().from(hubs)).map((h) => h.name).sort()).toEqual(['a', 'b']);
+      await patch(id, { removeHubs: ['b'], addHubs: [] });
+      expect(await hubsOf(id)).toEqual([]);
+    });
+
+    it('leaves a link in an archived hub named in removeHubs, as archiving does', async () => {
+      // Another browser saw a pull move the link out of the archived hub's folder.
+      const id = await filed('https://a.dev/o2', ['dev', 'books']);
+      await db.update(hubs).set({ status: 'archived' }).where(eq(hubs.name, 'books'));
+      await patch(id, { removeHubs: ['books', 'dev'] });
+      expect((await hubsOf(id)).map((h) => h.name)).toEqual(['books']);
+      // Brought back, the hub has the link again.
+      await db.update(hubs).set({ status: 'active' }).where(eq(hubs.name, 'books'));
+      expect((await pull()).items.find((i) => i.id === id)).toMatchObject({ hubs: ['books'] });
+    });
+
+    it('takes them with other fields in one change, and shows up in the feed', async () => {
+      const id = await filed('https://a.dev/p2', ['dev']);
+      const before = await pull();
+      await patch(id, { title: 'Moved', removeHubs: ['dev'], addHubs: ['rust'] });
+      const after = await pull({ since: before.cursor! });
+      expect(after.items.find((i) => i.id === id)).toMatchObject({ title: 'Moved', hubs: ['rust'] });
+    });
+
+    it('adds a name that is in both lists', async () => {
+      const id = await filed('https://a.dev/q2', ['dev']);
+      await patch(id, { removeHubs: ['dev'], addHubs: ['dev'] });
+      expect((await hubsOf(id)).map((h) => h.name)).toEqual(['dev']);
+    });
+
+    it('refuses them alongside hubs, changing nothing', async () => {
+      const id = await filed('https://a.dev/r2', ['dev']);
+      const res = await patch(id, { title: 'No', hubs: ['x'], addHubs: ['y'] });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toEqual({ error: 'hubs cannot be sent with addHubs or removeHubs' });
+      expect((await patch(id, { hubs: [], removeHubs: ['dev'] })).statusCode).toBe(400);
+      expect((await hubsOf(id)).map((h) => h.name)).toEqual(['dev']);
+      expect((await db.select().from(links).where(eq(links.id, id)))[0]!.title).not.toBe('No');
+      expect((await db.select().from(hubs)).map((h) => h.name)).toEqual(['dev']);
+    });
+
+    it('404s for an unknown link without creating hubs, and rejects an empty name', async () => {
+      const res = await patch('00000000-0000-0000-0000-000000000000', { addHubs: ['phantom'] });
+      expect(res.statusCode).toBe(404);
+      expect(await db.select().from(hubs)).toEqual([]);
+      const id = await link('https://a.dev/s2');
+      expect((await patch(id, { addHubs: [''] })).statusCode).toBe(400);
+      expect((await patch(id, { removeHubs: [''] })).statusCode).toBe(400);
+    });
+  });
+
   describe('hub names', () => {
     it('saving into an archived hub brings it back', async () => {
       await db.insert(hubs).values({ name: 'old', status: 'archived' });

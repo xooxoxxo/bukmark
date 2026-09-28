@@ -54,6 +54,18 @@ describe('toNetscapeHtml', () => {
     expect(out).toContain('HREF="https://example.com/a"');
   });
 
+  it('names the folder of a hub called Unsorted apart from the one for links in no hub, as sync does', () => {
+    const out = toNetscapeHtml([
+      link({ url: 'https://a.com', hubs: ['Unsorted'] }),
+      link({ url: 'https://b.com', hubs: ['Unsorted (hub)'] }),
+      link({ url: 'https://c.com', hubs: [] }),
+      link({ url: 'https://d.com', hubs: ['Notes (hub)'] }),
+    ]);
+    expect(out.match(/<H3>[^<]*<\/H3>/g)).toEqual([
+      '<H3>bukmark</H3>', '<H3>Notes (hub)</H3>', '<H3>Unsorted (hub)</H3>', '<H3>Unsorted (hub) (hub)</H3>', '<H3>Unsorted</H3>',
+    ]);
+  });
+
   it('emits the note as a DD description, which survives into browsers', () => {
     const out = toNetscapeHtml([link({ hubs: ['rust'], note: 'the book' })]);
     expect(out).toContain('<DD>the book');

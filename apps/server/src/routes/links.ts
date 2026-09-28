@@ -7,7 +7,7 @@ import { deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 import { addLink } from '../links/addLink.js';
 import { importLinks } from '../links/importLinks.js';
 import { assignHubs } from '../links/assignHubs.js';
-import { setLinkHubs } from '../links/setLinkHubs.js';
+import { changeLinkHubs, setLinkHubs } from '../links/setLinkHubs.js';
 import { backfillOg } from '../og/backfill.js';
 import { checkLinks, isBroken, type CheckPage } from '../og/checkLinks.js';
 
@@ -377,13 +377,22 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
         relevance: Type.Optional(Type.Union([Type.Integer({ minimum: 1, maximum: 5 }), Type.Null()])),
         // Hub names, replacing the hubs the link is in: see setLinkHubs.
         hubs: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { maxItems: 100 })),
+        // Hub names to file the link into or take it out of, the others left
+        // alone: see changeLinkHubs.
+        addHubs: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { maxItems: 100 })),
+        removeHubs: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { maxItems: 100 })),
       }),
     },
   }, async (req, reply) => {
     const { id } = req.params as { id: string };
-    const { hubs: hubNames, ...fields } = req.body as {
-      title?: string; note?: string; status?: 'active' | 'archived'; relevance?: number | null; hubs?: string[];
+    const { hubs: hubNames, addHubs, removeHubs, ...fields } = req.body as {
+      title?: string; note?: string; status?: 'active' | 'archived'; relevance?: number | null;
+      hubs?: string[]; addHubs?: string[]; removeHubs?: string[];
     };
+    // A whole set and changes to it can't both apply.
+    if (hubNames && (addHubs || removeHubs)) {
+      return reply.code(400).send({ error: 'hubs cannot be sent with addHubs or removeHubs' });
+    }
     const result = await req.server.db.transaction(async (tx) => {
       const [row] = await tx
         .update(links)
@@ -396,6 +405,7 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
         });
       if (!row) return null;
       if (hubNames) await setLinkHubs(tx, id, hubNames);
+      if (addHubs || removeHubs) await changeLinkHubs(tx, id, addHubs ?? [], removeHubs ?? []);
       const hubRows = await tx.select({ hubId: hubLinks.hubId }).from(hubLinks).where(eq(hubLinks.linkId, id));
       return { ...row, firstSeen: row.firstSeen.toISOString(), hubIds: hubRows.map((h) => h.hubId) };
     });

@@ -3,6 +3,18 @@ import type { ExportLink } from './types.js';
 const UNSORTED = 'Unsorted';
 /** The one top-level folder: the same one bookmark sync keeps in the browser. */
 const ROOT = 'bukmark';
+/**
+ * Added to the folder of a hub called Unsorted, so that it stays apart from
+ * the folder for links in no hub; also to "Unsorted (hub)" and so on, so that
+ * no two hubs share a folder name. Bookmark sync names folders the same way.
+ */
+const HUB_SUFFIX = ' (hub)';
+
+function folderName(hub: string): string {
+  let base = hub;
+  while (base.endsWith(HUB_SUFFIX)) base = base.slice(0, -HUB_SUFFIX.length);
+  return base === UNSORTED ? hub + HUB_SUFFIX : hub;
+}
 
 function esc(s: string): string {
   return s
@@ -70,7 +82,8 @@ export function toNetscapeHtml(links: ExportLink[]): string {
   if (unsorted.length > 0) folders.push([UNSORTED, unsorted]);
 
   for (const [name, items] of folders) {
-    out.push(`        <DT><H3>${esc(name)}</H3>`, '        <DL><p>');
+    const title = items === unsorted ? name : folderName(name);
+    out.push(`        <DT><H3>${esc(title)}</H3>`, '        <DL><p>');
     for (const l of items) out.push(...anchor(l));
     out.push('        </DL><p>');
   }
