@@ -59,7 +59,7 @@ describe('hubs api', () => {
       { url: 'https://a.com/2', urlHash: 'h2', status: 'archived' },
     ]);
     const res = await app.inject({ method: 'GET', url: '/api/stats', headers });
-    expect(res.json()).toEqual({ links: 2, active: 1, archived: 1, hubs: 0, unassigned: 1 });
+    expect(res.json()).toEqual({ links: 2, active: 1, archived: 1, hubs: 0, unassigned: 1, broken: 0, unchecked: 1 });
   });
 });
 

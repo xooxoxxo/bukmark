@@ -22,6 +22,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       TRUST_PROXY: ${TRUST_PROXY:-false}
       BUKMARK_EXTENSION_IDS: ${BUKMARK_EXTENSION_IDS:-}
+      BUKMARK_CHECK_PAGES: ${BUKMARK_CHECK_PAGES:-true}
     ports: ["${PORT:-3000}:3000"]
     depends_on:
       db: { condition: service_healthy }

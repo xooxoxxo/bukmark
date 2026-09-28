@@ -33,4 +33,7 @@ export const config = {
     .filter(Boolean),
   trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
   extensionIds: parseExtensionIds(process.env.BUKMARK_EXTENSION_IDS),
+  // Fetch saved pages in the background for their text and status. On unless
+  // BUKMARK_CHECK_PAGES=false.
+  checkPages: process.env.BUKMARK_CHECK_PAGES !== 'false',
 };

@@ -1,5 +1,5 @@
 import { Type } from '@sinclair/typebox';
-import { and, desc, eq, inArray, ne, sql as dsql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, ne, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { normalizeUrl } from '@bukmark/shared';
 import { deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
@@ -7,6 +7,7 @@ import { addLink } from '../links/addLink.js';
 import { importLinks } from '../links/importLinks.js';
 import { assignHubs } from '../links/assignHubs.js';
 import { backfillOg } from '../og/backfill.js';
+import { checkLinks, isBroken, type CheckPage } from '../og/checkLinks.js';
 
 const LinkDto = Type.Object({
   id: Type.String(), url: Type.String(), title: Type.String(), note: Type.String(),
@@ -18,7 +19,18 @@ const LinkDto = Type.Object({
 /** A stored URL's host, as normalizeUrl writes it: lower case, no leading www. */
 const linkHost = dsql`regexp_replace(lower(substring(${links.url} from '^[a-zA-Z][a-zA-Z0-9+.-]*://(?:[^/?#@]*@)?([^/?#:]+)')), '^www\.', '')`;
 
-export async function linkRoutes(app: FastifyInstance): Promise<void> {
+/** Marks around the words a search matched in a snippet; the web app renders them. */
+export const HIT_START = '\u2e22';
+export const HIT_END = '\u2e23';
+
+const SORTS = {
+  relevance: [dsql`${links.relevance} DESC NULLS LAST`, desc(links.lastSeen)],
+  newest: [desc(links.firstSeen)],
+  oldest: [asc(links.firstSeen)],
+  title: [dsql`lower(nullif(${links.title}, '')) ASC NULLS LAST`, asc(links.url)],
+} as const;
+
+export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckPage }): Promise<void> {
   // What bukmark already holds for a page before it is saved: the page itself
   // and the hubs it is in, else how the rest of its site is filed.
   app.get('/links/lookup', {
@@ -77,20 +89,30 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
         hub: Type.Optional(Type.String({ format: 'uuid' })),
         unassigned: Type.Optional(Type.Boolean()),
         status: Type.Optional(Type.Union([Type.Literal('active'), Type.Literal('archived')])),
+        broken: Type.Optional(Type.Boolean()),
+        sort: Type.Optional(Type.Union(Object.keys(SORTS).map((k) => Type.Literal(k)))),
         limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 200, default: 50 })),
         offset: Type.Optional(Type.Integer({ minimum: 0, default: 0 })),
       }),
     },
   }, async (req) => {
-    const { q, hub, unassigned, status = 'active', limit = 50, offset = 0 } = req.query as {
-      q?: string; hub?: string; unassigned?: boolean; status?: 'active' | 'archived';
-      limit?: number; offset?: number;
+    const { q, hub, unassigned, broken, status = 'active', sort = 'relevance', limit = 50, offset = 0 } = req.query as {
+      q?: string; hub?: string; unassigned?: boolean; broken?: boolean; status?: 'active' | 'archived';
+      sort?: keyof typeof SORTS; limit?: number; offset?: number;
     };
     const conds = [eq(links.status, status)];
     if (q) conds.push(dsql`search_tsv @@ websearch_to_tsquery('simple', ${q})`);
     if (hub) conds.push(dsql`EXISTS (SELECT 1 FROM hub_links hl WHERE hl.link_id = ${links.id} AND hl.hub_id = ${hub})`);
     if (unassigned) conds.push(dsql`NOT EXISTS (SELECT 1 FROM hub_links hl WHERE hl.link_id = ${links.id})`);
+    if (broken) conds.push(isBroken);
     const where = and(...conds);
+    // Where a search matched the page's own text, the words around the match.
+    const snippet = q
+      ? dsql<string | null>`CASE WHEN to_tsvector('simple', coalesce(${links.contentText}, '')) @@ websearch_to_tsquery('simple', ${q})
+          THEN ts_headline('simple', ${links.contentText}, websearch_to_tsquery('simple', ${q}),
+            ${`StartSel=${HIT_START}, StopSel=${HIT_END}, MaxWords=28, MinWords=12, MaxFragments=1`})
+          END`
+      : dsql<null>`NULL`;
 
     const totalRows = await req.server.db.select({ n: dsql<number>`count(*)::int` }).from(links).where(where);
     const rows = await req.server.db
@@ -98,6 +120,10 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
         id: links.id, url: links.url, title: links.title, note: links.note,
         status: links.status, relevance: links.relevance, dupeCount: links.dupeCount, firstSeen: links.firstSeen,
         imageUrl: links.imageUrl,
+        httpStatus: links.httpStatus,
+        checkError: links.checkError,
+        broken: dsql<boolean>`coalesce(${isBroken}, false)`,
+        snippet,
         groupHint: dsql<string | null>`(
           SELECT c.group_hint FROM captures c
           WHERE c.link_id = ${links.id} AND c.group_hint IS NOT NULL
@@ -109,7 +135,7 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
       .leftJoin(hubLinks, eq(hubLinks.linkId, links.id))
       .where(where)
       .groupBy(links.id)
-      .orderBy(dsql`${links.relevance} DESC NULLS LAST`, desc(links.lastSeen))
+      .orderBy(...SORTS[sort], asc(links.id))
       .limit(limit)
       .offset(offset);
 
@@ -117,6 +143,41 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
       items: rows.map((r) => ({ ...r, firstSeen: r.firstSeen.toISOString() })),
       total: totalRows[0]!.n,
     };
+  });
+
+  // One link with everything bukmark holds for it, the saved page text included.
+  app.get('/links/:id', {
+    schema: { params: Type.Object({ id: Type.String({ format: 'uuid' }) }) },
+  }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const [row] = await req.server.db
+      .select({
+        id: links.id, url: links.url, title: links.title, note: links.note,
+        status: links.status, relevance: links.relevance, dupeCount: links.dupeCount,
+        imageUrl: links.imageUrl, firstSeen: links.firstSeen, lastSeen: links.lastSeen,
+        contentText: links.contentText, httpStatus: links.httpStatus, checkError: links.checkError,
+        checkedAt: links.checkedAt, broken: dsql<boolean>`coalesce(${isBroken}, false)`,
+        hubIds: dsql<string[]>`coalesce((SELECT array_agg(hl.hub_id) FROM hub_links hl WHERE hl.link_id = ${links.id}), '{}')`,
+      })
+      .from(links)
+      .where(eq(links.id, id));
+    if (!row) return reply.code(404).send({ error: 'link not found' });
+    return {
+      ...row,
+      firstSeen: row.firstSeen.toISOString(),
+      lastSeen: row.lastSeen.toISOString(),
+      checkedAt: row.checkedAt?.toISOString() ?? null,
+    };
+  });
+
+  // Checks the links most in need of it now, instead of waiting for the background.
+  app.post('/links/check', {
+    schema: {
+      body: Type.Object({ limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 50, default: 20 })) }),
+    },
+  }, async (req) => {
+    const { limit = 20 } = (req.body ?? {}) as { limit?: number };
+    return checkLinks(req.server.db, opts.checkPage, limit);
   });
 
   app.post('/links', {
@@ -201,11 +262,12 @@ export async function linkRoutes(app: FastifyInstance): Promise<void> {
         title: Type.Optional(Type.String()),
         note: Type.Optional(Type.String()),
         status: Type.Optional(Type.Union([Type.Literal('active'), Type.Literal('archived')])),
+        relevance: Type.Optional(Type.Union([Type.Integer({ minimum: 1, maximum: 5 }), Type.Null()])),
       }),
     },
   }, async (req, reply) => {
     const { id } = req.params as { id: string };
-    const body = req.body as { title?: string; note?: string; status?: 'active' | 'archived' };
+    const body = req.body as { title?: string; note?: string; status?: 'active' | 'archived'; relevance?: number | null };
     const [row] = await req.server.db
       .update(links)
       .set({ ...body, updatedAt: dsql`now()` })

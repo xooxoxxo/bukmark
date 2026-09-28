@@ -15,6 +15,13 @@ export const links = pgTable('links', {
   dupeCount: integer('dupe_count').notNull().default(1),
   imageUrl: text('image_url'),
   ogFetchedAt: timestamp('og_fetched_at', { withTimezone: true }),
+  /** The page's readable text, from its last check: searched, and kept as a copy. */
+  contentText: text('content_text'),
+  /** The last check's final HTTP status; null when no response came. */
+  httpStatus: integer('http_status'),
+  /** Why the last check got no response: 'dns', 'timeout', 'blocked', 'network', 'redirects'. */
+  checkError: text('check_error'),
+  checkedAt: timestamp('checked_at', { withTimezone: true }),
   firstSeen: timestamp('first_seen', { withTimezone: true }).notNull().defaultNow(),
   lastSeen: timestamp('last_seen', { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -22,6 +29,7 @@ export const links = pgTable('links', {
 }, (t) => [
   uniqueIndex('links_url_hash_uq').on(t.urlHash),
   index('links_status_idx').on(t.status),
+  index('links_checked_at_idx').on(t.checkedAt),
 ]);
 
 export const captures = pgTable('captures', {

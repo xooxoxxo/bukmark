@@ -11,6 +11,7 @@ import { linkRoutes } from './routes/links.js';
 import { hubRoutes } from './routes/hubs.js';
 import { exportRoutes } from './routes/export.js';
 import { fetchOgImage as defaultFetchOgImage } from './og/fetchOgImage.js';
+import { checkPage as defaultCheckPage, startPageChecks, type CheckPage } from './og/checkLinks.js';
 import { RateLimiter } from './auth/rateLimit.js';
 import { requireAuth } from './auth/plugin.js';
 import { publicAuthRoutes } from './auth/routes.js';
@@ -46,6 +47,10 @@ export async function buildApp(
     /** null means unset, whatever BUKMARK_EXTENSION_IDS says. */
     extensionIds?: string[] | null;
     webDist?: string;
+    /** Fetches a page for a link check; tests pass a stub. */
+    checkPage?: CheckPage;
+    /** Check links in the background. Off unless asked for, so tests never go online. */
+    checkPages?: boolean;
   } = {},
 ): Promise<FastifyInstance> {
   const app = Fastify({
@@ -63,6 +68,9 @@ export async function buildApp(
   app.decorate('db', db);
   app.decorate('fetchOgImage', opts.fetchOgImage ?? defaultFetchOgImage);
   app.addHook('onClose', async () => { await sql.end(); });
+
+  const checkPage = opts.checkPage ?? defaultCheckPage;
+  if (opts.checkPages) startPageChecks(app, checkPage);
 
   const rateLimiter = new RateLimiter();
   app.decorate('rateLimiter', rateLimiter);
@@ -90,7 +98,7 @@ export async function buildApp(
   await app.register(async (api) => {
     api.addHook('onRequest', requireAuth);
     await api.register(protectedAuthRoutes, { prefix: '/auth' });
-    await api.register(linkRoutes);
+    await api.register(linkRoutes, { checkPage });
     await api.register(hubRoutes);
     await api.register(exportRoutes);
   }, { prefix: '/api' });

@@ -154,6 +154,8 @@ unless `TRUST_PROXY=true`, so all clients share one count.
 | DELETE | `/api/auth/tokens/:id` | Revoke an access token |
 | GET | `/api/links` | List links with search and filters |
 | GET | `/api/links/lookup` | Whether a page is saved, and how its site is filed |
+| GET | `/api/links/:id` | One link, with its saved page text and last check |
+| POST | `/api/links/check` | Check the links most in need of it now |
 | POST | `/api/links` | Create or update a link |
 | POST | `/api/links/import` | Import a batch of links |
 | POST | `/api/links/og-backfill` | Backfill missing Open Graph metadata |
@@ -187,10 +189,15 @@ List links with optional full-text search, hub filtering, and status filtering.
 
 **Query Parameters:**
 
-- `q` (string, optional) — Full-text search string
+- `q` (string, optional) — Full-text search. It matches the title, URL and note,
+  and the text of the page itself once the page has been checked.
 - `hub` (UUID, optional) — Filter to links in this hub
 - `unassigned` (boolean, optional) — If true, filter to links with no hub
 - `status` (string, optional) — `active` or `archived`; defaults to `active`
+- `broken` (boolean, optional) — If true, only links whose page is gone: the
+  last check got a 404 or 410, or the domain no longer exists
+- `sort` (string, optional) — `relevance` (the default: relevance, then most
+  recently seen), `newest`, `oldest` or `title`
 - `limit` (integer, optional) — Results per page, 1–200; defaults to 50
 - `offset` (integer, optional) — Pagination offset; defaults to 0
 
@@ -209,6 +216,10 @@ List links with optional full-text search, hub filtering, and status filtering.
       "dupeCount": 0,
       "hubIds": ["uuid1", "uuid2"],
       "imageUrl": "https://example.com/og-image.png",
+      "httpStatus": 200,
+      "checkError": null,
+      "broken": false,
+      "snippet": null,
       "groupHint": "optional/browser/folder/path",
       "firstSeen": "2024-01-15T10:30:00.000Z"
     }
@@ -216,6 +227,11 @@ List links with optional full-text search, hub filtering, and status filtering.
   "total": 42
 }
 ```
+
+`httpStatus` and `checkError` come from the page's last check (both `null`
+until the first). `snippet` is set only with `q`, and only when the words
+matched inside the page's text: about 25 words around the match, with each
+matched word between `⸢` (U+2E22) and `⸣` (U+2E23).
 
 **Note:** The `groupHint` field (string or null) represents the browser bookmark folder path or import source grouping. It is included in `GET /api/links` responses but omitted from `POST /api/links` responses due to response schema validation.
 
@@ -255,6 +271,61 @@ shows this above the save form.
 
 **Errors:** `400` with `{ "error": "unparseable url" }` or
 `{ "error": "non-http url" }` when the address can't be read or isn't http(s).
+
+### GET /api/links/:id
+
+One link, with everything bukmark holds for it.
+
+**Response:**
+
+```json
+{
+  "id": "uuid",
+  "url": "https://example.com/post",
+  "title": "Example Title",
+  "note": "User notes",
+  "status": "active",
+  "relevance": 3,
+  "dupeCount": 1,
+  "imageUrl": null,
+  "firstSeen": "2026-09-28T10:30:00.000Z",
+  "lastSeen": "2026-09-28T10:30:00.000Z",
+  "contentText": "The page's readable text, as of its last successful check…",
+  "httpStatus": 404,
+  "checkError": null,
+  "checkedAt": "2026-09-28T10:31:00.000Z",
+  "broken": true,
+  "hubIds": ["uuid1"]
+}
+```
+
+`contentText` is the page's text from the last check that could read it, up to
+100,000 characters; a later check that finds the page gone keeps it. `checkError`
+says why a check got no answer: `dns` (the domain no longer exists), `timeout`,
+`network`, `redirects`, or `blocked` (the address is not public, so it is never
+fetched). `404` when there is no such link.
+
+### POST /api/links/check
+
+Checks the links most in need of it — never-checked first, then those last
+checked over 30 days ago — instead of waiting for the background checks
+(see `BUKMARK_CHECK_PAGES` in [Install](/docs/install/#environment-variables)).
+Each check records the page's status, keeps its readable text, and fills in a
+missing preview image. Archived links are never checked.
+
+**Request Body:**
+
+```json
+{ "limit": 20 }
+```
+
+- `limit` (integer, optional) — 1–50; defaults to 20
+
+**Response:**
+
+```json
+{ "processed": 20, "remaining": 1180 }
+```
 
 ### POST /api/links
 
@@ -418,7 +489,7 @@ Assign multiple links to hubs in a single request.
 
 ### PATCH /api/links/:id
 
-Update title, note, or status of a single link.
+Update the title, note, status or relevance of a single link.
 
 **Path Parameters:**
 
@@ -430,12 +501,14 @@ Update title, note, or status of a single link.
 {
   "title": "new title",
   "note": "new note",
-  "status": "archived"
+  "status": "archived",
+  "relevance": 4
 }
 ```
 
 - All fields optional
 - `status`: `active` or `archived`
+- `relevance`: 1–5, or `null` to clear it
 
 **Response (200):**
 
@@ -627,7 +700,8 @@ Delete a hub. This does not delete the links in it.
 
 ### GET /api/stats
 
-Get aggregate counts: total links, active links, archived links, hub count, and unassigned link count.
+Get aggregate counts: total links, active links, archived links, hub count,
+unassigned links, broken links, and active links not yet checked.
 
 **Response:**
 
@@ -637,7 +711,9 @@ Get aggregate counts: total links, active links, archived links, hub count, and 
   "active": 120,
   "archived": 30,
   "hubs": 8,
-  "unassigned": 5
+  "unassigned": 5,
+  "broken": 3,
+  "unchecked": 40
 }
 ```
 

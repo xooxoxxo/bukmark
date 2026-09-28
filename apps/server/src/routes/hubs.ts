@@ -1,6 +1,7 @@
 import { Type } from '@sinclair/typebox';
 import { asc, desc, eq, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
+import { isBroken } from '../og/checkLinks.js';
 import { hubLinks, hubs, links } from '../db/schema.js';
 
 export async function hubRoutes(app: FastifyInstance): Promise<void> {
@@ -67,7 +68,9 @@ export async function hubRoutes(app: FastifyInstance): Promise<void> {
         (SELECT count(*)::int FROM links WHERE status = 'archived') AS archived,
         (SELECT count(*)::int FROM hubs) AS hubs,
         (SELECT count(*)::int FROM links l WHERE l.status = 'active'
-           AND NOT EXISTS (SELECT 1 FROM hub_links hl WHERE hl.link_id = l.id)) AS unassigned
+           AND NOT EXISTS (SELECT 1 FROM hub_links hl WHERE hl.link_id = l.id)) AS unassigned,
+        (SELECT count(*)::int FROM links WHERE status = 'active' AND ${isBroken}) AS broken,
+        (SELECT count(*)::int FROM links WHERE status = 'active' AND checked_at IS NULL) AS unchecked
     `);
     return row;
   });

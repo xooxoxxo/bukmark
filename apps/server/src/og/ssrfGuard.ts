@@ -46,14 +46,27 @@ export function isPrivateIp(ip: string): boolean {
   return true; // not a valid IP literal → block
 }
 
+/**
+ * Where a host leads: 'public' only if every address it resolves to is public;
+ * 'private' if any is not; 'unresolved' when the name does not exist (a dead
+ * domain); 'error' when the lookup itself failed, which may pass.
+ */
+export type HostKind = 'public' | 'private' | 'unresolved' | 'error';
+
+export async function classifyHost(hostname: string): Promise<HostKind> {
+  if (isIP(hostname)) return isPrivateIp(hostname) ? 'private' : 'public';
+  try {
+    const addrs = await lookup(hostname, { all: true });
+    if (addrs.length === 0) return 'unresolved';
+    return addrs.every((a) => !isPrivateIp(a.address)) ? 'public' : 'private';
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    return code === 'ENOTFOUND' || code === 'ENODATA' ? 'unresolved' : 'error';
+  }
+}
+
 // True only if the host is a public destination. Literal IPs are checked
 // directly; hostnames are resolved and every returned address must be public.
 export async function resolvesToPublic(hostname: string): Promise<boolean> {
-  if (isIP(hostname)) return !isPrivateIp(hostname);
-  try {
-    const addrs = await lookup(hostname, { all: true });
-    return addrs.length > 0 && addrs.every((a) => !isPrivateIp(a.address));
-  } catch {
-    return false;
-  }
+  return (await classifyHost(hostname)) === 'public';
 }

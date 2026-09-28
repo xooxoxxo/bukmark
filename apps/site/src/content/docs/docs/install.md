@@ -40,6 +40,7 @@ PORT=
 CORS_ORIGINS=
 TRUST_PROXY=
 BUKMARK_EXTENSION_IDS=
+BUKMARK_CHECK_PAGES=
 ```
 
 **POSTGRES_PASSWORD** — Postgres password. Compose publishes the database on
@@ -66,6 +67,13 @@ recognises, comma-separated: Chrome extension IDs and Firefox ID hashes. Empty
 (the default) knows only the official Firefox add-on. Any other client still
 gets **Allow**, with an "Unrecognised extension" warning. See
 [Unrecognised extension](/docs/extension/#unrecognised-extension).
+
+**BUKMARK_CHECK_PAGES** — `true` (the default) lets the server fetch each saved
+page in the background, about 20 a minute, re-checking every 30 days. It keeps
+the page's text, so search finds words from inside the page and you keep a copy
+if the page later disappears, and it marks pages that are gone as broken. Only
+public addresses are fetched. `false` stops all of it; links are then fetched
+only once, for their preview image, when they are saved.
 
 ## First-run setup
 
