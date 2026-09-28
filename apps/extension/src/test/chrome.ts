@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { vi } from 'vitest';
 import { SAVE_COMMAND } from '../lib/shortcut';
 import { manifestFor, type Target } from '../manifest';
+import { BookmarkTree, bookmarksApi } from './bookmarks';
 
 type Data = Record<string, unknown>;
 type AreaName = 'local' | 'sync' | 'session';
@@ -75,10 +76,19 @@ function storageArea(name: AreaName, data: Data, listeners: ChangeListener[]) {
 }
 
 /**
- * An API some browsers lack: Opera sync and getRedirectURL, Safari identity and
- * bookmarks, Firefox for Android commands and windows (Safari on iOS: windows.create).
+ * An API some browsers lack: Opera sync and getRedirectURL, Safari identity,
+ * bookmarks and alarms (its build does not ask for them), Firefox for Android
+ * commands and windows (Safari on iOS: windows.create).
  */
-export type MissingApi = 'identity' | 'getRedirectURL' | 'bookmarks' | 'commands' | 'sync' | 'windows';
+export type MissingApi = 'identity' | 'getRedirectURL' | 'bookmarks' | 'commands' | 'sync' | 'windows' | 'alarms';
+
+export interface FakeAlarm {
+  name: string;
+  periodInMinutes?: number;
+  scheduledTime: number;
+}
+
+type AlarmListener = (alarm: FakeAlarm) => void;
 
 export interface FakeTab {
   id: number;
@@ -95,7 +105,7 @@ export interface FakeSeed {
   session?: Data;
   /** The browser imitated: its build's manifest, extension URLs and redirect URL, and Firefox's own APIs. */
   browser?: Target;
-  /** Defaults to what the browser lacks: identity and bookmarks for Safari, nothing otherwise. */
+  /** Defaults to what the browser lacks: identity, bookmarks and alarms for Safari, nothing otherwise. */
   without?: MissingApi[];
 }
 
@@ -113,12 +123,15 @@ const SCHEMES: Record<Target, string> = {
  */
 export function fakeChrome(seed: FakeSeed = {}) {
   const browser = seed.browser ?? 'chrome';
-  const without = new Set<MissingApi>(seed.without ?? (browser === 'safari' ? ['identity', 'bookmarks'] : []));
+  const without = new Set<MissingApi>(seed.without ?? (browser === 'safari' ? ['identity', 'bookmarks', 'alarms'] : []));
   const listeners: ChangeListener[] = [];
   const openTabs = new Map<number, FakeTab>();
   let lastId = 10;
   const onUpdated: TabUpdatedListener[] = [];
   const onRemoved: TabRemovedListener[] = [];
+  const onStartup: Array<() => void> = [];
+  const alarms = new Map<string, FakeAlarm>();
+  const onAlarm: AlarmListener[] = [];
   const openTab = (url: string, windowId: number): FakeTab => {
     const tab = { id: ++lastId, windowId, url };
     openTabs.set(tab.id, tab);
@@ -150,6 +163,21 @@ export function fakeChrome(seed: FakeSeed = {}) {
       onInstalled: {
         addListener: vi.fn((_listener: (details: { reason: string; previousVersion?: string }) => void) => {}),
       },
+      onStartup: { listeners: onStartup, addListener: vi.fn((listener: () => void) => { onStartup.push(listener); }) },
+    },
+    alarms: {
+      /** The alarms set, by name. */
+      data: alarms,
+      create: vi.fn(async (name: string, info: { periodInMinutes?: number; delayInMinutes?: number; when?: number }) => {
+        const delay = info.when ?? Date.now() + 60_000 * (info.delayInMinutes ?? info.periodInMinutes ?? 0);
+        alarms.set(name, { name, periodInMinutes: info.periodInMinutes, scheduledTime: delay });
+      }),
+      get: vi.fn(async (name: string): Promise<FakeAlarm | undefined> => {
+        const alarm = alarms.get(name);
+        return alarm && { ...alarm };
+      }),
+      clear: vi.fn(async (name: string): Promise<boolean> => alarms.delete(name)),
+      onAlarm: { listeners: onAlarm, addListener: vi.fn((listener: AlarmListener) => { onAlarm.push(listener); }) },
     },
     identity: {
       getRedirectURL: vi.fn((path = '') =>
@@ -193,7 +221,7 @@ export function fakeChrome(seed: FakeSeed = {}) {
         return { id: windowId, type: 'popup', tabs: [openTab(url, windowId)] } as { id: number; type: string; tabs?: FakeTab[] } | undefined;
       }),
     },
-    bookmarks: { getTree: vi.fn(async (): Promise<unknown[]> => []) },
+    bookmarks: bookmarksApi(new BookmarkTree(browser === 'firefox' ? 'firefox' : 'chrome')),
     commands: {
       onCommand: { addListener: vi.fn((_listener: (command: string) => void) => {}) },
       getAll: vi.fn(async () => [
@@ -211,7 +239,7 @@ export function fakeChrome(seed: FakeSeed = {}) {
   }
   if (without.has('getRedirectURL')) delete (loose.identity as Partial<typeof chrome.identity>).getRedirectURL;
   if (without.has('sync')) delete (loose.storage as Partial<typeof chrome.storage>).sync;
-  for (const api of ['identity', 'bookmarks', 'commands', 'windows'] as const) {
+  for (const api of ['identity', 'bookmarks', 'commands', 'windows', 'alarms'] as const) {
     if (without.has(api)) delete loose[api];
   }
   return chrome;
@@ -260,6 +288,26 @@ export async function startBackground(chrome: FakeChrome): Promise<void> {
 export function stopBackground(chrome: FakeChrome): void {
   chrome.tabs.onUpdated.listeners.length = 0;
   chrome.tabs.onRemoved.listeners.length = 0;
+  chrome.runtime.onStartup.listeners.length = 0;
+  const { alarms, bookmarks } = chrome as Partial<FakeChrome>;
+  if (alarms) alarms.onAlarm.listeners.length = 0;
+  if (bookmarks) {
+    for (const event of [bookmarks.onCreated, bookmarks.onChanged, bookmarks.onMoved, bookmarks.onRemoved]) {
+      event.listeners.length = 0;
+    }
+  }
+}
+
+/** An alarm goes off, as the browser's timer would fire it. */
+export function fireAlarm(chrome: FakeChrome, name: string): void {
+  const alarm = chrome.alarms.data.get(name);
+  if (!alarm) throw new Error(`No alarm named ${name}.`);
+  for (const listener of chrome.alarms.onAlarm.listeners) listener({ ...alarm });
+}
+
+/** The browser starts with the extension already installed: runtime.onStartup. */
+export function browserStarts(chrome: FakeChrome): void {
+  for (const listener of chrome.runtime.onStartup.listeners) listener();
 }
 
 /** The person closes a tab. */

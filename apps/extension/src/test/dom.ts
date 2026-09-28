@@ -8,6 +8,8 @@ export class FakeElement {
   textContent = '';
   hidden = false;
   disabled = false;
+  checked = false;
+  type = '';
   max = 1;
   href = '';
   focused = false;
@@ -43,9 +45,10 @@ export class FakeElement {
     this.focused = true;
   }
 
-  /** Like a real click: a disabled button ignores it. */
+  /** Like a real click: a disabled button ignores it, and a checkbox changes before its listeners run. */
   click(): void {
     if (this.disabled) return;
+    if (this.type === 'checkbox') this.checked = !this.checked;
     for (const listener of this.listeners.click ?? []) void listener();
   }
 }
@@ -65,6 +68,8 @@ export function loadPage(file: 'popup.html' | 'options.html') {
     const el = new FakeElement((match[1] ?? '').toLowerCase(), id);
     el.hidden = /\shidden(?=[\s/=]|$)/.test(attrs);
     el.disabled = /\sdisabled(?=[\s/=]|$)/.test(attrs);
+    el.checked = /\schecked(?=[\s/=]|$)/.test(attrs);
+    el.type = /\stype="([^"]*)"/.exec(attrs)?.[1] ?? '';
     el.value = /\svalue="([^"]*)"/.exec(attrs)?.[1] ?? '';
     el.href = /\shref="([^"]*)"/.exec(attrs)?.[1] ?? '';
     elements.set(id, el);

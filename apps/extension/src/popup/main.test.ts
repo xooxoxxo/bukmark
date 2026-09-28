@@ -333,6 +333,22 @@ describe('popup, logged in', () => {
     expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 700);
   });
 
+  it('asks the background to pull after a save when bookmark sync is on, so the page shows in the bukmark folder', async () => {
+    chrome.storage.local.data.sync = { enabled: true, server: SERVER };
+    const page = await openPopup();
+    page.el('save').click();
+    await settle();
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'sync', action: 'pull' });
+  });
+
+  it('wakes nothing after a save while sync is off', async () => {
+    const page = await openPopup();
+    page.el('save').click();
+    await settle();
+    expect(page.el('status').textContent).toBe('Saved');
+    expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
+  });
+
   it('says why the last keyboard save failed, once', async () => {
     stubFetch(({ method, url }) =>
       method === 'POST' ? { status: 500, body: { error: 'boom' } }

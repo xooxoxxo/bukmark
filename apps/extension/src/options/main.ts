@@ -1,5 +1,5 @@
 import { runBackfill, runImport } from '../lib/api';
-import { AuthRequiredError, authFor, loadAuth, logout } from '../lib/auth';
+import { AuthRequiredError, authFor, loadAuth, logout, type Auth } from '../lib/auth';
 import { flattenBookmarks, type BookmarkNode } from '../lib/bookmarks';
 import {
   FINISH_IN_WINDOW,
@@ -13,6 +13,14 @@ import {
 import { allowBookmarkImport, canImportBookmarks, ensureHostPermission, isSafari, originPatternFor } from '../lib/permissions';
 import { changesSettings, loadSettings, normalizeBaseUrl, saveSettings } from '../lib/settings';
 import { assignedShortcut, canOpenShortcutSettings, openShortcutSettings } from '../lib/shortcut';
+import {
+  SYNC_KEY,
+  loadSyncState,
+  syncedLinkCount,
+  type SyncReply,
+  type SyncRequest,
+  type SyncState,
+} from '../lib/sync';
 
 const UNREACHABLE =
   "Logged out here. The server could not be reached — revoke 'bukmark capture' under Access tokens in the web app.";
@@ -37,6 +45,12 @@ const progressEl = $<HTMLProgressElement>('progress');
 const importStatusEl = $<HTMLParagraphElement>('importStatus');
 const importElsewhereEl = $<HTMLElement>('importElsewhere');
 const webAppEl = $<HTMLAnchorElement>('webApp');
+const syncSectionEl = $<HTMLElement>('syncSection');
+const syncToggleEl = $<HTMLInputElement>('syncToggle');
+const syncHintEl = $<HTMLParagraphElement>('syncHint');
+const syncInfoEl = $<HTMLParagraphElement>('syncInfo');
+const syncNowEl = $<HTMLButtonElement>('syncNow');
+const syncStatusEl = $<HTMLParagraphElement>('syncStatus');
 const shortcutSectionEl = $<HTMLElement>('shortcutSection');
 const shortcutSetEl = $<HTMLParagraphElement>('shortcutSet');
 const shortcutKeyEl = $<HTMLElement>('shortcutKey');
@@ -54,6 +68,10 @@ const welcomeKeyEl = $<HTMLElement>('welcomeKey');
 const welcome = new URLSearchParams(globalThis.location?.search ?? '').has('welcome');
 
 let importing = false;
+/** A sync action this page asked for is running in the background. */
+let syncing = false;
+/** The stored sync error last shown, so that a later pull that works can take it away. */
+let shownSyncError: string | null = null;
 /** A login this page started or found runs in its own tab; its end arrives through storage. */
 let awaitingTab = false;
 
@@ -100,6 +118,51 @@ async function render(): Promise<void> {
   welcomeDoneEl.textContent = auth
     ? `Signed in to ${new URL(auth.server).host} — you're set. Save any page with the bukmark button.`
     : '';
+  await renderSync(importable, auth);
+}
+
+function syncSummary(state: SyncState): string {
+  const n = syncedLinkCount(state);
+  const when = state.lastSync === null
+    ? 'Not synced yet'
+    : `Last synced ${new Date(state.lastSync).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}`;
+  const waiting = state.queue.length === 0
+    ? ''
+    : `, ${state.queue.length} ${state.queue.length === 1 ? 'change' : 'changes'} waiting to be sent`;
+  return `${when} · ${n} ${n === 1 ? 'link' : 'links'} in the bukmark folder${waiting}.`;
+}
+
+/** The sync section, from the stored state. Hidden where the browser has no bookmarks to sync. */
+async function renderSync(importable: boolean, auth: Auth | null): Promise<void> {
+  syncSectionEl.hidden = !importable;
+  const state = await loadSyncState();
+  const on = !!state?.enabled && state.server === auth?.server;
+  syncToggleEl.checked = on;
+  syncToggleEl.disabled = !auth || syncing;
+  syncHintEl.hidden = !!auth;
+  syncInfoEl.hidden = !on;
+  syncInfoEl.textContent = on && state ? syncSummary(state) : '';
+  syncNowEl.hidden = !on;
+  syncNowEl.disabled = syncing;
+  if (syncing) return;
+  const error = state?.error ?? null;
+  if (error) setStatus(syncStatusEl, error, true);
+  else if (shownSyncError !== null && syncStatusEl.textContent === shownSyncError) setStatus(syncStatusEl, '');
+  shownSyncError = error;
+}
+
+/** Sync runs in the background, where the bookmark events arrive. */
+async function askSync(action: SyncRequest['action'], working: string): Promise<void> {
+  syncing = true;
+  syncToggleEl.disabled = true;
+  syncNowEl.disabled = true;
+  setStatus(syncStatusEl, working);
+  const message: SyncRequest = { type: 'sync', action };
+  const reply = (await chrome.runtime.sendMessage<SyncRequest, SyncReply | undefined>(message).catch(() => undefined))
+    ?? { ok: false, error: 'Sync did not answer — try again.' };
+  syncing = false;
+  setStatus(syncStatusEl, reply.ok ? '' : reply.error, !reply.ok);
+  await render();
 }
 
 async function showSavedUrl(): Promise<void> {
@@ -248,6 +311,22 @@ importEl.addEventListener('click', async () => {
   }
 });
 
+syncToggleEl.addEventListener('click', async () => {
+  if (!syncToggleEl.checked) {
+    await askSync('disable', '');
+    return;
+  }
+  // Like Import: asked for during the click, before anything else is awaited.
+  if (!(await allowBookmarkImport())) {
+    syncToggleEl.checked = false;
+    setStatus(syncStatusEl, 'Not turned on — access to your bookmarks was declined.', true);
+    return;
+  }
+  await askSync('enable', 'Filling the bukmark folder…');
+});
+
+syncNowEl.addEventListener('click', () => void askSync('pull', 'Syncing…'));
+
 changeShortcutEl.addEventListener('click', () => {
   setStatus(shortcutStatusEl, '');
   openShortcutSettings().catch(() => {
@@ -261,7 +340,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
   const settingsChanged = changesSettings(changes, area);
   if (settingsChanged) void showSavedUrl();
   const authChanged = area === 'local' && 'auth' in changes;
-  if (settingsChanged || authChanged) void render();
+  const syncChanged = area === 'local' && SYNC_KEY in changes;
+  if (settingsChanged || authChanged || syncChanged) void render();
   if (area === 'session' && SERVER_TO_GRANT in changes) void takeServerToGrant();
   if (!awaitingTab) return;
   const error: unknown = area === 'session' ? changes[LAST_AUTH_ERROR]?.newValue : undefined;

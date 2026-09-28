@@ -74,8 +74,9 @@ export function isTarget(value: string): value is Target {
 // address, and the host access granted for the user's server shows the
 // addresses of a tab login's pages. Without it, installing warns of nothing
 // like "Read your browsing history", and no other tab's address is ever seen.
-const PERMISSIONS = ['activeTab', 'storage', 'identity'];
-// Asked for on the Import click (lib/permissions.ts), not at install.
+// `alarms` runs bookmark sync's pull every few minutes; it warns of nothing.
+const PERMISSIONS = ['activeTab', 'storage', 'identity', 'alarms'];
+// Asked for on the Import click or when sync is turned on (lib/permissions.ts), not at install.
 const OPTIONAL_PERMISSIONS = ['bookmarks'];
 
 /** Drawn with the web app's icons by `pnpm --filter @bukmark/web icons`, into public/icons. */
@@ -88,7 +89,7 @@ export function manifestFor(target: Target): Manifest {
     manifest_version: 3,
     name: 'bukmark capture',
     version: '0.2.0',
-    description: "Save the current tab to your own bukmark server, and import your browser's bookmarks.",
+    description: "Save the current tab to your own bukmark server, and import or sync your browser's bookmarks.",
     permissions: [...PERMISSIONS],
     optional_permissions: [...OPTIONAL_PERMISSIONS],
     // Every port on localhost, the default server's among them: no host
@@ -121,7 +122,8 @@ export function manifestFor(target: Target): Manifest {
           id: FIREFOX_ADDON_ID,
           strict_min_version: '140.0',
           // The server is the person's own, but Mozilla counts anything sent
-          // outside the browser. Bookmarks go only on Import, asked for then.
+          // outside the browser. Bookmarks go on Import and while bookmark sync
+          // is on; the Import click and the sync toggle ask for this first.
           data_collection_permissions: {
             required: ['browsingActivity', 'websiteContent'],
             optional: ['bookmarksInfo'],
@@ -136,7 +138,7 @@ export function manifestFor(target: Target): Manifest {
     return {
       ...manifest,
       description: 'Save the current tab to bukmark.',
-      // Safari has no identity or bookmarks API.
+      // Safari has no identity or bookmarks API, so no sync and no `alarms` for it.
       // No identity API, so every Safari login runs in a tab; `tabs` stays
       // until a Safari run shows the host access alone lets it see that tab.
       permissions: ['activeTab', 'tabs', 'storage'],

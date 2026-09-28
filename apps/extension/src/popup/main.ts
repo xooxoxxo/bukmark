@@ -12,6 +12,7 @@ import { popupHostAccess } from '../lib/permissions';
 import { loadSettings } from '../lib/settings';
 import { LAST_SAVE_ERROR } from '../lib/shortcut';
 import { isWebPage } from '../lib/settings';
+import { requestSyncPull } from '../lib/sync';
 import { knownMessage, outcomeMessage } from './outcome';
 
 const SESSION_ENDED = 'Your session ended — log in again.';
@@ -169,6 +170,8 @@ async function onSaveClick(): Promise<void> {
       hub: hubEl.value,
     });
     setStatus(statusEl, outcomeMessage(res));
+    // With bookmark sync on, the background puts the page in the bukmark folder.
+    void requestSyncPull();
     setTimeout(() => window.close(), 700);
   } catch (err) {
     if (err instanceof AuthRequiredError) {

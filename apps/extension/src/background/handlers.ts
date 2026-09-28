@@ -10,6 +10,7 @@ import {
 import { LAST_AUTH_ERROR, type LoginRequest, type LoginResult, type ResumeRequest } from '../lib/login';
 import { isWebPage, loadSettings } from '../lib/settings';
 import { LAST_SAVE_ERROR } from '../lib/shortcut';
+import { handleSyncMessage, pullIfEnabled, type SyncReply } from '../lib/sync';
 import { resumeTabLogin, startTabLogin, tabLoginRemoved, tabLoginUpdated } from '../lib/tabLogin';
 
 const BADGE_MS = 1500;
@@ -61,6 +62,8 @@ export async function saveActiveTab(): Promise<void> {
     await chrome.action.setTitle({ title: SAVE_TITLE });
     await chrome.storage.session.remove(LAST_SAVE_ERROR);
     await flashBadge(SAVED);
+    // With bookmark sync on, the page shows up in the bukmark folder now.
+    void pullIfEnabled();
   } catch (err) {
     if (err instanceof AuthRequiredError) {
       await flagLoggedOut(SESSION_ENDED);
@@ -131,11 +134,11 @@ async function handleResume(): Promise<LoginResult | null> {
 }
 
 /** The reply to a page's message, or undefined for a message this worker does not answer. */
-export function handleMessage(message: unknown): Promise<LoginResult | null> | undefined {
+export function handleMessage(message: unknown): Promise<LoginResult | SyncReply | null> | undefined {
   const m = message as Partial<LoginRequest> | Partial<ResumeRequest> | undefined;
   if (m?.type === 'login' && typeof m.baseUrl === 'string') return handleLogin(m.baseUrl);
   if (m?.type === 'resumeLogin') return handleResume();
-  return undefined;
+  return handleSyncMessage(message);
 }
 
 async function handleTabUpdated(tabId: number, url: string | undefined): Promise<void> {

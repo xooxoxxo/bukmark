@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: `dist/${mode}`,
       emptyOutDir: true,
-      // Readable as shipped: about 45 KB of JavaScript, and store reviewers read
+      // Readable as shipped: about 80 KB of JavaScript, and store reviewers read
       // the code itself (Chrome's code-readability rule, Edge's obfuscation check).
       minify: false,
       rollupOptions: {

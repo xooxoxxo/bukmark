@@ -73,6 +73,24 @@
         <p id="importStatus" class="status" role="status" aria-live="polite"></p>
       </section>
 
+      <section id="syncSection" class="stack" hidden>
+        <h2>Sync with your bookmarks</h2>
+        <p class="muted">
+          Keeps a <b>bukmark</b> folder in your browser's Other bookmarks, with a folder
+          for each hub and Unsorted for links in none. Changes on either side show up on
+          the other. Deleting a bookmark there archives its link, which you can restore in
+          the web app. Turning sync off leaves the folder as it is.
+        </p>
+        <p class="disclosure">Sync keeps the bukmark folder in your bookmarks and your server the same, both ways. Only that folder is read or changed.</p>
+        <label class="toggle"><input id="syncToggle" type="checkbox" disabled /> Sync with your browser's bookmarks</label>
+        <p id="syncHint" class="muted" hidden>Log in to sync.</p>
+        <p id="syncInfo" class="muted" hidden></p>
+        <div class="row">
+          <button id="syncNow" type="button" class="secondary" hidden>Sync now</button>
+        </div>
+        <p id="syncStatus" class="status" role="status" aria-live="polite"></p>
+      </section>
+
       <section id="importElsewhere" class="stack" hidden>
         <h2>Import browser bookmarks</h2>
         <p class="muted">

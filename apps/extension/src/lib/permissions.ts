@@ -77,11 +77,15 @@ export function allowBookmarkImport(): Promise<boolean> {
   const manifest = chrome.runtime.getManifest() as unknown as Manifest;
   const request: { permissions?: string[]; data_collection?: string[] } = {};
   if (manifest.optional_permissions?.includes('bookmarks')) request.permissions = ['bookmarks'];
-  if (manifest.browser_specific_settings?.gecko?.data_collection_permissions.optional?.includes('bookmarksInfo')) {
-    request.data_collection = ['bookmarksInfo'];
-  }
+  if (asksToShareBookmarks()) request.data_collection = ['bookmarksInfo'];
   if (Object.keys(request).length === 0) return Promise.resolve(true);
   return chrome.permissions.request(request as chrome.permissions.Permissions).catch(() => false);
+}
+
+/** Firefox's build asks, with bookmarks, whether they may be sent to the server: its optional bookmarksInfo. */
+export function asksToShareBookmarks(): boolean {
+  const manifest = chrome.runtime.getManifest() as unknown as Manifest;
+  return manifest.browser_specific_settings?.gecko?.data_collection_permissions.optional?.includes('bookmarksInfo') ?? false;
 }
 
 /**

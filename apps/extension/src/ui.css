@@ -306,6 +306,24 @@ button:disabled {
   color: var(--bk-ink);
 }
 
+/* A setting turned on and off: the box, then what it does, in body type. */
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--bk-space-xs);
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.toggle input {
+  width: auto;
+  accent-color: var(--bk-accent);
+}
+
 /* What leaves the browser, and where to: said where the person acts. */
 .disclosure {
   color: var(--bk-muted);

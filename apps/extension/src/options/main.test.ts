@@ -7,6 +7,7 @@ import {
   approve,
   closeTab,
   fakeChrome,
+  fireAlarm,
   navigate,
   replied,
   settle,
@@ -16,6 +17,7 @@ import {
   type FakeSeed,
 } from '../test/chrome';
 import { loadPage } from '../test/dom';
+import { FakeServer } from '../test/server';
 
 const S1 = 'http://s1.lan:3000';
 const S2 = 'http://s2.lan:3000';
@@ -87,10 +89,13 @@ describe('options opened as the setup page after install', () => {
 });
 
 describe('options: what leaves the browser, and store-neutral wording', () => {
-  it('says what saving, the popup and Import send, where it is decided', () => {
+  it('says what saving, the popup, Import and sync send, where it is decided', () => {
     const html = readFileSync(new URL('../../options.html', import.meta.url), 'utf8');
     expect(html).toContain('Saving a page sends its address and title to this server, and nowhere else.');
     expect(html).toContain("Import sends every bookmark's address, title and folder to your server.");
+    expect(html).toContain(
+      'Sync keeps the bukmark folder in your bookmarks and your server the same, both ways. Only that folder is read or changed.',
+    );
   });
 
   it('names Safari’s shortcut settings only in Safari', async () => {
@@ -600,5 +605,160 @@ describe('options where logins run in a tab (Safari)', () => {
     await settle();
     expect(page.el('authStatus').textContent).toBe('');
     expect(chrome.storage.session.data.lastAuthError).toBeDefined();
+  });
+});
+
+describe('options, bookmark sync', () => {
+  const SYNC = 'bkm_sync';
+  let server: FakeServer;
+
+  async function withBackground(seed: FakeSeed = {}): Promise<void> {
+    arrange({ local: { auth: auth({ token: SYNC }) }, sync: { baseUrl: S1 }, ...seed });
+    server = new FakeServer();
+    server.add('https://a.com/', 'A', ['dev']);
+    stubFetch(server.route);
+    await startBackground(chrome);
+  }
+
+  async function quiet(): Promise<void> {
+    for (let i = 0; i < 100; i++) await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+
+  const lastSynced = () => {
+    const at = (chrome.storage.local.data.sync as { lastSync: number }).lastSync;
+    return `Last synced ${new Date(at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}`;
+  };
+
+  it.each([
+    ['Safari', { browser: 'safari' as const }],
+    ['Firefox for Android', { browser: 'firefox' as const, android: true }],
+  ])('is not offered where there are no bookmarks to sync (%s)', async (_name, { browser, ...rest }) => {
+    arrange({ browser, local: { auth: auth() }, sync: { baseUrl: S1 } });
+    if ('android' in rest) chrome.runtime.getPlatformInfo.mockResolvedValue({ os: 'android', arch: 'arm' });
+    const page = await openOptions();
+    expect(page.el('syncSection').hidden).toBe(true);
+  });
+
+  it('is off, and can’t be turned on, while logged out', async () => {
+    arrange({ sync: { baseUrl: S1 } });
+    const page = await openOptions();
+    expect(page.el('syncSection').hidden).toBe(false);
+    expect(page.el('syncToggle').checked).toBe(false);
+    expect(page.el('syncToggle').disabled).toBe(true);
+    expect(page.el('syncHint').hidden).toBe(false);
+    expect(page.el('syncNow').hidden).toBe(true);
+  });
+
+  it('turning it on asks for bookmarks first, in the click, then fills the folder and says how it went', async () => {
+    await withBackground();
+    const page = await openOptions();
+    expect(page.el('syncToggle').disabled).toBe(false);
+    expect(page.el('syncHint').hidden).toBe(true);
+
+    page.el('syncToggle').click();
+    expect(page.el('syncStatus').textContent).toBe('');
+    await quiet();
+
+    expect(chrome.permissions.request).toHaveBeenCalledWith({ permissions: ['bookmarks'] });
+    expect(chrome.permissions.request.mock.invocationCallOrder[0])
+      .toBeLessThan(chrome.runtime.sendMessage.mock.invocationCallOrder[0]!);
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'sync', action: 'enable' });
+    expect(chrome.bookmarks.tree.at('bukmark', 'dev')).toBeDefined();
+    expect(page.el('syncToggle').checked).toBe(true);
+    expect(page.el('syncToggle').disabled).toBe(false);
+    expect(page.el('syncInfo').hidden).toBe(false);
+    expect(page.el('syncInfo').textContent).toBe(`${lastSynced()} · 1 link in the bukmark folder.`);
+    expect(page.el('syncNow').hidden).toBe(false);
+    expect(page.el('syncStatus').textContent).toBe('');
+  });
+
+  it('in Firefox, asks to share bookmarks with the server in the same prompt', async () => {
+    await withBackground({ browser: 'firefox' });
+    const page = await openOptions();
+    page.el('syncToggle').click();
+    await quiet();
+    expect(chrome.permissions.request).toHaveBeenCalledWith({ permissions: ['bookmarks'], data_collection: ['bookmarksInfo'] });
+    expect(page.el('syncToggle').checked).toBe(true);
+  });
+
+  it('stays off, sending and reading nothing, when bookmarks are declined', async () => {
+    await withBackground();
+    chrome.permissions.request.mockResolvedValue(false);
+    const page = await openOptions();
+    page.el('syncToggle').click();
+    await quiet();
+    expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
+    expect(page.el('syncToggle').checked).toBe(false);
+    expect(page.el('syncStatus').textContent).toBe('Not turned on — access to your bookmarks was declined.');
+    expect(page.el('syncStatus').classList.contains('error')).toBe(true);
+    expect(chrome.bookmarks.tree.at('bukmark')).toBeUndefined();
+  });
+
+  it('Sync now pulls, and follows pulls made elsewhere', async () => {
+    await withBackground();
+    const page = await openOptions();
+    page.el('syncToggle').click();
+    await quiet();
+    server.add('https://b.com/', 'B');
+    page.el('syncNow').click();
+    expect(page.el('syncStatus').textContent).toBe('Syncing…');
+    expect(page.el('syncNow').disabled).toBe(true);
+    await quiet();
+    expect(chrome.runtime.sendMessage).toHaveBeenLastCalledWith({ type: 'sync', action: 'pull' });
+    expect(page.el('syncInfo').textContent).toBe(`${lastSynced()} · 2 links in the bukmark folder.`);
+    expect(page.el('syncNow').disabled).toBe(false);
+
+    // The alarm's pull, in the background, shows here too.
+    server.add('https://c.com/', 'C');
+    fireAlarm(chrome, 'bukmark-sync');
+    await quiet();
+    expect(page.el('syncInfo').textContent).toContain('3 links in the bukmark folder.');
+  });
+
+  it('shows what went wrong, and changes waiting to be sent, until a sync works', async () => {
+    await withBackground();
+    const page = await openOptions();
+    page.el('syncToggle').click();
+    await quiet();
+    server.offline = true;
+    chrome.bookmarks.tree.create({ parentId: chrome.bookmarks.tree.at('bukmark', 'dev')!.id, title: 'N', url: 'https://n.com/' });
+    await quiet();
+    expect(page.el('syncStatus').textContent).toBe("Couldn't reach s1.lan:3000 — sync will try again in a few minutes.");
+    expect(page.el('syncStatus').classList.contains('error')).toBe(true);
+    expect(page.el('syncInfo').textContent).toContain('1 link in the bukmark folder, 1 change waiting to be sent.');
+
+    server.offline = false;
+    page.el('syncNow').click();
+    await quiet();
+    expect(page.el('syncStatus').textContent).toBe('');
+    expect(page.el('syncInfo').textContent).toBe(`${lastSynced()} · 2 links in the bukmark folder.`);
+  });
+
+  it('turning it off tells the background, and leaves the folder', async () => {
+    await withBackground();
+    const page = await openOptions();
+    page.el('syncToggle').click();
+    await quiet();
+    page.el('syncToggle').click();
+    await quiet();
+    expect(chrome.runtime.sendMessage).toHaveBeenLastCalledWith({ type: 'sync', action: 'disable' });
+    expect(chrome.permissions.request).toHaveBeenCalledTimes(1);
+    expect(page.el('syncToggle').checked).toBe(false);
+    expect(page.el('syncNow').hidden).toBe(true);
+    expect(page.el('syncInfo').hidden).toBe(true);
+    expect(chrome.bookmarks.tree.at('bukmark', 'dev')).toBeDefined();
+  });
+
+  it('shows sync off after Log out', async () => {
+    await withBackground();
+    stubFetch((req) => (req.url.endsWith('/api/auth/logout') ? { body: { ok: true } } : server.route(req)));
+    const page = await openOptions();
+    page.el('syncToggle').click();
+    await quiet();
+    page.el('logout').click();
+    await quiet();
+    expect(page.el('syncToggle').checked).toBe(false);
+    expect(page.el('syncToggle').disabled).toBe(true);
+    expect((chrome.storage.local.data.sync as { enabled: boolean }).enabled).toBe(false);
   });
 });

@@ -23,7 +23,8 @@ describe('manifestFor', () => {
     const m = manifestFor('chrome');
     expect(m.manifest_version).toBe(3);
     expect(m.background).toEqual({ service_worker: 'background.js', type: 'module' });
-    expect(m.permissions).toEqual(['activeTab', 'storage', 'identity']);
+    // alarms: bookmark sync's pull every few minutes, with no install warning.
+    expect(m.permissions).toEqual(['activeTab', 'storage', 'identity', 'alarms']);
     expect(m.optional_permissions).toEqual(['bookmarks']);
     expect(m.host_permissions).toEqual(['http://localhost/*']);
     expect(m.optional_host_permissions).toEqual(['http://*/*', 'https://*/*']);
@@ -50,6 +51,7 @@ describe('manifestFor', () => {
   it('gives Safari a non-persistent event page, without the APIs it lacks', () => {
     const m = manifestFor('safari');
     expect(m.background).toEqual({ scripts: ['background.js'], type: 'module', persistent: false });
+    // No bookmarks API, so no sync to schedule: no alarms.
     expect(m.permissions).toEqual(['activeTab', 'tabs', 'storage']);
     expect(m.description).not.toMatch(/bookmarks/);
     expect(m.browser_specific_settings).toEqual({ safari: { strict_min_version: '16.4' } });
