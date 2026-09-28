@@ -147,6 +147,9 @@ export function fakeChrome(seed: FakeSeed = {}) {
       onMessage: {
         addListener: vi.fn((_listener: (message: unknown, sender: unknown, sendResponse: (r: unknown) => void) => unknown) => {}),
       },
+      onInstalled: {
+        addListener: vi.fn((_listener: (details: { reason: string; previousVersion?: string }) => void) => {}),
+      },
     },
     identity: {
       getRedirectURL: vi.fn((path = '') =>

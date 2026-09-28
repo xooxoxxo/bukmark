@@ -37,6 +37,25 @@ beforeEach(() => {
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
+describe('first install', () => {
+  it('opens the settings page with the setup steps, from the background as it starts', async () => {
+    arrange();
+    vi.resetModules();
+    await import('./index');
+    const [listener] = chrome.runtime.onInstalled.addListener.mock.calls.at(-1)!;
+    listener({ reason: 'install' });
+    await settle();
+    expect(chrome.tabs.create).toHaveBeenCalledTimes(1);
+    expect(chrome.tabs.create).toHaveBeenCalledWith({ url: chrome.runtime.getURL('options.html?welcome') });
+  });
+
+  it.each(['update', 'chrome_update', 'shared_module_update'])('opens nothing on %s', async (reason) => {
+    arrange();
+    await (await handlers()).welcome({ reason });
+    expect(chrome.tabs.create).not.toHaveBeenCalled();
+  });
+});
+
 describe('saveActiveTab (keyboard save)', () => {
   it('when logged out: flags it on the badge and the title, with no request, and leaves word for the popup', async () => {
     arrange();

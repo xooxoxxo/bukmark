@@ -24,6 +24,14 @@ const LOGGED_OUT_TITLE = 'Log in to bukmark first';
 const LOGGED_OUT_MESSAGE = 'Log in first — the keyboard shortcut saves nothing while you are logged out.';
 const SESSION_ENDED = 'Your session ended — log in again.';
 
+/** The settings page with its setup steps on top, opened once, on first install. */
+export const WELCOME_PAGE = 'options.html?welcome';
+
+export async function welcome(details: { reason: string }): Promise<void> {
+  if (details.reason !== 'install') return;
+  await chrome.tabs.create({ url: chrome.runtime.getURL(WELCOME_PAGE) });
+}
+
 async function flashBadge({ text, color }: { text: string; color: string }): Promise<void> {
   await chrome.action.setBadgeBackgroundColor({ color });
   await chrome.action.setBadgeText({ text });

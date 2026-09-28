@@ -64,7 +64,9 @@ tested yet.
 
 ## Logging in
 
-The extension saves nothing until it is logged in to your server.
+The extension saves nothing until it is logged in to your server. Right after
+you install it, it opens its settings page with the setup steps on top: enter
+your server's address, log in, and pin the button to your toolbar.
 
 1. Click the extension's toolbar button. While logged out, the popup shows only
    a **Server** field and a **Log in** button.
@@ -78,9 +80,9 @@ The extension saves nothing until it is logged in to your server.
    server", who is asking, and what it will be able to do: add and read your
    links and hubs. Click **Allow**, or **Deny** to cancel.
 
-When the login finishes, the toolbar badge flashes `✓`, and from then on the
-popup shows the save form with a "Signed in to …" line at the bottom. The
-options page has the same **Log in** button, under **Server**.
+When the login finishes, the toolbar badge flashes `✓` and an open popup
+switches to the save form by itself. The options page has the same **Log in**
+button, under **Server**, and says which server you are signed in to.
 
 If the server has no owner password yet, the window says so and asks you to
 open the web app and create one first.
@@ -142,8 +144,11 @@ same way first.
 ## Usage
 
 - **Toolbar button** — save the current tab with an optional note on why it's
-  worth keeping. Re-saving a page you already have tells you so. While logged
-  out, the popup shows the **Log in** form instead.
+  worth keeping. Before you save, the popup says what bukmark already has: the
+  page itself and the hubs it is in ("Already saved — in rust"), or else how
+  many links from the same site you have and the hub most of them are in. A
+  saved page keeps its hub selected. While logged out, the popup shows the
+  **Log in** form instead.
 - **`Alt+Shift+K`** (Windows, Linux, ChromeOS) / **`Control+Shift+K`** (Mac) —
   save silently, no popup, no note. The badge shows `✓` when it's saved and `!`
   when it fails; the next popup says why. While logged out, nothing is sent and

@@ -43,6 +43,14 @@ const shortcutKeyEl = $<HTMLElement>('shortcutKey');
 const shortcutUnsetEl = $<HTMLParagraphElement>('shortcutUnset');
 const changeShortcutEl = $<HTMLButtonElement>('changeShortcut');
 const shortcutStatusEl = $<HTMLParagraphElement>('shortcutStatus');
+const welcomeEl = $<HTMLElement>('welcome');
+const stepLoginEl = $<HTMLLIElement>('stepLogin');
+const welcomeDoneEl = $<HTMLParagraphElement>('welcomeDone');
+const welcomeShortcutEl = $<HTMLSpanElement>('welcomeShortcut');
+const welcomeKeyEl = $<HTMLElement>('welcomeKey');
+
+/** Opened by the background on first install (WELCOME_PAGE): the setup steps sit on top. */
+const welcome = new URLSearchParams(globalThis.location?.search ?? '').has('welcome');
 
 let importing = false;
 /** A login this page started or found runs in its own tab; its end arrives through storage. */
@@ -83,6 +91,12 @@ async function render(): Promise<void> {
   importSectionEl.hidden = !chrome.bookmarks;
   importElsewhereEl.hidden = !!chrome.bookmarks;
   webAppEl.href = `${auth?.server ?? baseUrl}/`;
+  welcomeEl.hidden = !welcome;
+  stepLoginEl.classList.toggle('done', !!auth);
+  welcomeDoneEl.hidden = !auth;
+  welcomeDoneEl.textContent = auth
+    ? `Signed in to ${new URL(auth.server).host} — you're set. Save any page with the bukmark button.`
+    : '';
 }
 
 async function showSavedUrl(): Promise<void> {
@@ -106,6 +120,8 @@ async function showShortcut(): Promise<void> {
   shortcutSetEl.hidden = !key;
   shortcutUnsetEl.hidden = key !== '';
   changeShortcutEl.hidden = !canOpenShortcutSettings();
+  welcomeShortcutEl.hidden = !key;
+  welcomeKeyEl.textContent = key ?? '';
 }
 
 saveUrlEl.addEventListener('click', async () => {

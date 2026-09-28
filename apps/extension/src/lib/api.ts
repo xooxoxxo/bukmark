@@ -22,6 +22,12 @@ export interface Hub {
   linkCount: number;
 }
 
+/** GET /api/links/lookup: the page itself if saved, and how its site is filed. */
+export interface LinkLookup {
+  saved: { hubs: string[] } | null;
+  domain: { host: string; links: number; hubs: { name: string; links: number }[] };
+}
+
 export interface ImportProgress {
   done: number;
   total: number;
@@ -75,6 +81,10 @@ export function saveLink(auth: Credentials, input: SaveInput): Promise<SaveResul
   if (input.note) body.note = input.note;
   if (input.hub) body.hub = input.hub;
   return postJson<SaveResult>(auth, '/api/links', body);
+}
+
+export function lookupLink(auth: Credentials, url: string): Promise<LinkLookup> {
+  return request<LinkLookup>(auth, `/api/links/lookup?url=${encodeURIComponent(url)}`);
 }
 
 export async function listHubs(auth: Credentials): Promise<Hub[]> {

@@ -4,7 +4,9 @@ import type { LoginRequest } from '../lib/login';
 import {
   STATUS,
   approve,
+  closeTab,
   fakeChrome,
+  navigate,
   replied,
   settle,
   startBackground,
@@ -46,9 +48,12 @@ async function openPopup() {
 }
 
 /** A current server that accepts `token` as a bearer, if one is given. */
-function server(token?: string) {
+const NOTHING_KNOWN = { saved: null, domain: { host: 'example.com', links: 0, hubs: [] } };
+
+function server(token?: string, known: unknown = NOTHING_KNOWN) {
   return stubFetch(({ url, headers }) =>
     url.endsWith('/api/hubs') ? { body: { items: [{ id: 'h1', name: 'rust', linkCount: 2 }] } }
+      : url.includes('/api/links/lookup') ? { body: known }
       : url.endsWith('/api/auth/status')
         ? { body: { ...STATUS, authenticated: token !== undefined && headers.get('authorization') === `Bearer ${token}` } }
       : url.endsWith('/api/auth/token') ? { body: { token: 'bkm_new', tokenId: 'id-new', name: 'bukmark capture' } }
@@ -100,7 +105,8 @@ describe('popup, logged out', () => {
     expect(chrome.runtime.sendMessage).toHaveBeenCalledTimes(1);
     expect(chrome.storage.sync.data.baseUrl).toBe(SERVER);
     expect(chrome.storage.local.data.auth).toMatchObject({ server: SERVER, token: 'bkm_new' });
-    expect(win.location.reload).toHaveBeenCalled();
+    // Once, though both the reply and the stored login announce it.
+    expect(win.location.reload).toHaveBeenCalledTimes(1);
 
     const reopened = await openPopup();
     expect(reopened.el('saveForm').hidden).toBe(false);
@@ -238,19 +244,58 @@ describe('popup, logged in', () => {
     arrange({ local: { auth: auth() }, sync: { baseUrl: SERVER } });
   });
 
-  it('shows the save form with the hubs and a footer naming the server', async () => {
+  it('shows the save form with the hubs by name, and no footer', async () => {
     const page = await openPopup();
     expect(page.el('saveForm').hidden).toBe(false);
     expect(page.el('loginForm').hidden).toBe(true);
     expect(page.el('title').value).toBe('An article');
-    expect(page.el('hub').children.map((o) => o.textContent)).toEqual(['rust (2)']);
-    expect(page.el('serverHost').textContent).toBe('nas.lan:3000');
+    expect(page.el('hub').children.map((o) => o.textContent)).toEqual(['rust']);
+    // The server and the shortcut are on the settings page.
+    for (const id of ['serverHost', 'openSettings', 'shortcutHint']) expect(() => page.el(id)).toThrow();
   });
 
-  it('opens the options page from the footer’s Settings', async () => {
+  it('asks the server what it knows of the page, with the token', async () => {
+    await openPopup();
+    const lookup = requests.find((r) => r.url.includes('/api/links/lookup'));
+    expect(lookup?.url).toBe(`${SERVER}/api/links/lookup?url=${encodeURIComponent('https://example.com/article')}`);
+    expect(lookup?.headers.get('authorization')).toBe('Bearer bkm_live');
+  });
+
+  it('says nothing more for a page and site never saved', async () => {
     const page = await openPopup();
-    page.el('openSettings').click();
-    expect(chrome.runtime.openOptionsPage).toHaveBeenCalled();
+    expect(page.el('known').hidden).toBe(true);
+    expect(page.el('hub').value).toBe('');
+  });
+
+  it('says a page is already saved and where, and keeps it filed there', async () => {
+    requests = server(TOKEN, { saved: { hubs: ['rust'] }, domain: { host: 'example.com', links: 3, hubs: [] } });
+    const page = await openPopup();
+    expect(page.el('known').hidden).toBe(false);
+    expect(page.el('known').textContent).toBe('Already saved — in rust');
+    expect(page.el('hub').value).toBe('rust');
+  });
+
+  it('names the hub most of the site is in, without filing the page there', async () => {
+    requests = server(TOKEN, {
+      saved: null,
+      domain: { host: 'example.com', links: 4, hubs: [{ name: 'rust', links: 3 }] },
+    });
+    const page = await openPopup();
+    expect(page.el('known').textContent).toBe('4 links from example.com saved — most in rust');
+    expect(page.el('hub').value).toBe('');
+  });
+
+  it('still saves when the server cannot say what it knows', async () => {
+    requests = stubFetch(({ url }) =>
+      url.endsWith('/api/hubs') ? { body: { items: [] } }
+        : url.includes('/api/links/lookup') ? { status: 500, body: { error: 'boom' } }
+        : { body: { outcome: 'created', link: { dupeCount: 1 } } });
+    const page = await openPopup();
+    expect(page.el('known').hidden).toBe(true);
+    expect(page.el('status').textContent).toBe('');
+    page.el('save').click();
+    await settle();
+    expect(page.el('status').textContent).toBe('Saved');
   });
 
   it('saves the page to the token’s server, with the token', async () => {
@@ -267,19 +312,6 @@ describe('popup, logged in', () => {
     expect(save!.headers.get('authorization')).toBe('Bearer bkm_live');
     expect(page.el('status').textContent).toBe('Saved');
     expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 700);
-  });
-
-  it('shows the key the browser assigned to saving without the popup', async () => {
-    chrome.commands.getAll.mockResolvedValue([{ name: 'save-current-tab', description: '', shortcut: 'MacCtrl+Shift+K' }]);
-    const page = await openPopup();
-    expect(page.el('shortcutHint').hidden).toBe(false);
-    expect(page.el('shortcutKey').textContent).toBe('Ctrl+Shift+K');
-  });
-
-  it('shows no shortcut hint when the browser assigned no key', async () => {
-    chrome.commands.getAll.mockResolvedValue([{ name: 'save-current-tab', description: '', shortcut: '' }]);
-    const page = await openPopup();
-    expect(page.el('shortcutHint').hidden).toBe(true);
   });
 
   it('says why the last keyboard save failed, once', async () => {
@@ -329,11 +361,10 @@ describe('popup, logged in', () => {
 });
 
 describe('popup where the browser has no shortcuts (Firefox for Android)', () => {
-  it('shows no shortcut hint', async () => {
+  it('opens on the save form', async () => {
     arrange({ local: { auth: auth() }, sync: { baseUrl: SERVER }, browser: 'firefox', without: ['commands'] });
     const page = await openPopup();
     expect(page.el('saveForm').hidden).toBe(false);
-    expect(page.el('shortcutHint').hidden).toBe(true);
   });
 });
 
@@ -368,6 +399,28 @@ describe('popup where logins run in a tab (Safari)', () => {
     expect(win.location.reload).not.toHaveBeenCalled();
   });
 
+  it('switches the popup that clicked Log in to the save form once Allow finishes the login', async () => {
+    const { page, tab } = await logInFromPopup();
+    navigate(chrome, tab.id, approve(tab.url));
+    await replied(chrome);
+
+    expect(chrome.storage.local.data.auth).toMatchObject({ token: 'bkm_new', server: SERVER });
+    expect(win.location.reload).toHaveBeenCalledTimes(1);
+    expect(page.el('loginStatus').classList.contains('error')).toBe(false);
+  });
+
+  it('shows the popup that clicked Log in why the login ended, and only there', async () => {
+    const { page, tab } = await logInFromPopup();
+    closeTab(chrome, tab.id);
+    await replied(chrome);
+
+    expect(page.el('loginStatus').textContent).toBe('Login cancelled.');
+    expect(page.el('loginStatus').classList.contains('error')).toBe(true);
+    expect(page.el('loginButton').disabled).toBe(false);
+    expect(win.location.reload).not.toHaveBeenCalled();
+    expect(chrome.storage.session.data.lastAuthError).toBeUndefined();
+  });
+
   it('on opening, finishes a login whose tab already shows the reply, and is ready to save', async () => {
     const { tab } = await logInFromPopup();
     // Allowed in the bukmark window while the background was unloaded: no event came (iOS).
@@ -376,7 +429,6 @@ describe('popup where logins run in a tab (Safari)', () => {
     const page = await reopenPopup();
     expect(page.el('saveForm').hidden).toBe(false);
     expect(page.el('loginForm').hidden).toBe(true);
-    expect(page.el('serverHost').textContent).toBe('nas.lan:3000');
     expect(chrome.storage.local.data.auth).toMatchObject({ token: 'bkm_new', server: SERVER });
     expect(chrome.tabs.data.has(tab.id)).toBe(false);
     const hubs = requests.find((r) => r.url === `${SERVER}/api/hubs`);

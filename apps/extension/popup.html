@@ -21,6 +21,7 @@
     </div>
 
     <div id="saveForm" class="stack" hidden>
+      <p id="known" class="known" role="status" hidden></p>
       <label for="title">Title</label>
       <input id="title" />
       <label for="note">Why keep it?</label>
@@ -29,11 +30,6 @@
       <select id="hub"><option value="">(unsorted)</option></select>
       <button id="save" type="button" class="primary">Save</button>
       <p id="status" class="status" role="status" aria-live="polite"></p>
-      <p class="footer">
-        Signed in to <span id="serverHost"></span> ·
-        <button id="openSettings" type="button" class="link">Settings</button>
-      </p>
-      <p id="shortcutHint" class="muted" hidden><kbd id="shortcutKey"></kbd> saves a tab without opening this.</p>
     </div>
 
     <script type="module" src="/src/popup/main.ts"></script>

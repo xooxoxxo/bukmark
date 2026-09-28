@@ -95,7 +95,7 @@ kbd {
 .popup {
   box-sizing: content-box;
   width: 320px;
-  padding: var(--bk-space-sm);
+  padding: var(--bk-space-md) var(--bk-space-sm) var(--bk-space-sm);
 }
 
 .options main {
@@ -238,9 +238,11 @@ button:disabled {
   transform: translateY(-2px);
 }
 
+/* 1px past the fields on each side: a solid block reads narrower than an
+   outlined field of the same width. */
 .popup :is(.primary, .secondary) {
-  width: 100%;
-  margin-top: var(--bk-space-2xs);
+  width: calc(100% + 2px);
+  margin: var(--bk-space-2xs) -1px 0;
 }
 
 .options .stack > button {
@@ -266,8 +268,15 @@ button:disabled {
   align-self: flex-start;
 }
 
+/* Drawn over the control's own edge, not around it with a gap, which made a
+   focused field look smaller than its neighbours. */
 :is(button, input, select, textarea):focus-visible {
   outline: 2px solid var(--bk-accent);
+  outline-offset: -2px;
+}
+
+/* A text link has no edge to draw over. */
+.link:focus-visible {
   outline-offset: 2px;
 }
 
@@ -297,12 +306,66 @@ button:disabled {
   color: var(--bk-ink);
 }
 
-.footer {
-  margin-top: var(--bk-space-2xs);
-  padding-top: var(--bk-space-xs);
-  border-top: 1px solid var(--bk-rule);
-  color: var(--bk-muted);
+/* What bukmark already holds for the page, above the form. */
+.known {
+  padding: var(--bk-space-xs) var(--bk-space-sm);
+  border-left: 2px solid var(--bk-accent);
+  background: var(--bk-paper-2);
   font-size: var(--bk-text-xs);
+  font-weight: 600;
+}
+
+.welcome h1 {
+  margin: 0;
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-xl);
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bk-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li {
+  position: relative;
+  padding-left: 2.25rem;
+  counter-increment: step;
+}
+
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  top: -0.1em;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid var(--bk-ink);
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-xs);
+  font-weight: 800;
+}
+
+.steps li.done::before {
+  content: '✓';
+  border-color: var(--bk-accent);
+  background: var(--bk-accent);
+  color: var(--bk-paper);
+}
+
+.welcome > p.done {
+  padding: var(--bk-space-xs) var(--bk-space-sm);
+  border-left: 2px solid var(--bk-accent);
+  background: var(--bk-paper-2);
+  font-weight: 600;
 }
 
 progress {

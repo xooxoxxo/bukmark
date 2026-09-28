@@ -1,5 +1,9 @@
 import { SAVE_COMMAND } from '../lib/shortcut';
-import { handleMessage, listenForTabLogins, saveActiveTab } from './handlers';
+import { handleMessage, listenForTabLogins, saveActiveTab, welcome } from './handlers';
+
+// A fresh install opens the setup steps, so the extension is ready before the
+// first save instead of failing it. Updates and browser updates open nothing.
+chrome.runtime.onInstalled.addListener((details) => void welcome(details));
 
 // Firefox for Android has no commands API; without the guard this line would
 // throw and the listeners below would never register.

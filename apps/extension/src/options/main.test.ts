@@ -52,6 +52,39 @@ beforeEach(() => {
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
+describe('options opened as the setup page after install', () => {
+  it('shows the setup steps only when opened as the welcome page', async () => {
+    arrange({ sync: { baseUrl: S1 } });
+    expect((await openOptions()).el('welcome').hidden).toBe(true);
+
+    vi.stubGlobal('location', { search: '?welcome' });
+    const page = await openOptions();
+    expect(page.el('welcome').hidden).toBe(false);
+    expect(page.el('stepLogin').classList.contains('done')).toBe(false);
+    expect(page.el('welcomeDone').hidden).toBe(true);
+    expect(page.el('login').hidden).toBe(false);
+  });
+
+  it('names the assigned shortcut in the last step', async () => {
+    arrange({ sync: { baseUrl: S1 } });
+    vi.stubGlobal('location', { search: '?welcome' });
+    const page = await openOptions();
+    expect(page.el('welcomeShortcut').hidden).toBe(false);
+    expect(page.el('welcomeKey').textContent).toBe('Alt+Shift+K');
+  });
+
+  it('says setup is done once a login finishes, without reloading', async () => {
+    arrange({ sync: { baseUrl: S1 } });
+    vi.stubGlobal('location', { search: '?welcome' });
+    const page = await openOptions();
+    await chrome.storage.local.set({ auth: auth() });
+    await settle();
+    expect(page.el('stepLogin').classList.contains('done')).toBe(true);
+    expect(page.el('welcomeDone').hidden).toBe(false);
+    expect(page.el('welcomeDone').textContent).toContain('Signed in to s1.lan:3000');
+  });
+});
+
 describe('options, logged out', () => {
   beforeEach(() => arrange({ sync: { baseUrl: S1 } }));
 

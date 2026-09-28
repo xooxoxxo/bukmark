@@ -1,4 +1,4 @@
-import { listHubs, saveLink } from '../lib/api';
+import { listHubs, lookupLink, saveLink } from '../lib/api';
 import { AuthRequiredError, authFor, type Auth } from '../lib/auth';
 import {
   FINISH_IN_WINDOW,
@@ -10,8 +10,8 @@ import {
 } from '../lib/login';
 import { popupHostAccess } from '../lib/permissions';
 import { loadSettings } from '../lib/settings';
-import { LAST_SAVE_ERROR, assignedShortcut } from '../lib/shortcut';
-import { outcomeMessage } from './outcome';
+import { LAST_SAVE_ERROR } from '../lib/shortcut';
+import { knownMessage, outcomeMessage } from './outcome';
 
 const SESSION_ENDED = 'Your session ended — log in again.';
 
@@ -31,13 +31,21 @@ const noteEl = $<HTMLTextAreaElement>('note');
 const hubEl = $<HTMLSelectElement>('hub');
 const saveEl = $<HTMLButtonElement>('save');
 const statusEl = $<HTMLParagraphElement>('status');
-const serverHostEl = $<HTMLSpanElement>('serverHost');
-const openSettingsEl = $<HTMLButtonElement>('openSettings');
-const shortcutHintEl = $<HTMLParagraphElement>('shortcutHint');
-const shortcutKeyEl = $<HTMLElement>('shortcutKey');
+const knownEl = $<HTMLParagraphElement>('known');
 
 /** What Save sends, and with which login. Null while the login form shows. */
 let capture: { auth: Auth; url: string } | null = null;
+
+/** A tab login this popup is waiting on: it ends in the background, not in a reply. */
+let awaitingTab = false;
+
+/** A window login announces itself twice, by its reply and by storage: reload once. */
+let reloading = false;
+function reload(): void {
+  if (reloading) return;
+  reloading = true;
+  window.location.reload();
+}
 
 function setStatus(el: HTMLElement, text: string, isError = false): void {
   el.textContent = text;
@@ -58,18 +66,9 @@ function showLoginForm(baseUrl: string, message = '', isError = message !== ''):
   setStatus(loginStatusEl, message, isError);
 }
 
-/** The key the browser assigned, if any. Firefox for Android has no shortcuts at all. */
-async function showShortcut(): Promise<void> {
-  const key = await assignedShortcut();
-  shortcutKeyEl.textContent = key ?? '';
-  shortcutHintEl.hidden = !key;
-}
-
 async function showSaveForm(auth: Auth): Promise<void> {
   loginFormEl.hidden = true;
   saveFormEl.hidden = false;
-  serverHostEl.textContent = new URL(auth.server).host;
-  void showShortcut();
 
   // On Safari the shortcut's badge is all that told of this failure.
   const { [LAST_SAVE_ERROR]: saveError } = await chrome.storage.session.get(LAST_SAVE_ERROR);
@@ -87,28 +86,47 @@ async function showSaveForm(auth: Auth): Promise<void> {
   titleEl.value = tab.title ?? '';
   capture = { auth, url: tab.url };
 
-  // A failure here must not block saving — the hub dropdown is a convenience,
-  // the capture is the point.
-  try {
-    for (const hub of await listHubs(auth)) {
+  // Failures here must not block saving — the hub dropdown and what bukmark
+  // already knows are conveniences, the capture is the point.
+  const [hubs, known] = await Promise.allSettled([listHubs(auth), lookupLink(auth, tab.url)]);
+  if ([hubs, known].some((r) => r.status === 'rejected' && r.reason instanceof AuthRequiredError)) {
+    showLoginForm(auth.server, SESSION_ENDED);
+    return;
+  }
+  if (hubs.status === 'fulfilled') {
+    for (const hub of hubs.value) {
       const opt = document.createElement('option');
       opt.value = hub.name;
-      opt.textContent = `${hub.name} (${hub.linkCount})`;
+      opt.textContent = hub.name;
       hubEl.append(opt);
     }
-  } catch (err) {
-    if (err instanceof AuthRequiredError) showLoginForm(auth.server, SESSION_ENDED);
-    else setStatus(statusEl, 'Could not load hubs — saving still works');
+  } else {
+    setStatus(statusEl, 'Could not load hubs — saving still works');
+  }
+  if (known.status === 'fulfilled') {
+    const message = knownMessage(known.value);
+    knownEl.textContent = message ?? '';
+    knownEl.hidden = message === null;
+    // Saving again leaves a saved page where it is filed.
+    const filedIn = known.value.saved?.hubs[0];
+    if (filedIn && hubs.status === 'fulfilled' && hubs.value.some((h) => h.name === filedIn)) hubEl.value = filedIn;
   }
 }
 
 function showResult(result: LoginResult): void {
   if (result.ok && !result.pending) {
-    window.location.reload();
+    reload();
     return;
   }
+  awaitingTab = result.ok;
   setStatus(loginStatusEl, result.ok ? FINISH_IN_WINDOW : result.error, !result.ok);
   lockLogin(false);
+}
+
+async function showTabLoginError(error: string): Promise<void> {
+  awaitingTab = false;
+  setStatus(loginStatusEl, error, true);
+  await chrome.storage.session.remove(LAST_AUTH_ERROR);
 }
 
 const failed = (error: string) => (): LoginResult => ({ ok: false, error });
@@ -169,6 +187,7 @@ async function init(): Promise<void> {
   }
   if (resumed?.pending) {
     showLoginForm(baseUrl, FINISH_IN_WINDOW, false);
+    awaitingTab = true;
     return;
   }
   // Left by a login whose popup closed before it finished, or by the keyboard shortcut.
@@ -176,6 +195,18 @@ async function init(): Promise<void> {
   showLoginForm(baseUrl, typeof lastError === 'string' ? lastError : '');
   if (lastError !== undefined) await chrome.storage.session.remove(LAST_AUTH_ERROR);
 }
+
+// A tab login ends in the background after this popup got its "pending"
+// reply, and a login from the options page ends there too: either way this
+// popup learns of it only from storage.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.auth?.newValue && saveFormEl.hidden) {
+    reload();
+    return;
+  }
+  const error: unknown = area === 'session' ? changes[LAST_AUTH_ERROR]?.newValue : undefined;
+  if (awaitingTab && typeof error === 'string') void showTabLoginError(error);
+});
 
 // Registered up front, not per form: a 401 can switch to the login form later.
 loginButtonEl.addEventListener('click', () => void onLoginClick());
@@ -186,6 +217,5 @@ showTokenEl.addEventListener('click', () => {
 });
 useTokenEl.addEventListener('click', () => void onUseTokenClick());
 saveEl.addEventListener('click', () => void onSaveClick());
-openSettingsEl.addEventListener('click', () => void chrome.runtime.openOptionsPage());
 
 void init();
