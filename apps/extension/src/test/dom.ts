@@ -9,6 +9,8 @@ export class FakeElement {
   hidden = false;
   disabled = false;
   max = 1;
+  href = '';
+  focused = false;
   readonly children: FakeElement[] = [];
   private readonly classes = new Set<string>();
   private readonly listeners: Record<string, Listener[]> = {};
@@ -37,6 +39,10 @@ export class FakeElement {
     if (name === 'value') this.value = '';
   }
 
+  focus(): void {
+    this.focused = true;
+  }
+
   /** Like a real click: a disabled button ignores it. */
   click(): void {
     if (this.disabled) return;
@@ -60,6 +66,7 @@ export function loadPage(file: 'popup.html' | 'options.html') {
     el.hidden = /\shidden(?=[\s/=]|$)/.test(attrs);
     el.disabled = /\sdisabled(?=[\s/=]|$)/.test(attrs);
     el.value = /\svalue="([^"]*)"/.exec(attrs)?.[1] ?? '';
+    el.href = /\shref="([^"]*)"/.exec(attrs)?.[1] ?? '';
     elements.set(id, el);
   }
   return {

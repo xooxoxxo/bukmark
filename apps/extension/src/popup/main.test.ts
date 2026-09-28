@@ -1,11 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { Auth } from '../lib/auth';
 import type { LoginRequest } from '../lib/login';
-import { fakeChrome, settle, stubFetch, type FakeChrome, type FakeRequest } from '../test/chrome';
+import {
+  STATUS,
+  approve,
+  fakeChrome,
+  replied,
+  settle,
+  startBackground,
+  stubFetch,
+  type FakeChrome,
+  type FakeRequest,
+  type FakeSeed,
+} from '../test/chrome';
 import { loadPage } from '../test/dom';
 
 const SERVER = 'http://nas.lan:3000';
 const SESSION_ENDED = 'Your session ended — log in again.';
+const FINISH_IN_WINDOW = 'Finish signing in in the bukmark window.';
+const TOKEN = 'bkm_AbCdEfGh0123456789abcdefghijklmnopqrstuvwxyz';
 
 function auth(over: Partial<Auth> = {}): Auth {
   return { token: 'bkm_live', tokenId: 't1', server: SERVER, name: 'bukmark capture', createdAt: 1, ...over };
@@ -15,7 +28,7 @@ let chrome: FakeChrome;
 let requests: FakeRequest[];
 let win: { close: Mock; location: { reload: Mock } };
 
-function arrange(seed: Parameters<typeof fakeChrome>[0] = {}): void {
+function arrange(seed: FakeSeed = {}): void {
   chrome = fakeChrome(seed);
   vi.stubGlobal('chrome', chrome);
 }
@@ -32,15 +45,22 @@ async function openPopup() {
   return page;
 }
 
+/** A current server that accepts `token` as a bearer, if one is given. */
+function server(token?: string) {
+  return stubFetch(({ url, headers }) =>
+    url.endsWith('/api/hubs') ? { body: { items: [{ id: 'h1', name: 'rust', linkCount: 2 }] } }
+      : url.endsWith('/api/auth/status')
+        ? { body: { ...STATUS, authenticated: token !== undefined && headers.get('authorization') === `Bearer ${token}` } }
+      : url.endsWith('/api/auth/token') ? { body: { token: 'bkm_new', tokenId: 'id-new', name: 'bukmark capture' } }
+      : { body: { outcome: 'created', link: { dupeCount: 1 } } },
+  );
+}
+
 beforeEach(() => {
   vi.stubGlobal('setTimeout', vi.fn());
   vi.stubGlobal('setInterval', vi.fn(() => 1));
   vi.stubGlobal('clearInterval', vi.fn());
-  requests = stubFetch(({ url }) =>
-    url.endsWith('/api/hubs') ? { body: { items: [{ id: 'h1', name: 'rust', linkCount: 2 }] } }
-      : url.endsWith('/api/auth/token') ? { body: { token: 'bkm_new', tokenId: 'id-new', name: 'bukmark capture' } }
-      : { body: { outcome: 'created', link: { dupeCount: 1 } } },
-  );
+  requests = server(TOKEN);
 });
 
 afterEach(() => { vi.unstubAllGlobals(); });
@@ -52,6 +72,7 @@ describe('popup, logged out', () => {
     expect(page.el('loginForm').hidden).toBe(false);
     expect(page.el('saveForm').hidden).toBe(true);
     expect(page.el('serverInput').value).toBe('http://localhost:3000');
+    expect(page.el('tokenForm').hidden).toBe(true);
     expect(requests).toHaveLength(0);
   });
 
@@ -65,14 +86,13 @@ describe('popup, logged out', () => {
 
   it('logs in to the server typed in the field, and is logged in there afterwards', async () => {
     arrange();
-    chrome.permissions.contains.mockResolvedValue(false);
     const { handleLogin } = await import('../background/handlers');
     chrome.runtime.sendMessage.mockImplementation(async (m) => handleLogin((m as LoginRequest).baseUrl));
 
     const page = await openPopup();
     page.el('serverInput').value = `${SERVER}/`;
     page.el('loginButton').click();
-    await settle();
+    await replied(chrome);
 
     const order = (fn: Mock) => fn.mock.invocationCallOrder[0]!;
     expect(order(chrome.permissions.request)).toBeLessThan(order(chrome.storage.sync.set));
@@ -115,9 +135,17 @@ describe('popup, logged out', () => {
     expect(reopened.el('loginStatus').textContent).toBe('');
   });
 
+  it('says why, after the keyboard shortcut was used while logged out', async () => {
+    arrange();
+    const { saveActiveTab } = await import('../background/handlers');
+    await saveActiveTab();
+    const page = await openPopup();
+    expect(page.el('loginStatus').textContent)
+      .toBe('Log in first — the keyboard shortcut saves nothing while you are logged out.');
+  });
+
   it('changes nothing when the host permission is declined', async () => {
     arrange();
-    chrome.permissions.contains.mockResolvedValue(false);
     chrome.permissions.request.mockResolvedValue(false);
     const page = await openPopup();
     page.el('serverInput').value = SERVER;
@@ -128,6 +156,80 @@ describe('popup, logged out', () => {
     expect(chrome.storage.sync.set).not.toHaveBeenCalled();
     expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
     expect(page.el('loginButton').disabled).toBe(false);
+  });
+});
+
+describe('popup, using an access token', () => {
+  it('offers a token field instead of logging in', async () => {
+    arrange();
+    const page = await openPopup();
+    page.el('showToken').click();
+    expect(page.el('tokenForm').hidden).toBe(false);
+    expect(page.el('showToken').hidden).toBe(true);
+    expect(page.el('tokenInput').focused).toBe(true);
+  });
+
+  it('logs in with a token the server accepts, and saves with it afterwards', async () => {
+    arrange();
+    const page = await openPopup();
+    page.el('serverInput').value = SERVER;
+    page.el('showToken').click();
+    page.el('tokenInput').value = TOKEN;
+    page.el('useToken').click();
+    await settle();
+
+    expect(chrome.permissions.request).toHaveBeenCalledWith({ origins: ['http://nas.lan/*'] });
+    expect(chrome.storage.local.data.auth).toMatchObject({ token: TOKEN, server: SERVER });
+    expect(win.location.reload).toHaveBeenCalled();
+
+    const reopened = await openPopup();
+    reopened.el('save').click();
+    await settle();
+    const save = requests.find((r) => r.method === 'POST' && r.url === `${SERVER}/api/links`);
+    expect(save?.headers.get('authorization')).toBe(`Bearer ${TOKEN}`);
+  });
+
+  it('says so when the server refuses the token, and lets you try again', async () => {
+    arrange();
+    const page = await openPopup();
+    page.el('serverInput').value = SERVER;
+    page.el('showToken').click();
+    page.el('tokenInput').value = 'bkm_wrong';
+    page.el('useToken').click();
+    await settle();
+
+    expect(page.el('loginStatus').textContent).toMatch(/^nas\.lan:3000 didn't accept that token/);
+    expect(page.el('loginStatus').classList.contains('error')).toBe(true);
+    expect(page.el('useToken').disabled).toBe(false);
+    expect(chrome.storage.local.data.auth).toBeUndefined();
+    expect(win.location.reload).not.toHaveBeenCalled();
+  });
+});
+
+describe('popup in Firefox', () => {
+  beforeEach(() => arrange({ browser: 'firefox' }));
+
+  it('sends a new server to the settings page instead of prompting over the popup', async () => {
+    chrome.permissions.contains.mockResolvedValue(false);
+    const page = await openPopup();
+    page.el('serverInput').value = SERVER;
+    page.el('loginButton').click();
+    await settle();
+
+    expect(chrome.permissions.request).not.toHaveBeenCalled();
+    expect(chrome.runtime.openOptionsPage).toHaveBeenCalled();
+    expect(chrome.storage.session.data.serverToGrant).toBe(SERVER);
+    expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('logs in to a server it already has access to, without a prompt', async () => {
+    const page = await openPopup();
+    page.el('serverInput').value = SERVER;
+    page.el('loginButton').click();
+    await settle();
+
+    expect(chrome.permissions.request).not.toHaveBeenCalled();
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'login', baseUrl: SERVER });
   });
 });
 
@@ -167,6 +269,33 @@ describe('popup, logged in', () => {
     expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 700);
   });
 
+  it('shows the key the browser assigned to saving without the popup', async () => {
+    chrome.commands.getAll.mockResolvedValue([{ name: 'save-current-tab', description: '', shortcut: 'MacCtrl+Shift+K' }]);
+    const page = await openPopup();
+    expect(page.el('shortcutHint').hidden).toBe(false);
+    expect(page.el('shortcutKey').textContent).toBe('Ctrl+Shift+K');
+  });
+
+  it('shows no shortcut hint when the browser assigned no key', async () => {
+    chrome.commands.getAll.mockResolvedValue([{ name: 'save-current-tab', description: '', shortcut: '' }]);
+    const page = await openPopup();
+    expect(page.el('shortcutHint').hidden).toBe(true);
+  });
+
+  it('says why the last keyboard save failed, once', async () => {
+    stubFetch(({ method, url }) =>
+      method === 'POST' ? { status: 500, body: { error: 'boom' } }
+        : url.endsWith('/api/hubs') ? { body: { items: [] } } : { status: 404 });
+    const { saveActiveTab } = await import('../background/handlers');
+    await saveActiveTab();
+
+    const page = await openPopup();
+    expect(page.el('status').textContent).toBe("The keyboard shortcut couldn't save that page: boom");
+    expect(page.el('status').classList.contains('error')).toBe(true);
+    const reopened = await openPopup();
+    expect(reopened.el('status').textContent).toBe('');
+  });
+
   it('switches to a working login form when the token was revoked', async () => {
     stubFetch(() => ({ status: 401, body: { error: 'Not authenticated' } }));
     const page = await openPopup();
@@ -196,5 +325,81 @@ describe('popup, logged in', () => {
     await settle();
     expect(chrome.runtime.sendMessage).toHaveBeenCalledTimes(1);
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'login', baseUrl: SERVER });
+  });
+});
+
+describe('popup where the browser has no shortcuts (Firefox for Android)', () => {
+  it('shows no shortcut hint', async () => {
+    arrange({ local: { auth: auth() }, sync: { baseUrl: SERVER }, browser: 'firefox', without: ['commands'] });
+    const page = await openPopup();
+    expect(page.el('saveForm').hidden).toBe(false);
+    expect(page.el('shortcutHint').hidden).toBe(true);
+  });
+});
+
+describe('popup where logins run in a tab (Safari)', () => {
+  beforeEach(async () => {
+    arrange({ browser: 'safari' });
+    await startBackground(chrome);
+  });
+
+  /** Log in from the popup: the background opens the server's page in a window of its own. */
+  async function logInFromPopup() {
+    const page = await openPopup();
+    page.el('serverInput').value = SERVER;
+    page.el('loginButton').click();
+    await replied(chrome);
+    const [tab] = [...chrome.tabs.data.values()];
+    return { page, tab: tab! };
+  }
+
+  async function reopenPopup() {
+    const page = await openPopup();
+    await replied(chrome);
+    return page;
+  }
+
+  it('says where to finish after Log in, and keeps the form usable', async () => {
+    const { page } = await logInFromPopup();
+    expect(chrome.windows.create).toHaveBeenCalledTimes(1);
+    expect(page.el('loginStatus').textContent).toBe(FINISH_IN_WINDOW);
+    expect(page.el('loginStatus').classList.contains('error')).toBe(false);
+    expect(page.el('loginButton').disabled).toBe(false);
+    expect(win.location.reload).not.toHaveBeenCalled();
+  });
+
+  it('on opening, finishes a login whose tab already shows the reply, and is ready to save', async () => {
+    const { tab } = await logInFromPopup();
+    // Allowed in the bukmark window while the background was unloaded: no event came (iOS).
+    chrome.tabs.data.get(tab.id)!.url = approve(tab.url);
+
+    const page = await reopenPopup();
+    expect(page.el('saveForm').hidden).toBe(false);
+    expect(page.el('loginForm').hidden).toBe(true);
+    expect(page.el('serverHost').textContent).toBe('nas.lan:3000');
+    expect(chrome.storage.local.data.auth).toMatchObject({ token: 'bkm_new', server: SERVER });
+    expect(chrome.tabs.data.has(tab.id)).toBe(false);
+    const hubs = requests.find((r) => r.url === `${SERVER}/api/hubs`);
+    expect(hubs?.headers.get('authorization')).toBe('Bearer bkm_new');
+  });
+
+  it('on opening while the login waits, says where to finish', async () => {
+    await logInFromPopup();
+    const page = await reopenPopup();
+    expect(page.el('loginForm').hidden).toBe(false);
+    expect(page.el('loginStatus').textContent).toBe(FINISH_IN_WINDOW);
+    expect(page.el('loginStatus').classList.contains('error')).toBe(false);
+    expect(chrome.storage.session.data.pendingLogin).toBeDefined();
+  });
+
+  it('on opening after the login’s tab closed unseen, says it was cancelled, once', async () => {
+    const { tab } = await logInFromPopup();
+    chrome.tabs.data.delete(tab.id);
+
+    const page = await reopenPopup();
+    expect(page.el('loginStatus').textContent).toBe('Login cancelled.');
+    expect(page.el('loginStatus').classList.contains('error')).toBe(true);
+    const again = await reopenPopup();
+    expect(again.el('loginStatus').textContent).toBe('');
   });
 });

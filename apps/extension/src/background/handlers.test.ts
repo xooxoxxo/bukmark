@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Auth } from '../lib/auth';
-import { approve, fakeChrome, settle, stubFetch, type FakeChrome, type FakeRequest } from '../test/chrome';
+import { STATUS, approve, fakeChrome, settle, stubFetch, type FakeChrome, type FakeRequest, type FakeSeed } from '../test/chrome';
 
 const SERVER = 'http://nas.lan:3000';
 const LOGGED_OUT = { title: 'Log in to bukmark first' };
 const DEFAULT_TITLE = { title: 'Save to bukmark' };
+const BADGE = { saved: { text: '✓' }, failed: { text: '!' }, loggedOut: { text: '?' } };
 
 function auth(over: Partial<Auth> = {}): Auth {
   return { token: 'bkm_live', tokenId: 't1', server: SERVER, name: 'bukmark capture', createdAt: 1, ...over };
@@ -13,7 +14,7 @@ function auth(over: Partial<Auth> = {}): Auth {
 let chrome: FakeChrome;
 let requests: FakeRequest[];
 
-function arrange(seed: Parameters<typeof fakeChrome>[0] = {}): void {
+function arrange(seed: FakeSeed = {}): void {
   chrome = fakeChrome(seed);
   vi.stubGlobal('chrome', chrome);
 }
@@ -28,8 +29,8 @@ beforeEach(() => {
   vi.stubGlobal('setInterval', vi.fn(() => 1));
   vi.stubGlobal('clearInterval', vi.fn());
   requests = stubFetch(({ url }) =>
-    url.endsWith('/api/auth/token')
-      ? { body: { token: 'bkm_new', tokenId: 'id-new', name: 'bukmark capture' } }
+    url.endsWith('/api/auth/status') ? { body: STATUS }
+      : url.endsWith('/api/auth/token') ? { body: { token: 'bkm_new', tokenId: 'id-new', name: 'bukmark capture' } }
       : { body: { outcome: 'created', link: { dupeCount: 1 } } },
   );
 });
@@ -37,12 +38,14 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('saveActiveTab (keyboard save)', () => {
-  it('when logged out: flags it on the badge and the title, with no request', async () => {
+  it('when logged out: flags it on the badge and the title, with no request, and leaves word for the popup', async () => {
     arrange();
     await (await handlers()).saveActiveTab();
     expect(requests).toHaveLength(0);
     expect(chrome.action.setTitle).toHaveBeenCalledWith(LOGGED_OUT);
-    expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '!' });
+    expect(chrome.action.setBadgeText).toHaveBeenCalledWith(BADGE.loggedOut);
+    expect(chrome.storage.session.data.lastAuthError)
+      .toBe('Log in first — the keyboard shortcut saves nothing while you are logged out.');
   });
 
   it('never sends a token to a server other than the one that issued it', async () => {
@@ -53,7 +56,7 @@ describe('saveActiveTab (keyboard save)', () => {
   });
 
   it('saves the tab to the token’s server, with the token', async () => {
-    arrange({ local: { auth: auth() }, sync: { baseUrl: SERVER } });
+    arrange({ local: { auth: auth() }, sync: { baseUrl: SERVER }, session: { lastSaveError: 'an old failure' } });
     await (await handlers()).saveActiveTab();
     expect(requests).toHaveLength(1);
     expect(requests[0]).toMatchObject({
@@ -62,8 +65,16 @@ describe('saveActiveTab (keyboard save)', () => {
       body: { url: 'https://example.com/article', title: 'An article' },
     });
     expect(requests[0]!.headers.get('authorization')).toBe('Bearer bkm_live');
-    expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '✓' });
+    expect(chrome.action.setBadgeText).toHaveBeenCalledWith(BADGE.saved);
     expect(chrome.action.setTitle).toHaveBeenCalledWith(DEFAULT_TITLE);
+    expect(chrome.storage.session.data.lastSaveError).toBeUndefined();
+  });
+
+  it('saves with the server kept in storage.local where there is no sync area (Opera)', async () => {
+    arrange({ local: { auth: auth(), baseUrl: SERVER }, without: ['sync'] });
+    await (await handlers()).saveActiveTab();
+    expect(requests.map((r) => r.url)).toEqual([`${SERVER}/api/links`]);
+    expect(chrome.action.setBadgeText).toHaveBeenCalledWith(BADGE.saved);
   });
 
   it('on a 401: forgets the token and says to log in', async () => {
@@ -72,16 +83,23 @@ describe('saveActiveTab (keyboard save)', () => {
     await (await handlers()).saveActiveTab();
     expect(chrome.storage.local.data.auth).toBeUndefined();
     expect(chrome.action.setTitle).toHaveBeenCalledWith(LOGGED_OUT);
-    expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '!' });
+    expect(chrome.action.setBadgeText).toHaveBeenCalledWith(BADGE.loggedOut);
+    expect(chrome.storage.session.data.lastAuthError).toBe('Your session ended — log in again.');
   });
 
-  it('on any other failure: flags it without claiming the login is gone', async () => {
+  it('on any other failure: flags it without claiming the login is gone, and keeps the reason for the popup', async () => {
     arrange({ local: { auth: auth() }, sync: { baseUrl: SERVER } });
     stubFetch(() => ({ status: 500, body: { error: 'boom' } }));
     await (await handlers()).saveActiveTab();
-    expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '!' });
+    expect(chrome.action.setBadgeText).toHaveBeenCalledWith(BADGE.failed);
     expect(chrome.action.setTitle).not.toHaveBeenCalledWith(LOGGED_OUT);
     expect(chrome.storage.local.data.auth).toBeDefined();
+    expect(chrome.storage.session.data.lastSaveError).toBe("The keyboard shortcut couldn't save that page: boom");
+  });
+
+  it('shows each outcome as different text, since Safari ignores the colour', () => {
+    const texts = Object.values(BADGE).map((b) => b.text);
+    expect(new Set(texts).size).toBe(texts.length);
   });
 });
 
@@ -92,7 +110,7 @@ describe('handleLogin', () => {
     expect(chrome.storage.local.data.auth).toMatchObject({ token: 'bkm_new', server: SERVER });
     expect(chrome.storage.session.data.lastAuthError).toBeUndefined();
     expect(chrome.action.setTitle).toHaveBeenCalledWith(DEFAULT_TITLE);
-    expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '✓' });
+    expect(chrome.action.setBadgeText).toHaveBeenCalledWith(BADGE.saved);
   });
 
   it('on failure: replies with the readable error and keeps it for the next popup', async () => {
@@ -100,6 +118,15 @@ describe('handleLogin', () => {
     chrome.identity.launchWebAuthFlow.mockRejectedValue(new Error('The user did not approve access.'));
     await expect((await handlers()).handleLogin(SERVER)).resolves.toEqual({ ok: false, error: 'Login cancelled.' });
     expect(chrome.storage.session.data.lastAuthError).toBe('Login cancelled.');
+  });
+
+  it('keeps an unreachable server’s error for the next popup, having opened no window', async () => {
+    arrange();
+    stubFetch(() => new TypeError('Failed to fetch'));
+    const error = "Couldn't reach nas.lan:3000 — check the address and that the server is running.";
+    await expect((await handlers()).handleLogin(SERVER)).resolves.toEqual({ ok: false, error });
+    expect(chrome.identity.launchWebAuthFlow).not.toHaveBeenCalled();
+    expect(chrome.storage.session.data.lastAuthError).toBe(error);
   });
 
   it('does not show internal error text', async () => {
@@ -111,12 +138,14 @@ describe('handleLogin', () => {
   it('refuses a second login while a window is open, and allows one after', async () => {
     arrange();
     let allow: () => void = () => {};
+    let opened: () => void = () => {};
+    const open = new Promise<void>((resolve) => { opened = resolve; });
     chrome.identity.launchWebAuthFlow.mockImplementation(({ url }) =>
-      new Promise((resolve) => { allow = () => resolve(approve(url)); }));
+      new Promise((resolve) => { allow = () => resolve(approve(url)); opened(); }));
     const { handleLogin } = await handlers();
 
     const first = handleLogin(SERVER);
-    await settle();
+    await open;
     await expect(handleLogin(SERVER)).resolves.toEqual({
       ok: false,
       error: 'A bukmark login window is already open.',
@@ -131,8 +160,8 @@ describe('handleLogin', () => {
 });
 
 describe('background wiring', () => {
-  async function listeners() {
-    arrange();
+  async function listeners(seed: FakeSeed = {}) {
+    arrange(seed);
     vi.resetModules();
     await import('./index');
     return {
@@ -143,10 +172,10 @@ describe('background wiring', () => {
 
   it('answers a login message asynchronously', async () => {
     const { onMessage } = await listeners();
-    const sendResponse = vi.fn();
-    expect(onMessage({ type: 'login', baseUrl: SERVER }, {}, sendResponse)).toBe(true);
-    await settle();
-    expect(sendResponse).toHaveBeenCalledWith({ ok: true });
+    const reply = new Promise((sendResponse) => {
+      expect(onMessage({ type: 'login', baseUrl: SERVER }, {}, sendResponse)).toBe(true);
+    });
+    await expect(reply).resolves.toEqual({ ok: true });
   });
 
   it('ignores anything that is not a well-formed login message', async () => {
@@ -167,5 +196,25 @@ describe('background wiring', () => {
     onCommand('save-current-tab');
     await settle();
     expect(chrome.action.setTitle).toHaveBeenCalledWith(LOGGED_OUT);
+  });
+
+  it('still answers logins where there are no shortcuts (Firefox for Android), in a tab', async () => {
+    arrange({ browser: 'firefox', without: ['commands', 'identity', 'bookmarks', 'windows'] });
+    vi.resetModules();
+    await expect(import('./index')).resolves.toBeDefined();
+    const onMessage = chrome.runtime.onMessage.addListener.mock.calls[0]![0];
+    const reply = new Promise((sendResponse) => {
+      expect(onMessage({ type: 'login', baseUrl: SERVER }, {}, sendResponse)).toBe(true);
+    });
+    await expect(reply).resolves.toEqual({ ok: true, pending: true });
+    expect(chrome.tabs.create).toHaveBeenCalledWith({ url: expect.stringMatching(/^http:\/\/nas\.lan:3000\/authorize\?/) });
+  });
+
+  it('answers a page asking about a login in a tab', async () => {
+    const { onMessage } = await listeners();
+    const reply = new Promise((sendResponse) => {
+      expect(onMessage({ type: 'resumeLogin' }, {}, sendResponse)).toBe(true);
+    });
+    await expect(reply).resolves.toBeNull();
   });
 });

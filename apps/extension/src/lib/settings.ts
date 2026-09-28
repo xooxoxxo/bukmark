@@ -12,11 +12,33 @@ export function normalizeBaseUrl(raw: string): string {
   return trimmed === '' ? DEFAULT_BASE_URL : trimmed;
 }
 
+/**
+ * Settings follow the person between browsers through storage.sync. Opera has
+ * no sync area (Safari and Firefox for Android keep it on the device anyway),
+ * so storage.local stands in whenever sync is missing or fails.
+ */
+async function inSettingsArea<T>(use: (area: chrome.storage.StorageArea) => Promise<T>): Promise<T> {
+  const sync = chrome.storage.sync as chrome.storage.StorageArea | undefined;
+  if (sync) {
+    try {
+      return await use(sync);
+    } catch {
+      // Falls through to local.
+    }
+  }
+  return use(chrome.storage.local);
+}
+
+/** True when a storage.onChanged event changed the settings, in whichever area holds them. */
+export function changesSettings(changes: Record<string, unknown>, area: string): boolean {
+  return (area === 'sync' || area === 'local') && 'baseUrl' in changes;
+}
+
 export async function loadSettings(): Promise<Settings> {
-  const stored = await chrome.storage.sync.get({ baseUrl: DEFAULT_BASE_URL });
+  const stored = await inSettingsArea((area) => area.get({ baseUrl: DEFAULT_BASE_URL }));
   return { baseUrl: normalizeBaseUrl(String(stored.baseUrl)) };
 }
 
 export async function saveSettings(s: Settings): Promise<void> {
-  await chrome.storage.sync.set({ baseUrl: normalizeBaseUrl(s.baseUrl) });
+  await inSettingsArea((area) => area.set({ baseUrl: normalizeBaseUrl(s.baseUrl) }));
 }

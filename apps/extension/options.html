@@ -24,10 +24,20 @@
           <button id="login" type="button" class="primary" hidden>Log in</button>
           <button id="logout" type="button" class="secondary" hidden>Log out</button>
         </div>
+        <button id="showToken" type="button" class="link" hidden>Use an access token instead</button>
+        <div id="tokenForm" class="stack" hidden>
+          <label for="tokenInput">Access token</label>
+          <input id="tokenInput" type="password" placeholder="bkm_…" spellcheck="false" autocomplete="off" />
+          <p class="muted">
+            Create one in the web app under Settings › Access tokens. It is sent only to
+            the server above, and Log out revokes it.
+          </p>
+          <button id="useToken" type="button" class="secondary">Use token</button>
+        </div>
         <p id="authStatus" class="status" role="status" aria-live="polite"></p>
       </section>
 
-      <section class="stack">
+      <section id="importSection" class="stack">
         <h2>Import browser bookmarks</h2>
         <p class="muted">
           Every bookmark is imported unsorted. The folder it was in is kept as a hint for
@@ -38,6 +48,28 @@
         <p id="importHint" class="muted" hidden>Log in to import.</p>
         <progress id="progress" value="0" max="1" hidden></progress>
         <p id="importStatus" class="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="importElsewhere" class="stack" hidden>
+        <h2>Import browser bookmarks</h2>
+        <p class="muted">
+          This browser doesn't let extensions read bookmarks. Export them to an HTML file
+          (in Safari: File › Export › Bookmarks), then import that file in the web app
+          under Settings › Import bookmarks.
+        </p>
+        <a id="webApp" class="link" href="http://localhost:3000/" target="_blank" rel="noreferrer">Open the web app</a>
+      </section>
+
+      <section id="shortcutSection" class="stack" hidden>
+        <h2>Keyboard shortcut</h2>
+        <p id="shortcutSet"><kbd id="shortcutKey"></kbd> saves the current tab without opening the popup.</p>
+        <p id="shortcutUnset" hidden>
+          No key is set for saving without the popup: the browser leaves it unset when
+          something else already uses the suggested one.
+        </p>
+        <p class="muted">Change it in your browser's extension shortcut settings (in Safari: Settings › Extensions).</p>
+        <button id="changeShortcut" type="button" class="secondary" hidden>Change shortcut</button>
+        <p id="shortcutStatus" class="status" role="status" aria-live="polite"></p>
       </section>
     </main>
 

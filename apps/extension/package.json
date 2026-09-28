@@ -3,12 +3,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && vite build --mode chrome && vite build --mode firefox && vite build --mode safari",
+    "build:chrome": "vite build --mode chrome",
+    "build:firefox": "vite build --mode firefox",
+    "build:safari": "vite build --mode safari",
+    "lint:firefox": "web-ext lint -s dist/firefox",
+    "zip": "web-ext build -s dist/chrome -a artifacts -n bukmark-chrome-{version}.zip -o && web-ext build -s dist/firefox -a artifacts -n bukmark-firefox-{version}.zip -o && web-ext build -s dist/safari -a artifacts -n bukmark-safari-{version}.zip -o",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/chrome": "^0.2.2",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "web-ext": "^10.7.0"
   }
 }

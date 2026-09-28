@@ -27,6 +27,7 @@ describe('extension pages', () => {
     ['options.html', 'urlStatus'],
     ['options.html', 'authStatus'],
     ['options.html', 'importStatus'],
+    ['options.html', 'shortcutStatus'],
   ] as const)('%s announces #%s politely', (file, id) => {
     const tag = new RegExp(`<[a-z]+[^>]*\\sid="${id}"[^>]*>`).exec(pages[file])?.[0] ?? '';
     expect(tag).toContain('role="status"');

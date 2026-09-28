@@ -1,9 +1,18 @@
 import { runBackfill, runImport } from '../lib/api';
 import { AuthRequiredError, authFor, loadAuth, logout } from '../lib/auth';
 import { flattenBookmarks, type BookmarkNode } from '../lib/bookmarks';
-import { requestLogin } from '../lib/login';
-import { ensureHostPermission, originPatternFor } from '../lib/permissions';
-import { loadSettings, normalizeBaseUrl, saveSettings } from '../lib/settings';
+import {
+  FINISH_IN_WINDOW,
+  LAST_AUTH_ERROR,
+  SERVER_TO_GRANT,
+  requestLogin,
+  resumeLogin,
+  useAccessToken,
+  type LoginResult,
+} from '../lib/login';
+import { allowBookmarkSharing, ensureHostPermission, originPatternFor } from '../lib/permissions';
+import { changesSettings, loadSettings, normalizeBaseUrl, saveSettings } from '../lib/settings';
+import { assignedShortcut, canOpenShortcutSettings, openShortcutSettings } from '../lib/shortcut';
 
 const UNREACHABLE =
   "Logged out here. The server could not be reached — revoke 'bukmark capture' under Access tokens in the web app.";
@@ -16,17 +25,46 @@ const urlStatusEl = $<HTMLSpanElement>('urlStatus');
 const accountEl = $<HTMLParagraphElement>('account');
 const loginEl = $<HTMLButtonElement>('login');
 const logoutEl = $<HTMLButtonElement>('logout');
+const showTokenEl = $<HTMLButtonElement>('showToken');
+const tokenFormEl = $<HTMLDivElement>('tokenForm');
+const tokenInputEl = $<HTMLInputElement>('tokenInput');
+const useTokenEl = $<HTMLButtonElement>('useToken');
 const authStatusEl = $<HTMLParagraphElement>('authStatus');
+const importSectionEl = $<HTMLElement>('importSection');
 const importEl = $<HTMLButtonElement>('import');
 const importHintEl = $<HTMLParagraphElement>('importHint');
 const progressEl = $<HTMLProgressElement>('progress');
 const importStatusEl = $<HTMLParagraphElement>('importStatus');
+const importElsewhereEl = $<HTMLElement>('importElsewhere');
+const webAppEl = $<HTMLAnchorElement>('webApp');
+const shortcutSectionEl = $<HTMLElement>('shortcutSection');
+const shortcutSetEl = $<HTMLParagraphElement>('shortcutSet');
+const shortcutKeyEl = $<HTMLElement>('shortcutKey');
+const shortcutUnsetEl = $<HTMLParagraphElement>('shortcutUnset');
+const changeShortcutEl = $<HTMLButtonElement>('changeShortcut');
+const shortcutStatusEl = $<HTMLParagraphElement>('shortcutStatus');
 
 let importing = false;
+/** A login this page started or found runs in its own tab; its end arrives through storage. */
+let awaitingTab = false;
 
 function setStatus(el: HTMLElement, text: string, isError = false): void {
   el.textContent = text;
   el.classList.toggle('error', isError);
+}
+
+const failed = (error: string) => (): LoginResult => ({ ok: false, error });
+
+function showLoginResult(result: LoginResult): void {
+  awaitingTab = result.ok && result.pending === true;
+  setStatus(authStatusEl, result.ok ? (awaitingTab ? FINISH_IN_WINDOW : '') : result.error, !result.ok);
+}
+
+/** The background failed a login this page waits on: said here, and not again in the next popup. */
+async function showTabLoginError(error: string): Promise<void> {
+  awaitingTab = false;
+  setStatus(authStatusEl, error, true);
+  await chrome.storage.session.remove(LAST_AUTH_ERROR);
 }
 
 /** Shows whether the saved server is logged in. Reads storage afresh every time. */
@@ -37,12 +75,37 @@ async function render(): Promise<void> {
   accountEl.textContent = auth ? `Signed in to ${new URL(auth.server).host} as ${auth.name}` : '';
   loginEl.hidden = !!auth;
   logoutEl.hidden = !auth;
+  if (auth) tokenFormEl.hidden = true;
+  showTokenEl.hidden = !!auth || !tokenFormEl.hidden;
   importEl.disabled = !auth || importing;
   importHintEl.hidden = !!auth;
+  // Safari has no bookmarks API; the web app imports an exported file instead.
+  importSectionEl.hidden = !chrome.bookmarks;
+  importElsewhereEl.hidden = !!chrome.bookmarks;
+  webAppEl.href = `${auth?.server ?? baseUrl}/`;
 }
 
 async function showSavedUrl(): Promise<void> {
   baseUrlEl.value = (await loadSettings()).baseUrl;
+}
+
+/** A server Firefox's popup could not get access to: the prompt shows here. */
+async function takeServerToGrant(): Promise<void> {
+  const { [SERVER_TO_GRANT]: server } = await chrome.storage.session.get(SERVER_TO_GRANT);
+  if (typeof server !== 'string') return;
+  await chrome.storage.session.remove(SERVER_TO_GRANT);
+  baseUrlEl.value = server;
+  setStatus(authStatusEl, `Log in here to let Firefox reach ${new URL(server).host}, or use an access token.`);
+}
+
+/** The key the browser assigned; the section is hidden where there are no shortcuts. */
+async function showShortcut(): Promise<void> {
+  const key = await assignedShortcut();
+  shortcutSectionEl.hidden = key === null;
+  shortcutKeyEl.textContent = key ?? '';
+  shortcutSetEl.hidden = !key;
+  shortcutUnsetEl.hidden = key !== '';
+  changeShortcutEl.hidden = !canOpenShortcutSettings();
 }
 
 saveUrlEl.addEventListener('click', async () => {
@@ -79,14 +142,24 @@ saveUrlEl.addEventListener('click', async () => {
 loginEl.addEventListener('click', async () => {
   loginEl.disabled = true;
   setStatus(authStatusEl, 'Logging in…');
-  try {
-    const result = await requestLogin(baseUrlEl.value);
-    setStatus(authStatusEl, result.ok ? '' : result.error, !result.ok);
-  } catch {
-    setStatus(authStatusEl, 'Login failed.', true);
-  } finally {
-    loginEl.disabled = false;
-  }
+  showLoginResult(await requestLogin(baseUrlEl.value).catch(failed('Login failed.')));
+  loginEl.disabled = false;
+  await render();
+});
+
+showTokenEl.addEventListener('click', () => {
+  showTokenEl.hidden = true;
+  tokenFormEl.hidden = false;
+  tokenInputEl.focus();
+});
+
+useTokenEl.addEventListener('click', async () => {
+  useTokenEl.disabled = true;
+  setStatus(authStatusEl, 'Checking the token…');
+  const result = await useAccessToken(baseUrlEl.value, tokenInputEl.value).catch(failed('Could not use that token.'));
+  if (result.ok) tokenInputEl.value = '';
+  setStatus(authStatusEl, result.ok ? '' : result.error, !result.ok);
+  useTokenEl.disabled = false;
   await render();
 });
 
@@ -100,6 +173,11 @@ logoutEl.addEventListener('click', async () => {
 });
 
 importEl.addEventListener('click', async () => {
+  // Firefox asks for this during the click only, before anything else is awaited.
+  if (!(await allowBookmarkSharing())) {
+    setStatus(importStatusEl, 'Not imported — sharing your bookmarks with your server was declined.', true);
+    return;
+  }
   importing = true;
   importEl.disabled = true;
   progressEl.hidden = false;
@@ -149,18 +227,34 @@ importEl.addEventListener('click', async () => {
   }
 });
 
+changeShortcutEl.addEventListener('click', () => {
+  setStatus(shortcutStatusEl, '');
+  openShortcutSettings().catch(() => {
+    setStatus(shortcutStatusEl, "Couldn't open the shortcut settings — open your browser's extensions page instead.", true);
+  });
+});
+
 // Logins finish in the background worker, often started from the popup, and
 // the popup's Log in saves the server too.
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'sync' && 'baseUrl' in changes) void showSavedUrl();
-  if ((area === 'local' && 'auth' in changes) || (area === 'sync' && 'baseUrl' in changes)) {
-    void render();
-  }
+  const settingsChanged = changesSettings(changes, area);
+  if (settingsChanged) void showSavedUrl();
+  const authChanged = area === 'local' && 'auth' in changes;
+  if (settingsChanged || authChanged) void render();
+  if (area === 'session' && SERVER_TO_GRANT in changes) void takeServerToGrant();
+  if (!awaitingTab) return;
+  const error: unknown = area === 'session' ? changes[LAST_AUTH_ERROR]?.newValue : undefined;
+  if (typeof error === 'string') void showTabLoginError(error);
+  else if (authChanged) showLoginResult({ ok: true });
 });
 
 async function init(): Promise<void> {
   await showSavedUrl();
+  await takeServerToGrant();
+  const resumed = await resumeLogin();
+  if (resumed) showLoginResult(resumed);
   await render();
+  await showShortcut();
 }
 
 void init();

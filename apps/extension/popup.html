@@ -10,6 +10,13 @@
       <label for="serverInput">Server</label>
       <input id="serverInput" placeholder="http://localhost:3000" spellcheck="false" autocomplete="off" />
       <button id="loginButton" type="button" class="primary">Log in</button>
+      <button id="showToken" type="button" class="link">Use an access token instead</button>
+      <div id="tokenForm" class="stack" hidden>
+        <label for="tokenInput">Access token</label>
+        <input id="tokenInput" type="password" placeholder="bkm_…" spellcheck="false" autocomplete="off" />
+        <p class="muted">Create one in the web app under Settings › Access tokens.</p>
+        <button id="useToken" type="button" class="secondary">Use token</button>
+      </div>
       <p id="loginStatus" class="status" role="status" aria-live="polite"></p>
     </div>
 
@@ -26,6 +33,7 @@
         Signed in to <span id="serverHost"></span> ·
         <button id="openSettings" type="button" class="link">Settings</button>
       </p>
+      <p id="shortcutHint" class="muted" hidden><kbd id="shortcutKey"></kbd> saves a tab without opening this.</p>
     </div>
 
     <script type="module" src="/src/popup/main.ts"></script>

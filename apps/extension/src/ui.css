@@ -85,6 +85,13 @@ code {
   font-size: inherit;
 }
 
+kbd {
+  padding: 0 var(--bk-space-2xs);
+  border: 1px solid var(--bk-rule);
+  font-family: var(--bk-font-mono);
+  font-size: var(--bk-text-xs);
+}
+
 .popup {
   box-sizing: content-box;
   width: 320px;
@@ -231,7 +238,7 @@ button:disabled {
   transform: translateY(-2px);
 }
 
-.popup .primary {
+.popup :is(.primary, .secondary) {
   width: 100%;
   margin-top: var(--bk-space-2xs);
 }
@@ -253,6 +260,10 @@ button:disabled {
 
 .link:hover {
   color: var(--bk-accent);
+}
+
+.stack > .link {
+  align-self: flex-start;
 }
 
 :is(button, input, select, textarea):focus-visible {
