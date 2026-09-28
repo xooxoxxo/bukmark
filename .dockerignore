@@ -5,3 +5,5 @@ work
 output
 apps/cli/fixtures/real
 .git
+.env
+.env.*

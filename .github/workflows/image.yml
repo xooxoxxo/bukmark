@@ -1,0 +1,219 @@
+# Publishes the prebuilt image, ghcr.io/xooxoxxo/bukmark, for linux/amd64 and
+# linux/arm64. Runs on release tags (v0.3.0) and by hand for a tag that
+# already exists. Never on branch pushes.
+name: image
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build again, e.g. v0.3.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: image-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/xooxoxxo/bukmark
+  DESCRIPTION: Bookmarks you own. A self-hosted bookmark manager.
+
+jobs:
+  publish:
+    name: Build and push
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Resolve the release tag
+        id: tag
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if ! printf '%s\n' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$TAG' is not a release tag like v0.3.0"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the tag
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ steps.tag.outputs.tag }}
+          # Every tag, to tell whether this one is the highest release.
+          fetch-depth: 0
+          persist-credentials: false
+
+      # "latest" follows the highest release, so publishing a fix for an older
+      # line (v0.2.5 after v0.3.0) does not move it back. Pre-releases never get it.
+      - name: Is this the highest release?
+        id: latest
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          highest=$(git tag --list 'v*.*.*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          if [ "$TAG" = "$highest" ]; then latest=true; else latest=false; fi
+          echo "Highest release: ${highest:-none}. Tag latest: $latest"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Image tags and labels
+        id: meta
+        uses: docker/metadata-action@v6
+        env:
+          # GHCR reads a multi-arch image's description from the index.
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+        with:
+          # Revision and created date come from the checked-out tag, not the
+          # branch a manual run was started from.
+          context: git
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}},value=${{ steps.tag.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.tag.outputs.tag }}
+            type=raw,value=latest,enable=${{ steps.latest.outputs.latest }}
+          labels: |
+            org.opencontainers.image.title=bukmark
+            org.opencontainers.image.description=${{ env.DESCRIPTION }}
+            org.opencontainers.image.licenses=MIT
+          annotations: |
+            org.opencontainers.image.title=bukmark
+            org.opencontainers.image.description=${{ env.DESCRIPTION }}
+            org.opencontainers.image.licenses=MIT
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: VERSION=${{ steps.meta.outputs.version }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  smoke:
+    name: Smoke test (${{ matrix.platform }})
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    env:
+      # The exact multi-arch image just pushed, by digest.
+      APP_IMAGE: ghcr.io/xooxoxxo/bukmark@${{ needs.publish.outputs.digest }}
+      APP_PLATFORM: ${{ matrix.platform }}
+    steps:
+      - name: Set up QEMU
+        if: matrix.platform != 'linux/amd64'
+        uses: docker/setup-qemu-action@v4
+
+      # The package is private until it is made public; this also works after.
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start bukmark and Postgres
+        run: |
+          cat > compose.yml <<'EOF'
+          services:
+            db:
+              image: pgvector/pgvector:pg17
+              environment:
+                POSTGRES_USER: bukmark
+                POSTGRES_PASSWORD: smoke
+                POSTGRES_DB: bukmark
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U bukmark"]
+                interval: 2s
+                timeout: 3s
+                retries: 30
+            app:
+              image: ${APP_IMAGE}
+              platform: ${APP_PLATFORM}
+              environment:
+                DATABASE_URL: postgres://bukmark:smoke@db:5432/bukmark
+                BUKMARK_CHECK_PAGES: "false"
+              ports: ["127.0.0.1:3000:3000"]
+              depends_on:
+                db: { condition: service_healthy }
+          EOF
+          docker compose up -d
+
+      - name: Wait for /healthz
+        run: |
+          # Emulated arm64 starts slowly; allow five minutes.
+          for _ in $(seq 1 150); do
+            if curl -fs http://127.0.0.1:3000/healthz; then echo; exit 0; fi
+            sleep 2
+          done
+          echo "::error::bukmark did not answer /healthz within five minutes"
+          exit 1
+
+      - name: Check the platform, the web app, the migrations and the user
+        run: |
+          set -eu
+          arch=$(docker compose exec -T app uname -m)
+          echo "Architecture: $arch"
+          case "$APP_PLATFORM" in
+            linux/amd64) test "$arch" = x86_64 ;;
+            linux/arm64) test "$arch" = aarch64 ;;
+          esac
+
+          html=$(curl -fsS http://127.0.0.1:3000/)
+          case "$html" in
+            *'<div id="root">'*) echo "Web app: served" ;;
+            *) echo "::error::/ did not return the web app"; exit 1 ;;
+          esac
+
+          expected=$(docker compose exec -T app node -e 'console.log(require("/app/apps/server/drizzle/meta/_journal.json").entries.length)')
+          applied=$(docker compose exec -T db psql -U bukmark -d bukmark -tAc 'select count(*) from drizzle.__drizzle_migrations')
+          echo "Migrations: $applied applied, $expected in the image"
+          test "$applied" -gt 0
+          test "$applied" = "$expected"
+
+          uid=$(docker compose exec -T app id -u)
+          echo "User id: $uid"
+          test "$uid" != 0
+
+      - name: Show logs
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop
+        if: always()
+        run: docker compose down -v
