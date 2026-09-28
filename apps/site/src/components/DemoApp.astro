@@ -395,6 +395,23 @@ const host = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 		padding: var(--bk-space-md);
 	}
 
+	/* The filter hides items with the hidden attribute; an author display
+	   rule would otherwise win over it and nothing would ever disappear. */
+	.demo__item[hidden] {
+		display: none !important;
+	}
+
+	/* Rows as tall as their cards: in the height-limited scroller, rows
+	   stretched or shrunk to fit would cut titles off. */
+	.demo[data-view='grid'] .demo__items {
+		grid-auto-rows: max-content;
+		align-content: start;
+	}
+
+	.demo[data-view='grid'] .demo__item > * {
+		flex-shrink: 0;
+	}
+
 	.demo[data-view='grid'] .demo__item {
 		display: flex;
 		flex-direction: column;

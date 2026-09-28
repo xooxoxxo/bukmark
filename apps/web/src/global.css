@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..120,400;12..120,700;12..120,800&family=Geist:wght@400;500;600;700&display=swap');
+/* Bricolage's optical-size axis runs 12..96. A range beyond it (12..120 was here)
+   makes Google drop the family from the stylesheet without an error, and every
+   heading silently falls back to a system face. */
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Geist:wght@400;500;600;700&display=swap');
 
 :root {
   /* Brand tokens from design.md */

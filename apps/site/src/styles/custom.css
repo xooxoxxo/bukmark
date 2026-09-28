@@ -4,7 +4,10 @@
    and ink are exact samples from the logo artwork, kept as hex so they never
    drift from it; public/logo-mark.svg is drawn in the accent by
    apps/web/scripts/icons.ts. */
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..120,400;12..120,700;12..120,800&family=Geist:wght@400;500;600;700&display=swap');
+/* Bricolage's optical-size axis runs 12..96. A range beyond it (12..120 was here)
+   makes Google drop the family from the stylesheet without an error, and every
+   heading silently falls back to a system face. */
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Geist:wght@400;500;600;700&display=swap');
 
 /* One header height for the landing page and the docs, so moving between
    them never shifts the page: the landing header uses it directly, Starlight
@@ -29,7 +32,7 @@
   --bk-neutral: oklch(56% 0.008 40);
   --bk-muted: oklch(40% 0.008 40);
   --bk-ink: #0e0f13;              /* logo wordmark ink (exact) */
-  --bk-code-bg: #e8e7e4;  /* = bukmarkLight bg in code-themes.mjs */
+  --bk-code-bg: #fbf7f3;  /* = bukmarkLight bg in code-themes.mjs */
   --bk-accent: #fd441d;           /* logo orange (exact) */
 
   /* Typography */
@@ -106,7 +109,7 @@
   --bk-muted: oklch(82% 0.008 40);
   --bk-ink: oklch(94% 0.006 40);
   --bk-text: oklch(82% 0.006 40);
-  --bk-code-bg: #26221f;  /* = bukmarkDark bg */
+  --bk-code-bg: #100c0b;  /* = bukmarkDark bg: the dark paper */
 
   --sl-color-accent-low: oklch(32% 0.09 33);
   --sl-color-gray-1: var(--bk-muted);
@@ -130,7 +133,7 @@
     --bk-muted: oklch(82% 0.008 40);
     --bk-ink: oklch(94% 0.006 40);
     --bk-text: oklch(82% 0.006 40);
-    --bk-code-bg: #26221f;
+    --bk-code-bg: #100c0b;
     --sl-color-accent-low: oklch(32% 0.09 33);
     color-scheme: dark;
   }
@@ -403,6 +406,12 @@ header.header {
 .expressive-code :is(.frame, pre, code) {
   border-radius: 0;
   box-shadow: none;
+}
+
+/* The install card's look: the page's paper, the ink frame, and an orange
+   edge that says "this is something to run". */
+.expressive-code .frame pre {
+  border-inline-start: 4px solid var(--bk-accent);
 }
 
 .sl-markdown-content table {

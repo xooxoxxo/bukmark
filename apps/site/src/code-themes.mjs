@@ -3,9 +3,11 @@
 // literals, one teal for strings, gray for comments -- because a code block is
 // read, not decorated. Every colour clears 5:1 on its background.
 //
-// The background here must match --bk-code-bg in custom.css: Expressive Code
-// checks token contrast against the theme's own background at build time, so
-// a mismatch would make it "correct" colours against the wrong surface.
+// The background is the page's own paper (--bk-code-bg in custom.css is the
+// same value): a code block is set apart by its frame and orange edge, not by
+// a grey fill. It must match, because Expressive Code checks token contrast
+// against the theme's own background at build time and would otherwise
+// "correct" colours against the wrong surface.
 
 const roles = (c) => [
   {
@@ -48,7 +50,7 @@ const make = (name, type, c) => ({
 });
 
 export const bukmarkLight = make('bukmark-light', 'light', {
-  bg: '#e8e7e4',
+  bg: '#fbf7f3',
   text: '#0e0f13',
   orange: '#b1300c',
   teal: '#0b5c66',
@@ -57,7 +59,7 @@ export const bukmarkLight = make('bukmark-light', 'light', {
 });
 
 export const bukmarkDark = make('bukmark-dark', 'dark', {
-  bg: '#26221f',
+  bg: '#100c0b',
   text: '#efeae4',
   orange: '#ff7d55',
   teal: '#6fcfc3',
