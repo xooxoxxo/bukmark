@@ -146,9 +146,13 @@ const host = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 </script>
 
 <style>
+	/* A window onto the app, not the whole page: past this height the link
+	   list scrolls inside it, as the real app's does. */
 	.demo {
 		display: grid;
 		grid-template-columns: 13rem minmax(0, 1fr);
+		grid-template-rows: minmax(0, 1fr);
+		height: min(42rem, 78vh);
 		border: 2px solid var(--bk-ink);
 		background: var(--bk-paper);
 		color: var(--bk-ink);
@@ -158,6 +162,8 @@ const host = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 
 	/* ---- Sidebar ---- */
 	.demo__side {
+		min-height: 0;
+		overflow-y: auto;
 		border-right: 2px solid var(--bk-ink);
 		padding-bottom: var(--bk-space-md);
 	}
@@ -221,7 +227,10 @@ const host = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 
 	/* ---- Toolbar ---- */
 	.demo__main {
+		display: flex;
+		flex-direction: column;
 		min-width: 0;
+		min-height: 0;
 	}
 
 	.demo__bar {
@@ -299,8 +308,12 @@ const host = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 
 	/* ---- Items: list ---- */
 	.demo__items {
+		flex: 1 1 auto;
+		min-height: 0;
 		margin: 0;
 		padding: 0 var(--bk-space-md);
+		overflow-y: auto;
+		overscroll-behavior: contain;
 		list-style: none;
 	}
 
@@ -424,6 +437,8 @@ const host = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 	@media (max-width: 64rem) {
 		.demo {
 			grid-template-columns: minmax(0, 1fr);
+			grid-template-rows: auto minmax(0, 1fr);
+			height: min(40rem, 82vh);
 		}
 
 		.demo__side {

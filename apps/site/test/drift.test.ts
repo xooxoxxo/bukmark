@@ -88,8 +88,17 @@ describe('docs cover what turning on auth changes', () => {
 
   it('has the landing quickstart set the password and log the extension in', () => {
     const landing = read('apps/site/src/pages/index.astro');
-    const quickstart = /<div class="install-command">([\s\S]*?)<\/div>/.exec(landing)?.[1] ?? '';
-    expect(quickstart).toMatch(/set your password/);
-    expect(quickstart).toMatch(/log in/);
+    const next = /<ol class="install__next">([\s\S]*?)<\/ol>/.exec(landing)?.[1] ?? '';
+    expect(next).toMatch(/set your password/);
+    expect(next).toMatch(/log in/);
+  });
+
+  it('offers on the landing page only install commands the install guide documents', () => {
+    const landing = read('apps/site/src/pages/index.astro');
+    const lines = [...landing.matchAll(/lines: \[([^\]]*)\]/g)].flatMap((m) => [...m[1]!.matchAll(/'([^']+)'/g)].map((q) => q[1]!));
+    expect(lines).toContain('docker compose up -d');
+    const documented = read('apps/site/src/content/docs/docs/install.md') + read('README.md');
+    const clone = lines.find((l) => l.startsWith('git clone'));
+    expect(clone && documented.includes(clone)).toBe(true);
   });
 });

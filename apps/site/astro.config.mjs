@@ -20,6 +20,8 @@ export default defineConfig({
         { icon: 'github', label: 'GitHub', href: 'https://github.com/xooxoxxo/bukmark' },
       ],
       customCss: ['./src/styles/custom.css'],
+      // Share images and titles for every docs page (src/og/, src/pages/og/).
+      routeMiddleware: './src/routeData.ts',
       expressiveCode: {
         themes: [bukmarkDark, bukmarkLight],
         // 'code', not the default 'auto': 'auto' gives shell languages a fake

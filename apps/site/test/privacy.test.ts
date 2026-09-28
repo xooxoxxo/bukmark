@@ -209,7 +209,8 @@ describe('the privacy page names every outside service the site and the web app 
     for (const file of files) {
       const src = read(file);
       for (const m of src.matchAll(/@import url\(['"]?https:\/\/([^/'")]+)/g)) hosts.add(m[1]!);
-      for (const m of src.matchAll(/<link\b[^>]*href="https:\/\/([^/"]+)/g)) hosts.add(m[1]!);
+      // A canonical link names the page's own address; the browser loads nothing from it.
+      for (const m of src.matchAll(/<link\b(?![^>]*rel="canonical")[^>]*href="https:\/\/([^/"]+)/g)) hosts.add(m[1]!);
       for (const m of src.matchAll(/<script\b[^>]*src="https:\/\/([^/"]+)/g)) hosts.add(m[1]!);
     }
     return hosts;

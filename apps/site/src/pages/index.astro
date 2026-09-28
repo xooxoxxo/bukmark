@@ -2,6 +2,37 @@
 // The landing page is intentionally independent from Starlight's docs layout.
 import '../styles/custom.css';
 import DemoApp from '../components/DemoApp.astro';
+
+// What a shared link to the landing page shows: the promise, then what it is.
+const SHARE = {
+	title: 'bukmark — bookmarks you own',
+	description:
+		'A self-hosted bookmark manager. Save any page in one click, search the text of everything you saved, and sort it with AI. Open source; runs on your own server.',
+	image: 'https://bukmark.it/og/home.png',
+	alt: 'bukmark: Bookmarks you own. Save any page in one click. Search what you saved. Sort it with AI. Self-hosted, open source, for Chrome, Firefox and Safari.',
+};
+
+// The ways in, quickest first. All need Docker; the install guide has the rest.
+const CHANNELS = [
+	{
+		id: 'script',
+		label: 'Script',
+		lines: ['curl -fsSL https://bukmark.it/install.sh | sh'],
+		note: 'Needs Docker. Installs the bukmark command in your home folder, no sudo.',
+	},
+	{
+		id: 'brew',
+		label: 'Homebrew',
+		lines: ['brew install xooxoxxo/tap/bukmark', 'bukmark setup'],
+		note: 'Needs Docker Desktop, OrbStack or Colima.',
+	},
+	{
+		id: 'docker',
+		label: 'Docker',
+		lines: ['git clone https://github.com/xooxoxxo/bukmark.git', 'cd bukmark', 'docker compose up -d'],
+		note: 'Builds from source with Docker Compose.',
+	},
+];
 ---
 
 <!doctype html>
@@ -10,10 +41,24 @@ import DemoApp from '../components/DemoApp.astro';
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<title>bukmark — bookmarks you own</title>
-		<meta
-			name="description"
-			content="Self-hosted bookmark manager built around triage. Capture in one click. Everything lands unsorted on purpose — sorting is a separate, deliberate pass you run when you choose."
-		/>
+		<meta name="description" content={SHARE.description} />
+		<link rel="canonical" href="https://bukmark.it/" />
+		<meta name="theme-color" content="#0e0f13" />
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="bukmark" />
+		<meta property="og:url" content="https://bukmark.it/" />
+		<meta property="og:title" content={SHARE.title} />
+		<meta property="og:description" content={SHARE.description} />
+		<meta property="og:image" content={SHARE.image} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content={SHARE.alt} />
+		<meta property="og:locale" content="en" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={SHARE.title} />
+		<meta name="twitter:description" content={SHARE.description} />
+		<meta name="twitter:image" content={SHARE.image} />
+		<meta name="twitter:image:alt" content={SHARE.alt} />
 		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 		<link rel="icon" href="/favicon.png" type="image/png" sizes="64x64" />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -70,13 +115,49 @@ import DemoApp from '../components/DemoApp.astro';
 								<a class="button button--outline" href="/docs/install">Get started</a>
 							</div>
 						</div>
-						<div class="install-command">
-							<pre><code>git clone https://github.com/xooxoxxo/bukmark.git bukmark &amp;&amp; cd bukmark
-docker compose up -d</code></pre>
-							<p>
-								Open <code>localhost:3000</code> and set your password. Install the browser
-								extension and log in. Start capturing.
-							</p>
+						<div class="install-command" data-install>
+							<div class="install__bar">
+								<span class="install__label">Install</span>
+								<div class="install__tabs" role="tablist" aria-label="How to install">
+									{CHANNELS.map((c, i) => (
+										<button
+											type="button"
+											role="tab"
+											id={`install-tab-${c.id}`}
+											aria-controls={`install-${c.id}`}
+											aria-selected={i === 0 ? 'true' : 'false'}
+											tabindex={i === 0 ? 0 : -1}
+										>
+											{c.label}
+										</button>
+									))}
+								</div>
+							</div>
+							{CHANNELS.map((c, i) => (
+								<div
+									class="install__panel"
+									role="tabpanel"
+									id={`install-${c.id}`}
+									aria-labelledby={`install-tab-${c.id}`}
+									data-selected={i === 0 ? 'true' : 'false'}
+								>
+									<h3 class="install__panel-title">{c.label}</h3>
+									<pre class="install__code"><code>{c.lines.map((line) => (
+										<span class="install__line"><span class="install__prompt" aria-hidden="true">$ </span>{line}</span>
+									))}</code></pre>
+									<div class="install__foot">
+										<p class="install__note">{c.note}</p>
+										<button type="button" class="install__copy" data-copy={c.lines.join('\n')}>
+											Copy
+										</button>
+									</div>
+								</div>
+							))}
+							<ol class="install__next">
+								<li>Open <code>localhost:3000</code> and set your password.</li>
+								<li>Add the browser extension and log in.</li>
+								<li>Save your first page.</li>
+							</ol>
 						</div>
 					</div>
 				</div>
@@ -174,6 +255,42 @@ docker compose up -d</code></pre>
 
 		<script>
 			document.documentElement.classList.add('js');
+
+			// Install card: arrow keys move between the tabs, as the ARIA tabs pattern expects.
+			for (const card of document.querySelectorAll<HTMLElement>('[data-install]')) {
+				const tabs = [...card.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+				const select = (tab: HTMLButtonElement, focus = false) => {
+					for (const t of tabs) {
+						const on = t === tab;
+						t.setAttribute('aria-selected', String(on));
+						t.tabIndex = on ? 0 : -1;
+						card.querySelector<HTMLElement>(`#${t.getAttribute('aria-controls')}`)?.setAttribute('data-selected', String(on));
+					}
+					if (focus) tab.focus();
+				};
+				tabs.forEach((tab, i) => {
+					tab.addEventListener('click', () => select(tab));
+					tab.addEventListener('keydown', (e) => {
+						const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+						if (step) select(tabs[(i + step + tabs.length) % tabs.length]!, true);
+					});
+				});
+				for (const button of card.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+					button.addEventListener('click', async () => {
+						try {
+							await navigator.clipboard.writeText(button.dataset.copy ?? '');
+						} catch {
+							return;
+						}
+						button.textContent = 'Copied';
+						button.dataset.copied = '';
+						setTimeout(() => {
+							button.textContent = 'Copy';
+							delete button.dataset.copied;
+						}, 1600);
+					});
+				}
+			}
 			const targets = document.querySelectorAll<HTMLElement>('.reveal');
 			const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 			if (reducedMotion || !('IntersectionObserver' in window)) {
@@ -227,8 +344,8 @@ docker compose up -d</code></pre>
 				grid-template-columns: minmax(0, 1fr) auto auto;
 				align-items: center;
 				gap: clamp(1rem, 3vw, 3rem);
-				min-height: 5.5rem;
-				padding: var(--bk-space-md) clamp(1.25rem, 4vw, 4rem);
+				height: var(--bk-header-h);
+				padding: 0 clamp(1.25rem, 4vw, 4rem);
 				border-bottom: 2px solid var(--bk-ink);
 			}
 			.brand {
@@ -322,18 +439,118 @@ docker compose up -d</code></pre>
 			}
 			.button-row { display: flex; flex-wrap: wrap; gap: var(--bk-space-md); }
 			.install-command { grid-column: 7 / -1; }
-			.install-command pre {
-				overflow-x: auto;
-				margin: 0;
-				padding: var(--bk-space-lg);
+			/* The install card: one orange bar to pick a way in, the commands on the
+			   page's own paper, and the three steps after. Orange text on a dark bar
+			   would fail contrast in dark mode, so the bar's ink is fixed. */
+			.install-command {
+				min-width: 0;
 				border: 2px solid var(--bk-ink);
-				background: var(--bk-code-bg);
-				font-family: var(--bk-font-mono);
-				font-size: var(--bk-text-sm);
-				line-height: 1.65;
+				background: var(--bk-paper);
 			}
-			.install-command p { margin: var(--bk-space-md) 0 0; color: var(--bk-muted); font-size: var(--bk-text-sm); }
-			.install-command p code { font-family: var(--bk-font-mono); color: var(--bk-ink); }
+			.install__bar {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: stretch;
+				justify-content: space-between;
+				gap: var(--bk-space-xs) var(--bk-space-md);
+				padding: var(--bk-space-xs) var(--bk-space-xs) var(--bk-space-xs) var(--bk-space-md);
+				border-bottom: 2px solid var(--bk-ink);
+				background: var(--bk-accent);
+				color: #0e0f13;
+			}
+			.install__label {
+				align-self: center;
+				font-family: var(--bk-font-display);
+				font-size: var(--bk-text-sm);
+				font-weight: 800;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+			}
+			.install__tabs { display: flex; flex-wrap: wrap; gap: 2px; }
+			.install__tabs button {
+				min-height: 2.5rem;
+				padding: 0 var(--bk-space-md);
+				border: 2px solid transparent;
+				background: transparent;
+				color: #0e0f13;
+				font-family: var(--bk-font-display);
+				font-size: var(--bk-text-sm);
+				font-weight: 800;
+				cursor: pointer;
+			}
+			.install__tabs button:hover { border-color: #0e0f13; }
+			.install__tabs button[aria-selected='true'] { border-color: #0e0f13; background: #0e0f13; color: #fbf7f3; }
+			.install__tabs button:focus-visible { outline: 2px solid #0e0f13; outline-offset: 2px; }
+			.install__panel { padding: var(--bk-space-lg) var(--bk-space-lg) var(--bk-space-md); }
+			/* Without script every way in shows, one after another, each under its name. */
+			.install__panel + .install__panel { border-top: 1px solid var(--bk-rule); }
+			.js .install__panel + .install__panel { border-top: 0; }
+			.js .install__panel[data-selected='false'] { display: none; }
+			.install__panel-title {
+				margin: 0 0 var(--bk-space-sm);
+				font-family: var(--bk-font-display);
+				font-size: var(--bk-text-xs);
+				font-weight: 800;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+			}
+			.js .install__panel-title { display: none; }
+			.install__code {
+				margin: 0;
+				font-family: var(--bk-font-mono);
+				font-size: clamp(0.8125rem, 1.05vw, 0.9375rem);
+				line-height: 1.7;
+				white-space: pre-wrap;
+				overflow-wrap: anywhere;
+			}
+			.install__line { display: block; padding-left: 1.4em; text-indent: -1.4em; }
+			.install__prompt { color: var(--bk-accent); font-weight: 700; user-select: none; }
+			.install__foot {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: var(--bk-space-md);
+				margin-top: var(--bk-space-md);
+			}
+			.install__note { margin: 0; color: var(--bk-muted); font-size: var(--bk-text-xs); }
+			.install__copy {
+				flex-shrink: 0;
+				min-height: 2.25rem;
+				padding: 0 var(--bk-space-md);
+				border: 2px solid var(--bk-ink);
+				background: transparent;
+				color: var(--bk-ink);
+				font-family: var(--bk-font-display);
+				font-size: var(--bk-text-xs);
+				font-weight: 800;
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+				cursor: pointer;
+				transition: background-color var(--bk-dur-micro) var(--bk-ease-out), color var(--bk-dur-micro) var(--bk-ease-out);
+			}
+			.install__copy:hover { border-color: var(--bk-accent); color: var(--bk-accent); }
+			.install__copy[data-copied] { border-color: var(--bk-accent); background: var(--bk-accent); color: #0e0f13; }
+			.install__copy:focus-visible { outline: 2px solid var(--bk-accent); outline-offset: 2px; }
+			.install__next {
+				display: grid;
+				gap: var(--bk-space-xs);
+				margin: 0;
+				padding: var(--bk-space-md) var(--bk-space-lg) var(--bk-space-lg);
+				border-top: 2px solid var(--bk-ink);
+				counter-reset: step;
+				list-style: none;
+				font-size: var(--bk-text-sm);
+			}
+			.install__next li { display: flex; gap: var(--bk-space-sm); counter-increment: step; }
+			.install__next li::before {
+				content: counter(step);
+				flex-shrink: 0;
+				width: 1.5em;
+				color: var(--bk-accent);
+				font-family: var(--bk-font-display);
+				font-weight: 800;
+			}
+			.install__next code { padding: 0; background: none; font-family: var(--bk-font-mono); font-size: 0.95em; }
 			.workflow,
 			.product-view,
 			.closing { padding: clamp(5rem, 10vw, 10rem) clamp(1.25rem, 4vw, 4rem); }
@@ -435,7 +652,7 @@ docker compose up -d</code></pre>
 				.closing__action { grid-column: 8 / -1; }
 			}
 			@media (max-width: 48rem) {
-				.site-header { grid-template-columns: minmax(0, 1fr) auto; min-height: 4.75rem; }
+				.site-header { grid-template-columns: minmax(0, 1fr) auto; }
 				.site-header nav { display: none; }
 				.brand { font-size: var(--bk-text-md); }
 				.brand__logo { height: 1.55rem; }

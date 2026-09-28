@@ -6,6 +6,21 @@
    apps/web/scripts/icons.ts. */
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..120,400;12..120,700;12..120,800&family=Geist:wght@400;500;600;700&display=swap');
 
+/* One header height for the landing page and the docs, so moving between
+   them never shifts the page: the landing header uses it directly, Starlight
+   through --sl-nav-height (it sets its own inside a cascade layer, which an
+   unlayered rule overrides). */
+:root {
+  --bk-header-h: 4rem;
+  --sl-nav-height: var(--bk-header-h);
+}
+
+@media (min-width: 50rem) {
+  :root {
+    --bk-header-h: 5rem;
+  }
+}
+
 :root {
   /* Color — warm brutalist palette anchored on the logo */
   --bk-paper: #fbf7f3;            /* logo background cream (exact) */
@@ -63,7 +78,10 @@
   --sl-color-gray-6: var(--bk-paper-2);
   --sl-font: var(--bk-font-body);
   --sl-font-headings: var(--bk-font-display);
-  --sl-content-width: 52rem;
+  /* About 70 characters a line: long lines were most of the wall of text. */
+  --sl-content-width: 42rem;
+  /* Running text sits a step below the headings, so the eye finds structure. */
+  --bk-text: oklch(32% 0.008 40);
   --sl-text-5xl: clamp(2.75rem, 6vw, 5.5rem);
 }
 
@@ -87,6 +105,7 @@
   --bk-neutral: oklch(68% 0.008 40);
   --bk-muted: oklch(82% 0.008 40);
   --bk-ink: oklch(94% 0.006 40);
+  --bk-text: oklch(82% 0.006 40);
   --bk-code-bg: #26221f;  /* = bukmarkDark bg */
 
   --sl-color-accent-low: oklch(32% 0.09 33);
@@ -110,6 +129,7 @@
     --bk-neutral: oklch(68% 0.008 40);
     --bk-muted: oklch(82% 0.008 40);
     --bk-ink: oklch(94% 0.006 40);
+    --bk-text: oklch(82% 0.006 40);
     --bk-code-bg: #26221f;
     --sl-color-accent-low: oklch(32% 0.09 33);
     color-scheme: dark;
@@ -194,14 +214,26 @@ header.header {
   max-width: 90rem;
 }
 
+/* Docs typography. Four clear levels instead of one grey wall: a lead
+   paragraph, numbered sections with an orange index, steps as orange numbered
+   blocks, and running text a step softer than the headings. Notes and
+   details are boxed off so they read as asides, not as more body text. */
 .sl-markdown-content {
-  color: var(--bk-ink);
+  counter-reset: bk-section;
+  color: var(--bk-text);
   font-size: var(--bk-text-base);
-  line-height: 1.72;
+  line-height: 1.7;
 }
 
 .sl-markdown-content > :first-child {
   margin-top: 0;
+}
+
+/* The opening paragraph says what the page is for: larger and full ink. */
+.sl-markdown-content > p:first-child {
+  color: var(--bk-ink);
+  font-size: var(--bk-text-md);
+  line-height: 1.55;
 }
 
 .sl-markdown-content :is(h1, h2, h3, h4) {
@@ -220,25 +252,53 @@ header.header {
 
 /* The section rule belongs on the wrapper: Starlight renders the h2 itself
    inline, beside its anchor link, so a border on the h2 spans only the words
-   and reads as a stray stub rather than a section break. */
+   and reads as a stray stub rather than a section break. The wrapper also
+   carries the section's number. */
 .sl-markdown-content .sl-heading-wrapper.level-h2 {
+  counter-increment: bk-section;
   margin-top: var(--bk-space-2xl);
-  padding-top: var(--bk-space-lg);
+  padding-top: var(--bk-space-md);
   border-top: 2px solid var(--bk-ink);
 }
 
+.sl-markdown-content .sl-heading-wrapper.level-h2::before {
+  content: counter(bk-section, decimal-leading-zero);
+  display: block;
+  margin-bottom: var(--bk-space-xs);
+  color: var(--bk-accent);
+  font-family: var(--bk-font-mono);
+  font-size: var(--bk-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
 .sl-markdown-content h2 {
-  font-size: clamp(1.8rem, 3vw, 2.75rem);
-  line-height: 1.05;
+  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
+  line-height: 1.08;
+}
+
+.sl-markdown-content .sl-heading-wrapper.level-h3 {
+  margin-top: var(--bk-space-xl);
 }
 
 .sl-markdown-content h3 {
-  font-size: var(--bk-text-lg);
-  line-height: 1.15;
+  font-size: var(--bk-text-md);
+  line-height: 1.2;
+}
+
+.sl-markdown-content h4 {
+  font-size: var(--bk-text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .sl-markdown-content :is(p, li) {
   text-wrap: pretty;
+}
+
+.sl-markdown-content strong {
+  color: var(--bk-ink);
+  font-weight: 700;
 }
 
 .sl-markdown-content a:not([class]) {
@@ -247,12 +307,78 @@ header.header {
   text-underline-offset: 0.2em;
 }
 
+/* Steps: an orange numbered block per step, so a procedure reads as one. */
+.sl-markdown-content ol {
+  padding-inline-start: 0;
+  counter-reset: bk-step;
+  list-style: none;
+}
+
+.sl-markdown-content ol > li {
+  position: relative;
+  padding-inline-start: 2.6rem;
+  counter-increment: bk-step;
+}
+
+.sl-markdown-content ol > li + li {
+  margin-top: var(--bk-space-sm);
+}
+
+.sl-markdown-content ol > li::before {
+  content: counter(bk-step);
+  position: absolute;
+  top: 0.15em;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  background: var(--bk-accent);
+  color: #0e0f13;
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-xs);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.sl-markdown-content ul > li::marker {
+  color: var(--bk-accent);
+}
+
+.sl-markdown-content ul > li + li {
+  margin-top: var(--bk-space-2xs);
+}
+
 .sl-markdown-content :not(pre) > code {
-  border: 1px solid var(--bk-rule);
+  padding: 0.1em 0.35em;
+  border: 0;
   border-radius: 0;
   background: var(--bk-paper-2);
   color: var(--bk-ink);
   font-family: var(--bk-font-mono);
+  font-size: 0.88em;
+}
+
+/* Details: the rarely needed part of a section, closed until asked for. */
+.sl-markdown-content details {
+  margin-top: var(--bk-space-md);
+  padding: var(--bk-space-sm) var(--bk-space-md);
+  border: 2px solid var(--bk-ink);
+}
+
+.sl-markdown-content details[open] > summary {
+  margin-bottom: var(--bk-space-sm);
+}
+
+.sl-markdown-content summary {
+  color: var(--bk-ink);
+  font-family: var(--bk-font-display);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sl-markdown-content summary::marker {
+  color: var(--bk-accent);
 }
 
 /* Drive Expressive Code through its own variables. It already ships a light
@@ -300,13 +426,27 @@ header.header {
   text-align: left;
 }
 
-starlight-aside {
+starlight-aside,
+.starlight-aside {
   border: 0;
-  border-inline-start: 4px solid var(--bk-ink);
+  border-inline-start: 4px solid var(--bk-accent);
   border-radius: 0;
   background: var(--bk-paper-2);
   color: var(--bk-ink);
   box-shadow: none;
+}
+
+.starlight-aside--caution,
+.starlight-aside--danger {
+  border-inline-start-color: var(--danger, #dc2626);
+}
+
+.starlight-aside__title {
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .card,
