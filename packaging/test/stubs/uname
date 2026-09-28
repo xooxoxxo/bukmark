@@ -1,0 +1,7 @@
+#!/bin/sh
+# Fake uname: `uname -s` says $FAKE_UNAME when set, the real one otherwise.
+if [ -n "${FAKE_UNAME:-}" ] && [ "${1:-}" = -s ]; then
+  echo "$FAKE_UNAME"
+  exit 0
+fi
+exec "${REAL_UNAME:?}" "$@"

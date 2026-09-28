@@ -1,0 +1,72 @@
+#!/bin/sh
+# Fake docker for the bats tests. It logs each call to $FAKE_LOG and answers
+# the calls the bukmark scripts make. Knobs, all off unless set to 1:
+#   FAKE_NO_DAEMON      docker info fails, as with a stopped daemon
+#   FAKE_NO_PERMISSION  docker info fails with "permission denied"
+#   FAKE_NO_COMPOSE     docker compose is not there
+#   FAKE_RUNNING        the app container is running
+#   FAKE_OLD_VOLUME     the bukmark_pgdata volume exists
+#   FAKE_PULL_FAILS     docker compose pull fails
+#   FAKE_PULL_NEW       docker compose pull brings a new app image
+#   FAKE_NO_IMAGES      no image is on this machine
+printf 'docker %s\n' "$*" >>"${FAKE_LOG:?}"
+# The CLI must hand compose its .env alone, not the caller's environment.
+if [ -n "${PORT+x}" ] || [ -n "${POSTGRES_PASSWORD+x}" ]; then
+  printf 'LEAK PORT=%s POSTGRES_PASSWORD=%s\n' "${PORT-}" "${POSTGRES_PASSWORD-}" >>"$FAKE_LOG"
+fi
+image_id=$FAKE_LOG.image-id
+
+case ${1:-} in
+  info)
+    if [ "${FAKE_NO_PERMISSION:-}" = 1 ]; then
+      echo "permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock" >&2
+      exit 1
+    fi
+    if [ "${FAKE_NO_DAEMON:-}" = 1 ]; then
+      echo "Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?" >&2
+      exit 1
+    fi
+    echo "Server Version: 27.0.0"
+    ;;
+  volume)
+    [ "${FAKE_OLD_VOLUME:-}" = 1 ] || exit 1
+    ;;
+  image)
+    [ "${FAKE_NO_IMAGES:-}" != 1 ] || exit 1
+    case "$*" in
+      *--format*) if [ -f "$image_id" ]; then cat "$image_id"; else echo sha256:1111; fi ;;
+    esac
+    ;;
+  compose)
+    shift
+    while [ $# -gt 0 ]; do
+      case $1 in
+        -p | --project-directory | -f | --env-file) shift 2 ;;
+        *) break ;;
+      esac
+    done
+    case ${1:-} in
+      version)
+        if [ "${FAKE_NO_COMPOSE:-}" = 1 ]; then
+          echo "docker: 'compose' is not a docker command." >&2
+          exit 1
+        fi
+        echo "Docker Compose version v2.29.7"
+        ;;
+      ps)
+        case "$*" in
+          *-q*) if [ "${FAKE_RUNNING:-}" = 1 ]; then echo 0123456789ab; fi ;;
+          *) echo "NAME            IMAGE     SERVICE   STATUS" ;;
+        esac
+        ;;
+      pull)
+        if [ "${FAKE_PULL_FAILS:-}" = 1 ]; then
+          echo "Error response from daemon: pull access denied" >&2
+          exit 1
+        fi
+        if [ "${FAKE_PULL_NEW:-}" = 1 ]; then echo sha256:2222 >"$image_id"; fi
+        ;;
+    esac
+    ;;
+esac
+exit 0

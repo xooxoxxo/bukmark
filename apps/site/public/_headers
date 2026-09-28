@@ -1,0 +1,14 @@
+# Cloudflare Pages response headers (https://developers.cloudflare.com/pages/configuration/headers/).
+
+# The installer and the command it installs are shell scripts that people
+# should be able to read in a browser before they run them. A short cache
+# lets a new release reach everyone within five minutes.
+/install.sh
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=300
+  X-Content-Type-Options: nosniff
+
+/bukmark
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=300
+  X-Content-Type-Options: nosniff

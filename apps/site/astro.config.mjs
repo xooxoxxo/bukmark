@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import { bukmarkDark, bukmarkLight } from './src/code-themes.mjs';
+import { packagingFiles } from './src/packaging.mjs';
 
 export default defineConfig({
   site: 'https://bukmark.it',
@@ -50,5 +51,7 @@ export default defineConfig({
         },
       ],
     }),
+    // dist/install.sh and dist/bukmark, from packaging/ (src/packaging.mjs).
+    packagingFiles(),
   ],
 });

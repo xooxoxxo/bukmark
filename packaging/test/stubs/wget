@@ -1,0 +1,25 @@
+#!/bin/sh
+# Fake wget, for a machine without curl: the same answers as stubs/curl,
+# with wget's messages. It fetches file:// URLs, as a stand-in for https.
+printf 'wget %s\n' "$*" >>"${FAKE_LOG:?}"
+for arg in "$@"; do url=$arg; done
+case ${url:-} in
+  file://*)
+    # Stand-in for an https download: wget -q -O FILE URL.
+    [ -f "${url#file://}" ] || exit 8
+    cp "${url#file://}" "$3"
+    exit 0
+    ;;
+  */api/auth/status)
+    if [ "${FAKE_SETUP_COMPLETE:-}" = 1 ]; then echo '{"setupComplete":true}'; else echo '{"setupComplete":false}'; fi
+    exit 0
+    ;;
+  */healthz) if [ "${FAKE_UNHEALTHY:-}" = 1 ]; then exit 4; fi; exit 0 ;;
+esac
+port=${url#http://127.0.0.1:}
+port=${port%%/*}
+case " ${FAKE_BUSY_PORTS:-} " in
+  *" $port "*) exit 8 ;;
+esac
+echo "Connecting to 127.0.0.1:$port... failed: Connection refused." >&2
+exit 4

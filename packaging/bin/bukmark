@@ -1,0 +1,615 @@
+#!/bin/sh
+# bukmark: set up and run your own bukmark server with Docker Compose.
+#
+# Everything lives in one folder, $BUKMARK_HOME (default ~/.bukmark):
+#   compose.yml  written by this command on every run; do not edit it
+#   .env         your settings; `bukmark setup` writes it once, then it is yours
+# The server runs from the published image, so nothing is built here.
+#
+# Docs: https://bukmark.it/docs/install/
+set -eu
+
+BUKMARK_CLI_VERSION=0.3.0
+
+DEFAULT_IMAGE=ghcr.io/xooxoxxo/bukmark
+DB_IMAGE=pgvector/pgvector:pg17
+# Not "bukmark": Docker Compose names a source checkout's project after its
+# folder, and the install guide clones into one called bukmark. Sharing that
+# name would share containers and the database volume with it.
+PROJECT=bukmark-cli
+DIR=${BUKMARK_HOME:-$HOME/.bukmark}
+COMPOSE_YML=$DIR/compose.yml
+OVERRIDE_YML=$DIR/compose.override.yml
+ENV_FILE=$DIR/.env
+WAIT_SECONDS=${BUKMARK_WAIT_SECONDS:-120}
+
+# The server's settings come from $ENV_FILE and nowhere else. Compose lets the
+# shell's environment win over .env, so a PORT or POSTGRES_PASSWORD exported
+# for some other project would quietly change bukmark's. BUKMARK_VERSION and
+# BUKMARK_IMAGE still pass through, to pick an image for one run.
+unset POSTGRES_PASSWORD PORT BUKMARK_LISTEN TRUST_PROXY BUKMARK_EXTENSION_IDS BUKMARK_CHECK_PAGES \
+  COMPOSE_FILE COMPOSE_PROJECT_NAME COMPOSE_PROFILES COMPOSE_ENV_FILES
+
+say() { printf '%s\n' "$*"; }
+warn() { printf 'bukmark: %s\n' "$*" >&2; }
+die() {
+  warn "$*"
+  exit 1
+}
+die_usage() {
+  warn "$*"
+  warn "See: bukmark help"
+  exit 2
+}
+have() { command -v "$1" >/dev/null 2>&1; }
+
+usage() {
+  cat <<EOF
+bukmark $BUKMARK_CLI_VERSION: run your own bukmark server with Docker.
+
+Usage: bukmark <command> [options]
+
+Commands:
+  setup [--port N]   Set up bukmark and start it. Safe to run again.
+    --lan            Let other devices on your network reach it.
+    --local          Only this machine again (the default).
+  start              Start bukmark.
+  stop               Stop bukmark. Your data is kept.
+  restart            Restart bukmark, with any changes to .env.
+  status             Show whether bukmark is running.
+  logs [-f]          Show the server's logs. -f keeps following them.
+  update             Download the newest version and restart. Your data is kept.
+  open               Open bukmark in your browser.
+  uninstall          Remove bukmark's containers. Your data is kept.
+    --delete-data    Also delete all bookmarks and settings, after asking.
+    --yes            Delete without asking.
+  version            Print this command's version.
+  help               Show this help.
+
+Settings: $ENV_FILE
+Docs: https://bukmark.it/docs/install/
+EOF
+}
+
+# Kept word for word the same in packaging/install.sh (a test checks).
+require_docker() {
+  if ! command -v docker >/dev/null 2>&1; then
+    case $(uname -s) in
+      Darwin) die "Docker is not installed. Install Docker Desktop, OrbStack or Colima, start it, and try again." ;;
+      *) die "Docker is not installed. Install Docker Engine (https://docs.docker.com/engine/install/) and try again." ;;
+    esac
+  fi
+  if ! docker_error=$(docker info 2>&1 >/dev/null); then
+    case $docker_error in
+      *"permission denied"*)
+        die "Docker is running, but your user may not use it. Add yourself to the docker group (https://docs.docker.com/engine/install/linux-postinstall/), log in again, and try again." ;;
+    esac
+    case $(uname -s) in
+      Darwin) die "Docker is not running. Start Docker Desktop, OrbStack or Colima (colima start), and try again." ;;
+      *) die "Docker is not running. Start it (for example: sudo systemctl start docker) and try again." ;;
+    esac
+  fi
+  if ! docker compose version >/dev/null 2>&1; then
+    die "Docker Compose v2 is missing: \`docker compose\` does not work. Install the Compose plugin (https://docs.docker.com/compose/install/) and try again."
+  fi
+}
+
+# docker compose, on bukmark's project and files, from any directory.
+dc() {
+  if [ -f "$OVERRIDE_YML" ]; then
+    docker compose -p "$PROJECT" --project-directory "$DIR" -f "$COMPOSE_YML" -f "$OVERRIDE_YML" "$@"
+  else
+    docker compose -p "$PROJECT" --project-directory "$DIR" -f "$COMPOSE_YML" "$@"
+  fi
+}
+
+# The value NAME has in .env, without quotes; empty when it has none.
+env_get() {
+  [ -f "$ENV_FILE" ] || return 0
+  sed -n "s/^[[:space:]]*$1=//p" "$ENV_FILE" | tail -n 1 |
+    sed -e 's/[[:space:]]#.*$//' -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' -e "s/^'\\(.*\\)'\$/\\1/"
+}
+
+server_port() {
+  p=$(env_get PORT)
+  say "${p:-3000}"
+}
+server_url() { say "http://localhost:$(server_port)"; }
+
+# 127.0.0.1 (this machine only, the default) or 0.0.0.0 (the network too).
+listen_addr() {
+  a=$(env_get BUKMARK_LISTEN)
+  say "${a:-127.0.0.1}"
+}
+
+# Sets one setting in .env, keeping everything else as it is.
+set_env() {
+  tmp=$DIR/.env.tmp.$$
+  (
+    umask 077
+    if grep -q "^$1=" "$ENV_FILE"; then
+      sed "s|^$1=.*|$1=$2|" "$ENV_FILE" >"$tmp"
+    else
+      cat "$ENV_FILE" >"$tmp"
+      printf '\n%s=%s\n' "$1" "$2" >>"$tmp"
+    fi
+  )
+  mv "$tmp" "$ENV_FILE"
+}
+
+# The image the app runs, as compose resolves it: the environment, then .env.
+app_image() {
+  image=${BUKMARK_IMAGE:-$(env_get BUKMARK_IMAGE)}
+  tag=${BUKMARK_VERSION:-$(env_get BUKMARK_VERSION)}
+  say "${image:-$DEFAULT_IMAGE}:${tag:-latest}"
+}
+
+valid_port() {
+  case $1 in
+    '' | *[!0-9]*) return 1 ;;
+  esac
+  [ "$1" -ge 1 ] && [ "$1" -le 65535 ]
+}
+
+# True when URL answers with a 2xx. Status 2: no curl or wget to ask with.
+http_ok() {
+  if have curl; then
+    curl -fsS -o /dev/null --max-time 3 "$1" 2>/dev/null
+  elif have wget; then
+    wget -q -T 3 -O /dev/null "$1" 2>/dev/null
+  else
+    return 2
+  fi
+}
+
+# Prints what URL answers, when it answers with a 2xx.
+http_get() {
+  if have curl; then
+    curl -fsS --max-time 3 "$1" 2>/dev/null
+  elif have wget; then
+    wget -q -T 3 -O - "$1" 2>/dev/null
+  else
+    return 2
+  fi
+}
+
+# True when something already listens on PORT on this machine.
+port_in_use() {
+  if have curl; then
+    # curl exits 7 when nothing listens. An answer, an error or a timeout
+    # all mean something does.
+    rc=0
+    curl -s -o /dev/null --max-time 2 "http://127.0.0.1:$1/" 2>/dev/null || rc=$?
+    [ "$rc" -ne 7 ]
+  elif have wget; then
+    # wget has no exit status of its own for a refused connection.
+    if LC_ALL=C wget -T 2 -O /dev/null "http://127.0.0.1:$1/" 2>&1 | grep -qi refused; then
+      return 1
+    fi
+    return 0
+  else
+    return 1
+  fi
+}
+
+app_running() {
+  [ -n "$(dc ps -q --status running app 2>/dev/null)" ]
+}
+
+# Writes compose.yml, or leaves it alone when it is already current. It is
+# rewritten on every run, so a new version of this command brings its own.
+write_compose() {
+  tmp=$DIR/.compose.yml.$$
+  cat >"$tmp" <<'EOF'
+# Written by the bukmark command, which rewrites it on every run: edit .env
+# next to it instead. For a change .env cannot make, put it in
+# compose.override.yml in this folder; bukmark loads that after this file.
+name: bukmark
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: bukmark
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      POSTGRES_DB: bukmark
+    # No port on the host: only the app reaches the database, over the
+    # compose network.
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bukmark"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+  app:
+    image: ${BUKMARK_IMAGE:-ghcr.io/xooxoxxo/bukmark}:${BUKMARK_VERSION:-latest}
+    environment:
+      DATABASE_URL: postgres://bukmark:${POSTGRES_PASSWORD:-}@db:5432/bukmark
+      PORT: 3000
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      BUKMARK_EXTENSION_IDS: ${BUKMARK_EXTENSION_IDS:-}
+      BUKMARK_CHECK_PAGES: ${BUKMARK_CHECK_PAGES:-true}
+    ports: ["${BUKMARK_LISTEN:-127.0.0.1}:${PORT:-3000}:3000"]
+    depends_on:
+      db: { condition: service_healthy }
+    restart: unless-stopped
+volumes:
+  pgdata:
+EOF
+  if [ -f "$COMPOSE_YML" ] && cmp -s "$tmp" "$COMPOSE_YML"; then
+    rm -f "$tmp"
+  else
+    mv -f "$tmp" "$COMPOSE_YML"
+  fi
+}
+
+random_password() {
+  # 16 random bytes as 32 hex characters: safe in a URL and in .env as is.
+  pw=$(od -An -tx1 -N16 /dev/urandom | tr -d ' \t\n')
+  [ "${#pw}" -eq 32 ] || die "Could not make a password from /dev/urandom."
+  say "$pw"
+}
+
+# Writes .env, readable by you alone. Never called when .env exists.
+write_env() {
+  password=$(random_password)
+  tmp=$DIR/.env.tmp.$$
+  (
+    umask 077
+    cat >"$tmp" <<EOF
+# bukmark settings. After changing one, run: bukmark restart
+# bukmark setup wrote this file once. Run again, it changes only
+# BUKMARK_LISTEN, and only when you pass --lan or --local.
+
+# Password of bukmark's database, made up at setup. The database has no port
+# on this machine; only the app reaches it. The database keeps the password it
+# started with, so changing it here locks the app out.
+POSTGRES_PASSWORD=$password
+
+# Port the web app and API are served on, on this machine.
+PORT=$1
+
+# Who can reach it: 127.0.0.1 is this machine only. 0.0.0.0 is every device
+# that can reach this one, such as your phone on the same Wi-Fi; set your
+# password before you open it up. Switch with: bukmark setup --lan (or --local)
+BUKMARK_LISTEN=$2
+
+# true only when a reverse proxy (nginx, Caddy, Traefik) is the only way to
+# reach bukmark. See https://bukmark.it/docs/install/#behind-a-reverse-proxy
+TRUST_PROXY=false
+
+# Browser-extension builds the login page recognises, comma-separated.
+# See https://bukmark.it/docs/extension/#unrecognised-extension
+BUKMARK_EXTENSION_IDS=
+
+# false stops the server fetching saved pages in the background.
+# See https://bukmark.it/docs/install/#environment-variables
+BUKMARK_CHECK_PAGES=true
+
+# Server version to run: latest, or a release such as 0.3.0.
+# bukmark update downloads the newest image for it.
+BUKMARK_VERSION=${BUKMARK_VERSION:-latest}
+EOF
+    if [ -n "${BUKMARK_IMAGE:-}" ] && [ "$BUKMARK_IMAGE" != "$DEFAULT_IMAGE" ]; then
+      printf '\n# Image to run instead of %s.\nBUKMARK_IMAGE=%s\n' "$DEFAULT_IMAGE" "$BUKMARK_IMAGE" >>"$tmp"
+    fi
+  )
+  chmod 600 "$tmp"
+  mv "$tmp" "$ENV_FILE"
+}
+
+no_options() {
+  [ $# -eq 0 ] || die_usage "bukmark $cmd takes no options: $*"
+}
+
+require_setup() {
+  [ -f "$ENV_FILE" ] || die "bukmark is not set up yet. Run: bukmark setup"
+}
+
+# Downloads the images. Returns 1 when that fails but copies of both are
+# already on this machine; stops when there is nothing to run.
+pull_images() {
+  if dc pull; then
+    return 0
+  fi
+  if docker image inspect "$(app_image)" "$DB_IMAGE" >/dev/null 2>&1; then
+    warn "Could not download the newest images. Using the copies already on this machine."
+    return 1
+  fi
+  die "Could not download the bukmark images. Check your internet connection and try again."
+}
+
+# Waits until the server answers, up to $WAIT_SECONDS.
+wait_healthy() {
+  health=http://127.0.0.1:$(server_port)/healthz
+  if ! have curl && ! have wget; then
+    warn "Neither curl nor wget is installed, so bukmark cannot check that the server started."
+    return 0
+  fi
+  printf 'Waiting for bukmark to start...' >&2
+  waited=0
+  until http_ok "$health"; do
+    if [ "$waited" -ge "$WAIT_SECONDS" ]; then
+      printf '\n' >&2
+      die "bukmark did not answer on $(server_url) within $WAIT_SECONDS seconds. See what happened: bukmark logs"
+    fi
+    printf '.' >&2
+    sleep 2
+    waited=$((waited + 2))
+  done
+  printf ' ready.\n' >&2
+}
+
+# Stops before starting when another program has the port.
+check_port() {
+  if ! app_running && port_in_use "$1"; then
+    if [ "$2" = new ]; then
+      next=$(($1 + 1))
+      [ "$next" -le 65535 ] || next=3001
+      die "Port $1 is already in use on this machine. Choose another: bukmark setup --port $next"
+    fi
+    die "Port $1 is already in use on this machine. Stop what uses it, or set another PORT in $ENV_FILE and run: bukmark start"
+  fi
+}
+
+cmd_setup() {
+  want_port=${BUKMARK_PORT:-}
+  port_given=${BUKMARK_PORT:+x}
+  want_listen=
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --lan)
+        want_listen=0.0.0.0
+        shift
+        ;;
+      --local)
+        want_listen=127.0.0.1
+        shift
+        ;;
+      --port)
+        [ $# -ge 2 ] || die_usage "--port needs a port number."
+        want_port=$2
+        port_given=x
+        shift 2
+        ;;
+      --port=*)
+        want_port=${1#--port=}
+        port_given=x
+        shift
+        ;;
+      *) die_usage "Unknown option for setup: $1" ;;
+    esac
+  done
+  if [ -n "$port_given" ] && ! valid_port "$want_port"; then
+    die_usage "Not a port number: '$want_port'"
+  fi
+
+  require_docker
+  (umask 077 && mkdir -p "$DIR")
+  write_compose
+
+  if [ -f "$ENV_FILE" ]; then
+    port=$(server_port)
+    if [ -n "$want_port" ] && [ "$want_port" != "$port" ]; then
+      warn "Keeping port $port from $ENV_FILE, which setup never overwrites. To use port $want_port, change PORT there and run: bukmark restart"
+    fi
+    say "Using the settings in $ENV_FILE"
+    if [ -n "$want_listen" ] && [ "$want_listen" != "$(listen_addr)" ]; then
+      set_env BUKMARK_LISTEN "$want_listen"
+      say "Set BUKMARK_LISTEN=$want_listen in $ENV_FILE"
+    fi
+    check_port "$port" existing
+  else
+    # A database from an earlier setup only opens with that setup's password,
+    # which was in the .env that is gone.
+    if docker volume inspect "${PROJECT}_pgdata" >/dev/null 2>&1; then
+      die "Found bukmark data in the Docker volume ${PROJECT}_pgdata, but not $ENV_FILE, which holds its database password. Put that .env back to keep the data. To start over and delete that data for good: docker volume rm ${PROJECT}_pgdata"
+    fi
+    port=${want_port:-3000}
+    check_port "$port" new
+    write_env "$port" "${want_listen:-127.0.0.1}"
+    say "Wrote your settings to $ENV_FILE"
+  fi
+
+  pull_images || true
+  dc up -d --remove-orphans
+  wait_healthy
+
+  url=$(server_url)
+  # Run again after the password is set, setup should not ask for it again.
+  case $(http_get "http://127.0.0.1:$(server_port)/api/auth/status" || true) in
+    *'"setupComplete":true'*) open_step="Open $url and log in." ;;
+    *) open_step="Open $url and set your password." ;;
+  esac
+  if [ "$(listen_addr)" = 0.0.0.0 ]; then
+    reach="Other devices on your network reach it at this machine's address, port $(server_port).
+Set your password first: until then, anyone who can reach the port can set it."
+  else
+    reach="Only this machine can reach it. For your phone or other devices: bukmark setup --lan"
+  fi
+  cat <<EOF
+
+bukmark is running at $url
+$reach
+
+Next:
+  1. $open_step
+  2. Install the browser extension: https://bukmark.it/docs/extension/
+  3. In the extension, log in to $url
+
+bukmark help lists the other commands.
+EOF
+}
+
+cmd_start() {
+  require_setup
+  require_docker
+  write_compose
+  check_port "$(server_port)" existing
+  dc up -d --remove-orphans
+  wait_healthy
+  say "bukmark is running at $(server_url)"
+}
+
+cmd_stop() {
+  require_setup
+  require_docker
+  write_compose
+  dc stop
+  say "bukmark is stopped. Your data is kept. Start it again: bukmark start"
+}
+
+cmd_restart() {
+  require_setup
+  require_docker
+  write_compose
+  dc stop
+  # PORT in .env may have changed to one another program has.
+  check_port "$(server_port)" existing
+  dc up -d --remove-orphans
+  wait_healthy
+  say "bukmark is running at $(server_url)"
+}
+
+cmd_status() {
+  if [ ! -f "$ENV_FILE" ]; then
+    say "bukmark is not set up. Run: bukmark setup"
+    exit 3
+  fi
+  require_docker
+  write_compose
+  dc ps
+  say ""
+  # Ask Docker first: another program may answer on the same port.
+  if ! app_running; then
+    say "bukmark is stopped. Start it: bukmark start"
+    exit 3
+  fi
+  if http_ok "http://127.0.0.1:$(server_port)/healthz"; then
+    say "bukmark is running at $(server_url)"
+  else
+    say "bukmark is starting, or not answering at $(server_url). See: bukmark logs"
+    exit 1
+  fi
+}
+
+cmd_logs() {
+  require_setup
+  require_docker
+  write_compose
+  dc logs "$@"
+}
+
+image_id() {
+  docker image inspect --format '{{.Id}}' "$1" 2>/dev/null || true
+}
+
+cmd_update() {
+  require_setup
+  require_docker
+  write_compose
+  image=$(app_image)
+  before=$(image_id "$image")
+  pulled=true
+  pull_images || pulled=false
+  dc up -d --remove-orphans
+  wait_healthy
+  if ! $pulled; then
+    say "bukmark is running at $(server_url), on the version it already had."
+    # A BUKMARK_IMAGE build may exist only on this machine, where a failed
+    # download is expected. For the published image it means no update.
+    case $image in
+      "$DEFAULT_IMAGE":*) die "Not updated: could not download $image." ;;
+    esac
+    return 0
+  fi
+  if [ "$before" = "$(image_id "$image")" ]; then
+    say "bukmark is up to date ($image), running at $(server_url)"
+  else
+    say "bukmark is updated ($image), running at $(server_url)"
+  fi
+}
+
+cmd_open() {
+  require_setup
+  url=$(server_url)
+  case $(uname -s) in
+    Darwin) opener=open ;;
+    *) opener=xdg-open ;;
+  esac
+  if have "$opener" && "$opener" "$url" >/dev/null 2>&1; then
+    say "Opened $url"
+  else
+    say "Open $url in your browser."
+  fi
+}
+
+cmd_uninstall() {
+  delete=false
+  yes=false
+  for arg in "$@"; do
+    case $arg in
+      --delete-data) delete=true ;;
+      --yes | -y) yes=true ;;
+      *) die_usage "Unknown option for uninstall: $arg" ;;
+    esac
+  done
+  if [ ! -d "$DIR" ]; then
+    say "Nothing to uninstall: $DIR does not exist."
+    return 0
+  fi
+  if $delete && ! $yes; then
+    printf 'This deletes all your bookmarks and bukmark settings, for good.\nType delete to confirm: ' >&2
+    answer=
+    read -r answer || true
+    [ "$answer" = delete ] || die "Nothing was deleted."
+  fi
+
+  require_docker
+  write_compose
+  if $delete; then
+    dc down --volumes --remove-orphans
+    # Only the files bukmark wrote: BUKMARK_HOME may point at a folder that
+    # holds other things too.
+    rm -f "$COMPOSE_YML" "$OVERRIDE_YML" "$ENV_FILE" "$DIR"/.env.tmp.* "$DIR"/.compose.yml.*
+    if rmdir "$DIR" 2>/dev/null; then
+      say "Deleted bukmark, its data and $DIR."
+    else
+      say "Deleted bukmark and its data. $DIR has other files in it, so it is kept."
+    fi
+  else
+    dc down --remove-orphans
+    say "Removed bukmark's containers. Your bookmarks are kept in the Docker volume ${PROJECT}_pgdata, your settings in $DIR."
+    say "Start it again: bukmark start. Delete everything: bukmark uninstall --delete-data"
+  fi
+  say "The bukmark command itself is still at $0. If Homebrew installed it: brew uninstall bukmark. If not, delete that file."
+}
+
+main() {
+  if [ $# -eq 0 ]; then
+    usage
+    return 0
+  fi
+  cmd=$1
+  shift
+  case $cmd in
+    setup) cmd_setup "$@" ;;
+    start) no_options "$@"; cmd_start ;;
+    stop) no_options "$@"; cmd_stop ;;
+    restart) no_options "$@"; cmd_restart ;;
+    status) no_options "$@"; cmd_status ;;
+    logs) cmd_logs "$@" ;;
+    update) no_options "$@"; cmd_update ;;
+    open) no_options "$@"; cmd_open ;;
+    uninstall) cmd_uninstall "$@" ;;
+    version | --version | -v) say "bukmark $BUKMARK_CLI_VERSION" ;;
+    help | --help | -h) usage ;;
+    *)
+      warn "Unknown command: $cmd"
+      usage >&2
+      exit 2
+      ;;
+  esac
+}
+
+main "$@"

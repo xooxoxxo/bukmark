@@ -1,0 +1,3 @@
+#!/bin/sh
+# Fake open (macOS) and xdg-open (Linux): logs the URL it was asked to open.
+printf '%s %s\n' "$(basename "$0")" "$*" >>"${FAKE_LOG:?}"

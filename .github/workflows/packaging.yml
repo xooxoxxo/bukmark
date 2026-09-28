@@ -1,0 +1,26 @@
+name: packaging
+
+# The bukmark command and its installer: shellcheck, then the bats suite under
+# sh and dash, on every change to them.
+on:
+  push:
+    paths: ['packaging/**', '.github/workflows/packaging.yml']
+  pull_request:
+    paths: ['packaging/**', '.github/workflows/packaging.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install shellcheck, bats and dash
+        run: sudo apt-get update && sudo apt-get install -y shellcheck bats dash
+      - name: shellcheck
+        run: shellcheck -s sh packaging/bin/bukmark packaging/install.sh packaging/homebrew/update-formula.sh
+      - name: bats (sh)
+        run: bats packaging/test
+      - name: bats (dash)
+        run: BUKMARK_TEST_SH=dash bats packaging/test

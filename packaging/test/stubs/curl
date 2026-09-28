@@ -1,0 +1,21 @@
+#!/bin/sh
+# Fake curl for the bats tests. file:// URLs go to the real curl ($REAL_CURL),
+# /healthz answers unless FAKE_UNHEALTHY=1, /api/auth/status says whether the
+# password is set (FAKE_SETUP_COMPLETE=1), and any other URL finds nothing
+# listening (curl's exit 7) unless its port is in FAKE_BUSY_PORTS.
+printf 'curl %s\n' "$*" >>"${FAKE_LOG:?}"
+for arg in "$@"; do url=$arg; done
+case ${url:-} in
+  file://*) exec "${REAL_CURL:?}" "$@" ;;
+  */api/auth/status)
+    if [ "${FAKE_SETUP_COMPLETE:-}" = 1 ]; then echo '{"setupComplete":true}'; else echo '{"setupComplete":false}'; fi
+    exit 0
+    ;;
+  */healthz) if [ "${FAKE_UNHEALTHY:-}" = 1 ]; then exit 7; fi; exit 0 ;;
+esac
+port=${url#http://127.0.0.1:}
+port=${port%%/*}
+case " ${FAKE_BUSY_PORTS:-} " in
+  *" $port "*) exit 0 ;;
+esac
+exit 7
