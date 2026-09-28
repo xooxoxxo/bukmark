@@ -65,7 +65,7 @@ filters.
 
 | Format | Use it for |
 | -- | -- |
-| `html` | Importing into Chrome, Firefox or Safari. Hubs become folders; notes become descriptions. A link in several hubs appears in each. |
+| `html` | Importing into Chrome, Firefox or Safari. Everything lands in one **bukmark** folder, as with [bookmark sync](/docs/extension/#sync-with-your-bookmarks): a folder per hub, and **Unsorted** for links in no hub. Notes become descriptions. A link in several hubs appears in each. |
 | `json` | Backups. Versioned, carries every field, and references hubs by name rather than id. Note the caution above: importing one restores links, not hub membership. |
 | `csv` | Spreadsheets. One row per link, hubs semicolon-separated. |
 

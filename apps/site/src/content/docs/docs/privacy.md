@@ -40,9 +40,19 @@ While you are logged out, it sends nothing until you click **Log in** or
 - **Import all bookmarks** on the settings page sends every bookmark whose
   address starts with `http://` or `https://`: its address, title and folder.
   It then asks your server to look up preview images for them. The extension
-  has no access to your bookmarks until then: the click asks your browser for
-  it (and, in Firefox, whether it may share them with your server). Bookmarks
-  are read at no other time, and never changed.
+  has no access to your bookmarks until you click Import or turn on sync: the
+  click asks your browser for it (and, in Firefox, whether it may share them
+  with your server).
+- **Sync with your browser's bookmarks**, while it is on, sends what you change
+  in the **bukmark** folder as you change it: a bookmark's address, title and
+  folder when you add, rename or move it, which link to archive when you delete
+  it, and a folder's name when you add, rename or delete it. Turning sync on
+  sends the bookmarks already in the folder that your server lacks. Every 5
+  minutes, when the browser starts and after a save, it asks your server what
+  changed (`GET /api/links/changes`) and updates the folder to match. Only
+  `http://` and `https://` bookmarks are sent. In Firefox, taking back the
+  permission to share bookmarks with your server, in `about:addons`, turns sync
+  off, and nothing more is sent.
 - **Log in** opens your server's own login page in a browser window or tab. You type
   your password there, on your server's page, never into the extension. The
   extension then trades a one-time code for an access token with your server.
@@ -50,6 +60,11 @@ While you are logged out, it sends nothing until you click **Log in** or
   server to check it.
 - **Log out** asks your server to revoke the token. So does saving a different
   server address while logged in, or a new login that replaces an old one.
+
+Import reads all your bookmarks. Sync reads and changes only the bukmark
+folder, and sends nothing about bookmarks outside it: it looks outside only to
+find the folder in Other bookmarks, and to see whether a bookmark your browser
+reports as changed is in it. Bookmarks are read at no other time.
 
 The access token goes only to the server that issued it. For a server that is
 not on your own computer, use an `https://` address: over plain `http://`,
@@ -62,10 +77,15 @@ unencrypted. See [HTTPS](/docs/install/#https).
   to your other devices. Where there is no sync storage, it stays in
   `storage.local`.
 - The access token, in `storage.local` on this device. Log out deletes it.
-- Short-lived state, such as a login in progress and the last error message, in
-  `storage.session`, which the browser empties when it closes.
+- With bookmark sync on, the address and title of each link in the bukmark
+  folder and which bookmarks hold it, in `storage.local`, with changes waiting
+  to be sent. Turning sync off drops the waiting changes and keeps the list, so
+  that turning it on again finds the same bookmarks.
+- Short-lived state, such as a login in progress, the last error message and
+  the folder changes a sync is making, in `storage.session`, which the browser
+  empties when it closes.
 
-It keeps no history and no list of what you saved.
+Apart from bookmark sync's list, it keeps no history and no list of what you saved.
 
 ### What it never does
 
@@ -83,20 +103,21 @@ theirs. It keeps and sends nothing about any other tab.
 | Permission | What it is for |
 | -- | -- |
 | `activeTab` | The address and title of the tab you are on, when you open the popup or press the shortcut. |
-| `bookmarks` | Optional, and not granted at install. Asked for when you click **Import all bookmarks**, then used to read them. |
+| `alarms` | Asking your server for changes every 5 minutes while bookmark sync is on. |
+| `bookmarks` | Optional, and not granted at install. Asked for when you click **Import all bookmarks**, to read them, or turn on sync, to keep the bukmark folder. |
 | `tabs` | Safari only: following the tab a login opens, since Safari has no login window. |
-| `storage` | Keeping the server address, the token and short-lived login state. |
+| `storage` | Keeping the server address, the token, sync's state and short-lived login state. |
 | `identity` | Opening your server's login page in the browser's login window. No Google or other account is involved. |
 | `http://localhost/*` | Reaching a server on your own computer, such as the default `http://localhost:3000`. |
 | `http://*/*`, `https://*/*` | Optional, and not granted at install. When you enter another server address, your browser asks you to allow that one address. The extension never asks for every site. |
 
 Safari's build has no `bookmarks` or `identity` permission, since Safari has
-neither API.
+neither API, and no `alarms`, since without bookmarks there is nothing to sync.
 
 bukmark capture's use of the data it handles follows the Chrome Web Store User
 Data Policy, including the Limited Use requirements. It uses that data only to
-save pages to your server. It never sells it, uses it for ads, or passes it to
-anyone else.
+save pages to your server and keep the bukmark folder in sync with it. It never
+sells it, uses it for ads, or passes it to anyone else.
 
 ## Your bukmark server
 
@@ -146,11 +167,12 @@ runs the AI model behind it.
   It deletes the token from your browser and asks your server to revoke it. If
   the server can't be reached, revoke **bukmark capture** in the web app under
   **Settings → Access tokens**. Removing the extension deletes everything it
-  kept in that browser.
+  kept in that browser. The bukmark folder stays, as ordinary bookmarks.
 - **A link:** open its **Edit** dialog in the web app, click **Delete…**, then
   **Delete**. Its title, note, hubs and saved text go with it. The server keeps
   only a SHA-256 hash of its address, so that importing the same bookmarks again
-  doesn't bring it back.
+  doesn't bring it back, and the link's random id with the time it was deleted,
+  so that a browser syncing its bookmarks removes it too.
 - **Everything:** `bukmark uninstall --delete-data` stops bukmark and deletes its
   database volume, with every link, hub, token and session in it, along with
   its settings in `~/.bukmark`. From source, `docker compose down -v` in the

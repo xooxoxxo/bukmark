@@ -1,6 +1,6 @@
 ---
 title: Browser Extension
-description: The capture extension for Chrome, Edge, Firefox and Safari — one-click saves, a keyboard shortcut, and bookmark import.
+description: The capture extension for Chrome, Edge, Firefox and Safari — one-click saves, a keyboard shortcut, and bookmark import and sync.
 sidebar:
   order: 2
 ---
@@ -50,8 +50,8 @@ The extension itself runs on Safari 16.4 and later; on a Safari older than 26,
 wrap `dist/safari` in an app with Xcode's `safari-web-extension-converter`
 instead.
 
-Safari has no bookmark import (it gives extensions no bookmarks API) — use the
-web app's [file import](/docs/export/#import) instead. On an iPhone or iPad,
+Safari has no bookmark import or sync (it gives extensions no bookmarks API) —
+use the web app's [file import](/docs/export/#import) instead. On an iPhone or iPad,
 the extension needs an App Store build; until there is one, use
 [an iOS Shortcut](/docs/phone/#ios-shortcut).
 
@@ -187,6 +187,44 @@ Firefox, Safari or macOS, which is why it is the default. A Mac gets
 One known clash: in Firefox on Windows and Linux, a web page can claim
 `Alt+Shift+K` for one of its own links — rebind the shortcut if that bites.
 Firefox for Android has no extension shortcuts.
+
+## Sync with your bookmarks
+
+Sync keeps a **bukmark** folder in your browser's Other bookmarks and your
+server the same, both ways. It reads and changes only that folder. Inside it is
+a folder for each hub and **Unsorted** for links in none. A link in two hubs has
+a bookmark in both; archived links are left out. Folders inside a hub folder are
+not synced.
+
+- **Turning it on:** on the options page, check
+  **Sync with your browser's bookmarks** while logged in. Your browser asks for
+  access to your bookmarks, then the folder fills. Bookmarks already in a
+  bukmark folder there are kept, and any your server lacks are sent to it. A
+  server too old to sync says so on the options page, and sync stays off.
+- **Your changes** in the folder go to your server at once. A bookmark is saved
+  to the hub its folder is named after, and moving it changes its hubs. A new
+  folder is a new hub; renaming a folder renames its hub. While the server
+  can't be reached, changes wait. If it refuses one, the options page says why
+  and the next sync undoes it.
+- **Server changes** arrive every 5 minutes, when the browser starts, and after
+  a save from the popup or the shortcut. **Sync now** fetches them at once.
+- **Deleting** never deletes anything on the server. A deleted bookmark archives
+  its link, which you can restore in the web app, unless the link still has a
+  bookmark in another hub folder: then it only leaves this hub. A deleted hub
+  folder archives the hub, and its links stay: at the next sync they show up in
+  their other hub folders, or in Unsorted. Moving a bookmark or folder out of
+  the bukmark folder counts as deleting it.
+- **Turning it off:** uncheck the same box. The folder stays as it is; changes
+  not yet sent are dropped. Logging out or changing the server turns sync off
+  too. So does taking back the extension's access to your bookmarks, or, in
+  Firefox, its permission to share them with your server. To remove the folder,
+  turn sync off first, or the next sync makes it again.
+
+Tested in Chrome and Firefox. Safari and Firefox for Android give extensions no
+bookmarks, so they have no sync. In Firefox, a change made in the folder in the
+first minute after you turn sync on can be missed: a new bookmark still reaches
+the server at the next sync, but a bookmark moved, renamed or deleted then is
+put back.
 
 ## Token revocation
 

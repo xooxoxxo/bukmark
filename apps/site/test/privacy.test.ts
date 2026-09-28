@@ -96,21 +96,103 @@ describe('the privacy page matches what the extension asks for and does', () => 
     expect(read('apps/extension/src/lib/settings.ts')).toContain('chrome.storage.sync');
   });
 
-  it('reads bookmarks only on Import, and never writes them', () => {
-    const calls = [...extensionCode.matchAll(/chrome\.bookmarks\.(\w+)\(/g)].map((m) => m[1]!);
-    expect(calls).toEqual(['getTree']);
-    const options = read('apps/extension/src/options/main.ts');
-    const onImport = options.slice(options.indexOf("importEl.addEventListener('click'"));
+  const sync = read('apps/extension/src/lib/sync.ts');
+  const options = read('apps/extension/src/options/main.ts');
+  const onImport = options.slice(
+    options.indexOf("importEl.addEventListener('click'"),
+    options.indexOf("syncToggleEl.addEventListener('click'"),
+  );
+  const onSyncToggle = options.slice(options.indexOf("syncToggleEl.addEventListener('click'"));
+
+  it('reads bookmarks for Import and sync only, and changes them only in sync', () => {
+    const outsideSync = sourceFiles('apps/extension/src', ['.ts'])
+      .filter((f) => !f.startsWith('apps/extension/src/test/') && f !== 'apps/extension/src/lib/sync.ts')
+      .map(read)
+      .join('\n');
+    // Outside sync, one read: the whole tree, in the Import click.
+    expect([...outsideSync.matchAll(/chrome\.bookmarks\.(\w+)\(/g)].map((m) => m[1]!)).toEqual(['getTree']);
     expect(onImport).toContain('chrome.bookmarks.getTree()');
     expect(onImport).toContain('runBackfill(');
-    expect(flat(privacy)).toContain('Bookmarks are read at no other time, and never changed.');
-    // Optional: asked for in the Import click, not granted at install.
+    // Every call that changes bookmarks is sync's.
+    const writes = [...sync.matchAll(/chrome\.bookmarks\.(\w+)\(/g)].map((m) => m[1]!).filter((c) => !c.startsWith('get'));
+    expect([...new Set(writes)].sort()).toEqual(['create', 'move', 'remove', 'update']);
+    expect(flat(section(privacy, 'What it sends, and when'))).toContain(
+      'Import reads all your bookmarks. Sync reads and changes only the bukmark folder, and sends nothing about bookmarks outside it',
+    );
+    expect(flat(privacy)).toContain('Bookmarks are read at no other time.');
+  });
+
+  it('asks for bookmarks in the Import click or the sync click, not at install', () => {
     for (const m of manifests.filter((m) => m.optional_permissions?.includes('bookmarks'))) {
       expect(m.permissions).not.toContain('bookmarks');
     }
     expect(onImport.indexOf('allowBookmarkImport()')).toBeGreaterThan(-1);
     expect(onImport.indexOf('allowBookmarkImport()')).toBeLessThan(onImport.indexOf('await loadSettings()'));
-    expect(flat(section(privacy, 'Permissions'))).toContain('`bookmarks` | Optional, and not granted at install.');
+    // Turning sync on asks before it asks the background to fill the folder.
+    expect(onSyncToggle.indexOf('allowBookmarkImport()')).toBeGreaterThan(-1);
+    expect(onSyncToggle.indexOf('allowBookmarkImport()')).toBeLessThan(onSyncToggle.indexOf("askSync('enable'"));
+    expect(flat(section(privacy, 'Permissions'))).toContain(
+      '`bookmarks` | Optional, and not granted at install. Asked for when you click **Import all bookmarks**, to read them, or turn on sync',
+    );
+    expect(flat(section(privacy, 'What it sends, and when'))).toContain(
+      'The extension has no access to your bookmarks until you click Import or turn on sync',
+    );
+  });
+
+  it('sends only web addresses from the bukmark folder, and acts only on events inside it', () => {
+    expect(sync).toContain("export const SYNC_FOLDER = 'bukmark';");
+    expect(read('apps/extension/src/lib/settings.ts')).toContain('return /^https?:\\/\\//i.test(url);');
+    // A bookmark is sent as a new link from an event or from a pull; both check the address.
+    expect(sync).toContain('if (!isWebPage(node.url) || linkOf(state, node.id)) return;');
+    expect(sync).toContain('if (!held.has(node.id) && isWebPage(node.url!)) view.stray(node);');
+    for (const handler of ['onCreated', 'onChanged', 'onMoved', 'onRemoved']) {
+      const rest = sync.slice(sync.indexOf(`async function ${handler}(`));
+      expect(rest.slice(0, rest.indexOf('\n}\n')), handler).toContain('inside(state, ');
+    }
+    const sends = flat(section(privacy, 'What it sends, and when'));
+    expect(sends).toContain('sends what you change in the **bukmark** folder as you change it');
+    expect(sends).toContain('Only `http://` and `https://` bookmarks are sent.');
+  });
+
+  it('pulls every few minutes, when the browser starts and after a save, from the changes feed', () => {
+    const minutes = /SYNC_PERIOD_MINUTES = (\d+);/.exec(sync)?.[1];
+    expect(minutes).toBeDefined();
+    expect(sync).toContain('periodInMinutes: SYNC_PERIOD_MINUTES');
+    const background = read('apps/extension/src/background/index.ts');
+    expect(background).toMatch(/onAlarm\.addListener\(\(alarm\) => \{\n\s+if \(alarm\.name === SYNC_ALARM\) void pullIfEnabled\(\);/);
+    expect(background).toContain('chrome.runtime.onStartup.addListener(() => void pullIfEnabled());');
+    const handlers = read('apps/extension/src/background/handlers.ts');
+    const shortcut = handlers.slice(handlers.indexOf('export async function saveActiveTab'), handlers.indexOf('async function report'));
+    expect(shortcut).toContain('void pullIfEnabled();');
+    expect(read('apps/extension/src/popup/main.ts')).toContain('void requestSyncPull();');
+    expect(read('apps/extension/src/lib/api.ts')).toContain('`/api/links/changes?${query}`');
+    expect(flat(section(privacy, 'What it sends, and when'))).toContain(
+      `Every ${minutes} minutes, when the browser starts and after a save, it asks your server what changed (\`GET /api/links/changes\`)`,
+    );
+    expect(flat(section(privacy, 'Permissions'))).toContain(
+      `\`alarms\` | Asking your server for changes every ${minutes} minutes while bookmark sync is on.`,
+    );
+    // No bookmarks, no sync, no alarms: Safari's build.
+    for (const m of manifests) {
+      const bookmarks = [...m.permissions, ...(m.optional_permissions ?? [])].includes('bookmarks');
+      expect(m.permissions.includes('alarms')).toBe(bookmarks);
+    }
+  });
+
+  it("keeps sync's list in local storage, and keeps it when sync is turned off", () => {
+    expect(sync).toContain('await chrome.storage.local.set({ [SYNC_KEY]: state });');
+    expect(sync).toMatch(/export interface SyncedLink \{\n\s+url: string;\n\s+title: string;/);
+    // The events a pull's own writes cause, kept where a restarted worker finds them.
+    expect(sync).toContain('await chrome.storage.session.set({ [key]: {');
+    const turnOff = /async function turnOff\([^)]*\): Promise<void> \{\n([\s\S]*?)\n\}/.exec(sync)?.[1];
+    expect(turnOff).toContain('state.queue = [];');
+    expect(turnOff).not.toMatch(/links|chrome\.bookmarks/);
+    const keeps = flat(section(privacy, 'What it keeps in your browser'));
+    expect(keeps).toContain(
+      'the address and title of each link in the bukmark folder and which bookmarks hold it, in `storage.local`',
+    );
+    expect(keeps).toContain('Turning sync off drops the waiting changes and keeps the list');
+    expect(keeps).toContain('the folder changes a sync is making, in `storage.session`');
   });
 
   it('describes in words each kind of data the Firefox build declares', () => {
@@ -192,6 +274,15 @@ describe('the privacy page matches what the server does', () => {
     expect(remove).toContain('tx.delete(links)');
     expect(read('packages/shared/src/normalize.ts')).toContain("createHash('sha256')");
     expect(flat(section(privacy, 'Deleting your data'))).toContain('keeps only a SHA-256 hash of its address');
+  });
+
+  it('says a deleted link leaves its random id and deletion time for sync, and nothing else', () => {
+    const schema = read('apps/server/src/db/schema.ts');
+    const table = /pgTable\('link_deletions', \{([\s\S]*?)\n\}/.exec(schema)?.[1] ?? '';
+    expect([...table.matchAll(/^\s+(\w+): /gm)].map((m) => m[1])).toEqual(['linkId', 'deletedAt']);
+    expect(flat(section(privacy, 'Deleting your data'))).toContain(
+      "the link's random id with the time it was deleted, so that a browser syncing its bookmarks removes it too",
+    );
   });
 
   it('deletes everything with the volume the compose file declares', () => {

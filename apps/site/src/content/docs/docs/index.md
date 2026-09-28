@@ -22,6 +22,9 @@ make at 1am with sixty tabs open.
 - **Every link editable.** Title, note, hubs, relevance, archive and delete are
   in each link's **Edit** dialog; the list sorts by relevance, newest, oldest or
   title.
+- **Your hubs in your bookmarks.** The extension can keep a **bukmark** folder in
+  your browser's bookmarks and your server the same, both ways
+  ([Sync](/docs/extension/#sync-with-your-bookmarks)).
 
 Only public addresses are ever fetched. Set `BUKMARK_CHECK_PAGES=false` to turn
 the background reading off ([Install](/docs/install/#environment-variables)).
@@ -29,7 +32,7 @@ the background reading off ([Install](/docs/install/#environment-variables)).
 ## Getting Started
 
 - **[Install](/docs/install)** — One command, Homebrew, or Docker Compose from source
-- **[Browser Extension](/docs/extension)** — The capture extension for Chrome, Edge, Firefox and Safari, with bookmark import
+- **[Browser Extension](/docs/extension)** — The capture extension for Chrome, Edge, Firefox and Safari, with bookmark import and sync
 - **[Capture from your phone](/docs/phone)** — Android's Share sheet, an iOS Shortcut, or a bookmarklet
 - **[Sorting with MCP](/docs/sorting)** — Use any MCP client to intelligently sort your bookmarks
 - **[Import & Export](/docs/export)** — Bring bookmarks in from your browser; take your data out as HTML, JSON, or CSV

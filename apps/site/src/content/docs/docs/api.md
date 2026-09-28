@@ -154,6 +154,7 @@ unless `TRUST_PROXY=true`, so all clients share one count.
 | DELETE | `/api/auth/tokens/:id` | Revoke an access token |
 | GET | `/api/links` | List links with search and filters |
 | GET | `/api/links/lookup` | Whether a page is saved, and how its site is filed |
+| GET | `/api/links/changes` | Links changed or deleted since a time, for bookmark sync |
 | GET | `/api/links/:id` | One link, with its saved page text and last check |
 | POST | `/api/links/check` | Check the links most in need of it now |
 | POST | `/api/links` | Create or update a link |
@@ -272,6 +273,66 @@ shows this above the save form.
 **Errors:** `400` with `{ "error": "unparseable url" }` or
 `{ "error": "non-http url" }` when the address can't be read or isn't http(s).
 
+### GET /api/links/changes
+
+The links that changed since a given time, and the links deleted since then.
+The extension's bookmark sync pulls this. A link counts as changed when its
+URL, title, note or status changes, when it joins or leaves a hub, and when one
+of its hubs is renamed or archived. Page checks and preview images don't count.
+
+**Query Parameters:**
+
+- `since` (string, optional) — An ISO 8601 time with a time zone, normally the
+  `cursor` of an earlier response. Without it you get every link: a first sync.
+- `limit` (integer, optional) — Changes per page, 1–1000; defaults to 500
+
+**Response:**
+
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "url": "https://example.com/post",
+      "title": "Example Title",
+      "note": "User notes",
+      "status": "active",
+      "hubs": ["reading", "rust"],
+      "updatedAt": "2026-09-28T10:30:00.123456Z"
+    }
+  ],
+  "deleted": [
+    { "id": "uuid", "deletedAt": "2026-09-28T10:31:00.654321Z" }
+  ],
+  "cursor": "2026-09-28T10:31:00.654321Z",
+  "more": false
+}
+```
+
+- `items` — links changed at or after `since`, archived ones included, oldest
+  first. `hubs` names the hubs the link is in, leaving out archived hubs.
+- `deleted` — links deleted for good at or after `since` (archiving is a change,
+  not a deletion).
+- `cursor` — the time of the last change in the response. Send it back as
+  `since` for the next page or the next sync. It is `null` only on a first sync
+  with nothing to return; with nothing new, it is `since`.
+- `more` — `true` when another page follows now.
+
+Times are UTC with microseconds. Pass `cursor` back as it is: cut to
+milliseconds, it sends changes again; rounded up, it can skip some.
+
+`since` is inclusive. Changes stamped exactly at `since` come back again, so
+writes that share a timestamp are never lost between two pulls; drop the ones
+you already have. A page never splits changes that share a timestamp, and the
+ones at `since` don't count toward `limit`, so a page can hold more than `limit`.
+
+A change made in a transaction that is still open when you pull waits for the
+next pull, so the cursor never moves past a write that has yet to appear.
+
+**Errors:** `400` when `since` is not an ISO 8601 time with a zone or `limit`
+is out of range, and `{ "error": "invalid since" }` when `since` names a time
+that doesn't exist, such as 30 February.
+
 ### GET /api/links/:id
 
 One link, with everything bukmark holds for it.
@@ -347,7 +408,8 @@ existing link, returns an `updated` or `resurrected` outcome instead of `created
 - `url` (string, required) — Must be a valid HTTP(S) URL
 - `title` (string, optional)
 - `note` (string, optional)
-- `hub` (string, optional) — Hub name to assign on creation
+- `hub` (string, optional) — Hub name to assign on creation. A missing hub is
+  created; an archived one is made active again.
 - `relevance` (integer, optional) — Relevance score 1–5
 
 **Response (200):**
@@ -489,7 +551,7 @@ Assign multiple links to hubs in a single request.
 
 ### PATCH /api/links/:id
 
-Update the title, note, status or relevance of a single link.
+Update the title, note, status, relevance or hubs of a single link.
 
 **Path Parameters:**
 
@@ -502,13 +564,18 @@ Update the title, note, status or relevance of a single link.
   "title": "new title",
   "note": "new note",
   "status": "archived",
-  "relevance": 4
+  "relevance": 4,
+  "hubs": ["reading", "rust"]
 }
 ```
 
 - All fields optional
 - `status`: `active` or `archived`
 - `relevance`: 1–5, or `null` to clear it
+- `hubs`: up to 100 hub names. They replace the hubs the link is in: a missing
+  hub is created, an archived one is made active again, and `[]` takes the link
+  out of every hub. Archived hubs you leave out keep the link, since sync never
+  shows them.
 
 **Response (200):**
 
@@ -653,6 +720,9 @@ Update a hub's name, description, or status.
 - All fields optional
 - `status`: `active`, `dormant`, or `archived`
 
+Renaming or archiving a hub counts as a change to each of its links in
+[`GET /api/links/changes`](#get-apilinkschanges).
+
 **Response (200):**
 
 ```json
@@ -671,6 +741,14 @@ Update a hub's name, description, or status.
 ```json
 {
   "error": "hub not found"
+}
+```
+
+**Response (409):** when another hub already has the new name.
+
+```json
+{
+  "error": "hub name exists"
 }
 ```
 
@@ -721,6 +799,9 @@ unassigned links, broken links, and active links not yet checked.
 
 Export links as HTML (Netscape bookmark format), JSON, or CSV. The response
 includes a `Content-Disposition: attachment` header with a filename.
+
+The HTML file holds one `bukmark` folder with a folder per hub inside, plus
+`Unsorted` for links in no hub: the layout bookmark sync keeps in the browser.
 
 **Query Parameters:**
 
