@@ -67,15 +67,31 @@ export async function popupHostAccess(baseUrl: string): Promise<HostAccess> {
 }
 
 /**
- * Firefox lists bookmarks as an optional data-collection permission
- * (manifest.ts), asked for when importing. Elsewhere there is nothing to ask.
- * Like the host prompt, it must be the click's first await.
+ * Import reads bookmarks, an optional permission asked for on the Import click,
+ * so that installing asks for nothing about bookmarks. Firefox asks in the same
+ * prompt for its optional bookmarksInfo data-collection permission (manifest.ts).
+ * Like the host prompt, this must be the click's first await. It resolves true
+ * without a prompt when everything is already granted.
  */
-export function allowBookmarkSharing(): Promise<boolean> {
-  const { browser_specific_settings: settings } = chrome.runtime.getManifest() as unknown as Manifest;
-  if (!settings?.gecko?.data_collection_permissions.optional?.includes('bookmarksInfo')) {
-    return Promise.resolve(true);
+export function allowBookmarkImport(): Promise<boolean> {
+  const manifest = chrome.runtime.getManifest() as unknown as Manifest;
+  const request: { permissions?: string[]; data_collection?: string[] } = {};
+  if (manifest.optional_permissions?.includes('bookmarks')) request.permissions = ['bookmarks'];
+  if (manifest.browser_specific_settings?.gecko?.data_collection_permissions.optional?.includes('bookmarksInfo')) {
+    request.data_collection = ['bookmarksInfo'];
   }
-  const request = { data_collection: ['bookmarksInfo'] } as chrome.permissions.Permissions;
-  return chrome.permissions.request(request).catch(() => false);
+  if (Object.keys(request).length === 0) return Promise.resolve(true);
+  return chrome.permissions.request(request as chrome.permissions.Permissions).catch(() => false);
+}
+
+/** Whether this build can import bookmarks at all: Safari gives extensions no bookmarks API. */
+export function canImportBookmarks(): boolean {
+  const manifest = chrome.runtime.getManifest() as unknown as Manifest;
+  return [...manifest.permissions, ...(manifest.optional_permissions ?? [])].includes('bookmarks');
+}
+
+/** The Safari build: the only manifest with Safari settings. */
+export function isSafari(): boolean {
+  const manifest = chrome.runtime.getManifest() as unknown as Manifest;
+  return manifest.browser_specific_settings?.safari !== undefined;
 }

@@ -8,7 +8,7 @@ import {
   loginFlow,
 } from '../lib/auth';
 import { LAST_AUTH_ERROR, type LoginRequest, type LoginResult, type ResumeRequest } from '../lib/login';
-import { loadSettings } from '../lib/settings';
+import { isWebPage, loadSettings } from '../lib/settings';
 import { LAST_SAVE_ERROR } from '../lib/shortcut';
 import { resumeTabLogin, startTabLogin, tabLoginRemoved, tabLoginUpdated } from '../lib/tabLogin';
 
@@ -47,7 +47,7 @@ async function flagLoggedOut(why: string): Promise<void> {
 /** Keyboard save. Logged out, it makes no network call at all. */
 export async function saveActiveTab(): Promise<void> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.url) return;
+  if (!tab?.url || !isWebPage(tab.url)) return;
   try {
     const { baseUrl } = await loadSettings();
     const auth = await authFor(baseUrl);

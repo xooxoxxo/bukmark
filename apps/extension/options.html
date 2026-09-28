@@ -14,7 +14,7 @@
             Enter your bukmark server's address under <b>Server</b> below and log in.
             No server yet?
             <a class="link" href="https://bukmark.it/docs/install/" target="_blank" rel="noreferrer">Install one</a>
-            — one Docker command.
+            with Docker.
           </li>
           <li>Pin <b>bukmark capture</b> to the toolbar from your browser's extensions menu.</li>
           <li>
@@ -33,6 +33,7 @@
           <code>docker compose up -d</code>. Point it anywhere — the browser will ask
           permission for that address the first time you save it.
         </p>
+        <p id="disclosure" class="disclosure">Saving a page sends its address and title to this server, and nowhere else. Opening the popup on a page sends its address there too, to show whether it is already saved.</p>
         <div class="row">
           <button id="saveUrl" type="button" class="secondary">Save</button>
           <span id="urlStatus" class="status" role="status" aria-live="polite"></span>
@@ -62,6 +63,10 @@
           sorting later, but nothing is filed automatically. Safe to run more than once —
           existing links are not duplicated and previously deleted ones stay deleted.
         </p>
+        <p class="disclosure">
+          Import sends every bookmark's address, title and folder to your server. Your
+          browser first asks to let the extension read your bookmarks.
+        </p>
         <button id="import" type="button" class="primary" disabled>Import all bookmarks</button>
         <p id="importHint" class="muted" hidden>Log in to import.</p>
         <progress id="progress" value="0" max="1" hidden></progress>
@@ -85,7 +90,7 @@
           No key is set for saving without the popup: the browser leaves it unset when
           something else already uses the suggested one.
         </p>
-        <p class="muted">Change it in your browser's extension shortcut settings (in Safari: Settings › Extensions).</p>
+        <p id="shortcutWhere" class="muted">Change it in your browser's extension shortcut settings.</p>
         <button id="changeShortcut" type="button" class="secondary" hidden>Change shortcut</button>
         <p id="shortcutStatus" class="status" role="status" aria-live="polite"></p>
       </section>

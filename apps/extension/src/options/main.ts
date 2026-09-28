@@ -10,7 +10,7 @@ import {
   useAccessToken,
   type LoginResult,
 } from '../lib/login';
-import { allowBookmarkSharing, ensureHostPermission, originPatternFor } from '../lib/permissions';
+import { allowBookmarkImport, canImportBookmarks, ensureHostPermission, isSafari, originPatternFor } from '../lib/permissions';
 import { changesSettings, loadSettings, normalizeBaseUrl, saveSettings } from '../lib/settings';
 import { assignedShortcut, canOpenShortcutSettings, openShortcutSettings } from '../lib/shortcut';
 
@@ -43,6 +43,7 @@ const shortcutKeyEl = $<HTMLElement>('shortcutKey');
 const shortcutUnsetEl = $<HTMLParagraphElement>('shortcutUnset');
 const changeShortcutEl = $<HTMLButtonElement>('changeShortcut');
 const shortcutStatusEl = $<HTMLParagraphElement>('shortcutStatus');
+const shortcutWhereEl = $<HTMLParagraphElement>('shortcutWhere');
 const welcomeEl = $<HTMLElement>('welcome');
 const stepLoginEl = $<HTMLLIElement>('stepLogin');
 const welcomeDoneEl = $<HTMLParagraphElement>('welcomeDone');
@@ -88,8 +89,8 @@ async function render(): Promise<void> {
   importEl.disabled = !auth || importing;
   importHintEl.hidden = !!auth;
   // Safari has no bookmarks API; the web app imports an exported file instead.
-  importSectionEl.hidden = !chrome.bookmarks;
-  importElsewhereEl.hidden = !!chrome.bookmarks;
+  importSectionEl.hidden = !canImportBookmarks();
+  importElsewhereEl.hidden = canImportBookmarks();
   webAppEl.href = `${auth?.server ?? baseUrl}/`;
   welcomeEl.hidden = !welcome;
   stepLoginEl.classList.toggle('done', !!auth);
@@ -120,6 +121,8 @@ async function showShortcut(): Promise<void> {
   shortcutSetEl.hidden = !key;
   shortcutUnsetEl.hidden = key !== '';
   changeShortcutEl.hidden = !canOpenShortcutSettings();
+  // Named only in Safari: stores reject a listing that points at another browser.
+  if (isSafari()) shortcutWhereEl.textContent = 'Change it in Safari under Settings › Extensions.';
   welcomeShortcutEl.hidden = !key;
   welcomeKeyEl.textContent = key ?? '';
 }
@@ -189,9 +192,9 @@ logoutEl.addEventListener('click', async () => {
 });
 
 importEl.addEventListener('click', async () => {
-  // Firefox asks for this during the click only, before anything else is awaited.
-  if (!(await allowBookmarkSharing())) {
-    setStatus(importStatusEl, 'Not imported — sharing your bookmarks with your server was declined.', true);
+  // Browsers ask for this during the click only, before anything else is awaited.
+  if (!(await allowBookmarkImport())) {
+    setStatus(importStatusEl, 'Not imported — access to your bookmarks was declined.', true);
     return;
   }
   importing = true;

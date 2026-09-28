@@ -55,6 +55,7 @@ export interface Manifest {
   version: string;
   description: string;
   permissions: string[];
+  optional_permissions?: string[];
   host_permissions: string[];
   optional_host_permissions: string[];
   icons: Record<string, string>;
@@ -69,7 +70,13 @@ export function isTarget(value: string): value is Target {
   return (TARGETS as readonly string[]).includes(value);
 }
 
-const PERMISSIONS = ['activeTab', 'tabs', 'bookmarks', 'storage', 'identity'];
+// No `tabs`: activeTab gives the popup and the shortcut the current tab's
+// address, and the host access granted for the user's server shows the
+// addresses of a tab login's pages. Without it, installing warns of nothing
+// like "Read your browsing history", and no other tab's address is ever seen.
+const PERMISSIONS = ['activeTab', 'storage', 'identity'];
+// Asked for on the Import click (lib/permissions.ts), not at install.
+const OPTIONAL_PERMISSIONS = ['bookmarks'];
 
 /** Drawn with the web app's icons by `pnpm --filter @bukmark/web icons`, into public/icons. */
 export const ICONS: Record<string, string> = Object.fromEntries(
@@ -81,8 +88,9 @@ export function manifestFor(target: Target): Manifest {
     manifest_version: 3,
     name: 'bukmark capture',
     version: '0.2.0',
-    description: 'Save the current tab to bukmark, and import your existing browser bookmarks.',
+    description: "Save the current tab to your own bukmark server, and import your browser's bookmarks.",
     permissions: [...PERMISSIONS],
+    optional_permissions: [...OPTIONAL_PERMISSIONS],
     // Every port on localhost, the default server's among them: no host
     // pattern may carry a port (see lib/permissions.ts).
     host_permissions: ['http://localhost/*'],
@@ -129,7 +137,10 @@ export function manifestFor(target: Target): Manifest {
       ...manifest,
       description: 'Save the current tab to bukmark.',
       // Safari has no identity or bookmarks API.
-      permissions: PERMISSIONS.filter((p) => p !== 'identity' && p !== 'bookmarks'),
+      // No identity API, so every Safari login runs in a tab; `tabs` stays
+      // until a Safari run shows the host access alone lets it see that tab.
+      permissions: ['activeTab', 'tabs', 'storage'],
+      optional_permissions: undefined,
       // A non-persistent event page: iOS requires one, and has been seen
       // stopping extension service workers.
       background: { scripts: ['background.js'], type: 'module', persistent: false },

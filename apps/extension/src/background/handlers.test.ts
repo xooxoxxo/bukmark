@@ -67,6 +67,14 @@ describe('saveActiveTab (keyboard save)', () => {
       .toBe('Log in first — the keyboard shortcut saves nothing while you are logged out.');
   });
 
+  it('saves nothing, and sends nothing, for a page that is not on the web', async () => {
+    arrange({ local: { auth: auth() }, sync: { baseUrl: SERVER } });
+    chrome.tabs.query.mockResolvedValue([{ url: 'file:///Users/someone/secret.pdf', title: 'x' }]);
+    await (await handlers()).saveActiveTab();
+    expect(requests).toHaveLength(0);
+    expect(chrome.action.setBadgeText).not.toHaveBeenCalled();
+  });
+
   it('never sends a token to a server other than the one that issued it', async () => {
     arrange({ local: { auth: auth({ server: 'http://a.lan:3000' }) }, sync: { baseUrl: 'http://b.lan:3000' } });
     await (await handlers()).saveActiveTab();

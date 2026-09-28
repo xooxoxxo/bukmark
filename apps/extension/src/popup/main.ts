@@ -11,6 +11,7 @@ import {
 import { popupHostAccess } from '../lib/permissions';
 import { loadSettings } from '../lib/settings';
 import { LAST_SAVE_ERROR } from '../lib/shortcut';
+import { isWebPage } from '../lib/settings';
 import { knownMessage, outcomeMessage } from './outcome';
 
 const SESSION_ENDED = 'Your session ended — log in again.';
@@ -80,6 +81,13 @@ async function showSaveForm(auth: Auth): Promise<void> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.url) {
     setStatus(statusEl, 'No page to save', true);
+    saveEl.disabled = true;
+    return;
+  }
+  // Only web pages: a file:// address, a browser page or the like is never sent,
+  // not even to ask whether it is saved.
+  if (!isWebPage(tab.url)) {
+    setStatus(statusEl, 'Only web pages (http or https) can be saved.', true);
     saveEl.disabled = true;
     return;
   }

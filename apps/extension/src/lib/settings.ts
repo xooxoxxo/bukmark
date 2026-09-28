@@ -42,3 +42,8 @@ export async function loadSettings(): Promise<Settings> {
 export async function saveSettings(s: Settings): Promise<void> {
   await inSettingsArea((area) => area.set({ baseUrl: normalizeBaseUrl(s.baseUrl) }));
 }
+
+/** A page bukmark can save: an http(s) address. Nothing else ever leaves the browser. */
+export function isWebPage(url: string): boolean {
+  return /^https?:\/\//i.test(url);
+}

@@ -19,11 +19,12 @@ describe('manifestFor', () => {
     for (const file of Object.values(m.icons)) expect(existsSync(packageFile(`public/${file}`)), file).toBe(true);
   });
 
-  it('keeps Chrome’s build as it was: a module service worker and every permission', () => {
+  it('gives Chrome a module service worker and the fewest permissions: bookmarks optional, no tabs', () => {
     const m = manifestFor('chrome');
     expect(m.manifest_version).toBe(3);
     expect(m.background).toEqual({ service_worker: 'background.js', type: 'module' });
-    expect(m.permissions).toEqual(['activeTab', 'tabs', 'bookmarks', 'storage', 'identity']);
+    expect(m.permissions).toEqual(['activeTab', 'storage', 'identity']);
+    expect(m.optional_permissions).toEqual(['bookmarks']);
     expect(m.host_permissions).toEqual(['http://localhost/*']);
     expect(m.optional_host_permissions).toEqual(['http://*/*', 'https://*/*']);
     expect(m.browser_specific_settings).toBeUndefined();
@@ -110,6 +111,8 @@ describe('vite.config', () => {
 
   it.each(TARGETS)('builds %s into its own folder', (target) => {
     expect(configFor(target).build?.outDir).toBe(`dist/${target}`);
+    // Shipped readable, for store review.
+    expect(configFor(target).build?.minify).toBe(false);
   });
 
   it('refuses a build without a known target', () => {

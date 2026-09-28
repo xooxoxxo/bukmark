@@ -29,6 +29,9 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: `dist/${mode}`,
       emptyOutDir: true,
+      // Readable as shipped: about 25 KB either way, and store reviewers read
+      // the code itself (Chrome's code-readability rule, Edge's obfuscation check).
+      minify: false,
       rollupOptions: {
         input: {
           popup: resolve(import.meta.dirname, 'popup.html'),

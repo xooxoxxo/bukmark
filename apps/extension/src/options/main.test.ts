@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Auth } from '../lib/auth';
 import type { LoginRequest } from '../lib/login';
@@ -82,6 +83,21 @@ describe('options opened as the setup page after install', () => {
     expect(page.el('stepLogin').classList.contains('done')).toBe(true);
     expect(page.el('welcomeDone').hidden).toBe(false);
     expect(page.el('welcomeDone').textContent).toContain('Signed in to s1.lan:3000');
+  });
+});
+
+describe('options: what leaves the browser, and store-neutral wording', () => {
+  it('says what saving, the popup and Import send, where it is decided', () => {
+    const html = readFileSync(new URL('../../options.html', import.meta.url), 'utf8');
+    expect(html).toContain('Saving a page sends its address and title to this server, and nowhere else.');
+    expect(html).toContain("Import sends every bookmark's address, title and folder to your server.");
+  });
+
+  it('names Safari’s shortcut settings only in Safari', async () => {
+    arrange({ sync: { baseUrl: S1 } });
+    expect((await openOptions()).el('shortcutWhere').textContent).not.toContain('Safari');
+    arrange({ sync: { baseUrl: S1 }, browser: 'safari', without: ['bookmarks', 'identity'] });
+    expect((await openOptions()).el('shortcutWhere').textContent).toBe('Change it in Safari under Settings › Extensions.');
   });
 });
 
@@ -289,8 +305,10 @@ describe('options, logged in', () => {
     for (const r of requests) expect(r.headers.get('authorization')).toBe('Bearer bkm_s1');
     expect(page.el('importStatus').textContent).toBe('1 added, 0 already known. Preview images fetched for 0.');
     expect(page.el('import').disabled).toBe(false);
-    // Only Firefox declares bookmarks as data collection to ask for.
-    expect(chrome.permissions.request).not.toHaveBeenCalled();
+    // Bookmarks are optional: asked for in the click, before anything is read.
+    expect(chrome.permissions.request).toHaveBeenCalledWith({ permissions: ['bookmarks'] });
+    expect(chrome.permissions.request.mock.invocationCallOrder[0])
+      .toBeLessThan(chrome.bookmarks.getTree.mock.invocationCallOrder[0]!);
   });
 
   it('shows the logged-out state when the token is revoked mid-import', async () => {
@@ -392,7 +410,7 @@ describe('options, taking over a server from Firefox’s popup', () => {
 describe('options in Firefox, importing', () => {
   beforeEach(() => arrange({ browser: 'firefox', local: { auth: auth() }, sync: { baseUrl: S1 } }));
 
-  it('asks to share bookmarks with the server before reading any', async () => {
+  it('asks for bookmarks and to share them with the server before reading any', async () => {
     chrome.bookmarks.getTree.mockResolvedValue([{ id: '0', title: '', children: [{ id: '2', title: 'A', url: 'https://a.com' }] }]);
     const requests = stubFetch(({ url }) =>
       url.endsWith('/import')
@@ -402,7 +420,7 @@ describe('options in Firefox, importing', () => {
     page.el('import').click();
     await settle();
 
-    expect(chrome.permissions.request).toHaveBeenCalledWith({ data_collection: ['bookmarksInfo'] });
+    expect(chrome.permissions.request).toHaveBeenCalledWith({ permissions: ['bookmarks'], data_collection: ['bookmarksInfo'] });
     expect(chrome.permissions.request.mock.invocationCallOrder[0])
       .toBeLessThan(chrome.bookmarks.getTree.mock.invocationCallOrder[0]!);
     expect(requests.map((r) => r.url)).toEqual([`${S1}/api/links/import`, `${S1}/api/links/og-backfill`]);
@@ -418,7 +436,7 @@ describe('options in Firefox, importing', () => {
     expect(chrome.bookmarks.getTree).not.toHaveBeenCalled();
     expect(requests).toHaveLength(0);
     expect(page.el('importStatus').textContent)
-      .toBe('Not imported — sharing your bookmarks with your server was declined.');
+      .toBe('Not imported — access to your bookmarks was declined.');
     expect(page.el('import').disabled).toBe(false);
   });
 });

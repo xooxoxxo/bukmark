@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fakeChrome, type FakeSeed } from '../test/chrome';
 import { matchesEverywhere, validEverywhere } from '../test/matchPattern';
 import {
-  allowBookmarkSharing,
+  allowBookmarkImport,
+  canImportBookmarks,
   ensureHostPermission,
   originPatternFor,
   pageHostAccess,
@@ -140,23 +141,43 @@ describe('popupHostAccess', () => {
   });
 });
 
-describe('allowBookmarkSharing', () => {
-  it('asks Firefox for the optional bookmarksInfo data collection its manifest declares', async () => {
-    const chrome = arrange({ browser: 'firefox' });
-    const allowed = allowBookmarkSharing();
-    expect(chrome.permissions.request).toHaveBeenCalledWith({ data_collection: ['bookmarksInfo'] });
+describe('allowBookmarkImport', () => {
+  it('asks Chrome for the optional bookmarks permission, synchronously in the click', async () => {
+    const chrome = arrange();
+    const allowed = allowBookmarkImport();
+    expect(chrome.permissions.request).toHaveBeenCalledWith({ permissions: ['bookmarks'] });
     await expect(allowed).resolves.toBe(true);
   });
 
-  it('is false when that is declined', async () => {
+  it('asks Firefox for bookmarks and its bookmarksInfo data collection in one prompt', async () => {
     const chrome = arrange({ browser: 'firefox' });
-    chrome.permissions.request.mockResolvedValue(false);
-    await expect(allowBookmarkSharing()).resolves.toBe(false);
+    const allowed = allowBookmarkImport();
+    expect(chrome.permissions.request).toHaveBeenCalledWith({ permissions: ['bookmarks'], data_collection: ['bookmarksInfo'] });
+    await expect(allowed).resolves.toBe(true);
   });
 
-  it('asks nothing where the manifest declares no data collection (Chrome)', async () => {
+  it('is false when that is declined, or the request fails', async () => {
     const chrome = arrange();
-    await expect(allowBookmarkSharing()).resolves.toBe(true);
+    chrome.permissions.request.mockResolvedValueOnce(false);
+    await expect(allowBookmarkImport()).resolves.toBe(false);
+    chrome.permissions.request.mockRejectedValueOnce(new Error('not in a user gesture'));
+    await expect(allowBookmarkImport()).resolves.toBe(false);
+  });
+
+  it('asks nothing in a build without bookmarks (Safari)', async () => {
+    const chrome = arrange({ browser: 'safari', without: ['bookmarks'] });
+    await expect(allowBookmarkImport()).resolves.toBe(true);
     expect(chrome.permissions.request).not.toHaveBeenCalled();
+  });
+});
+
+describe('canImportBookmarks', () => {
+  it('is true where the manifest lists bookmarks, at install or optional, and false in Safari', () => {
+    arrange();
+    expect(canImportBookmarks()).toBe(true);
+    arrange({ browser: 'firefox' });
+    expect(canImportBookmarks()).toBe(true);
+    arrange({ browser: 'safari', without: ['bookmarks'] });
+    expect(canImportBookmarks()).toBe(false);
   });
 });

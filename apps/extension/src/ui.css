@@ -306,6 +306,13 @@ button:disabled {
   color: var(--bk-ink);
 }
 
+/* What leaves the browser, and where to: said where the person acts. */
+.disclosure {
+  color: var(--bk-muted);
+  font-size: var(--bk-text-xs);
+  line-height: 1.45;
+}
+
 /* What bukmark already holds for the page, above the form. */
 .known {
   padding: var(--bk-space-xs) var(--bk-space-sm);

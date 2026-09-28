@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { Auth } from '../lib/auth';
 import type { LoginRequest } from '../lib/login';
@@ -252,6 +253,24 @@ describe('popup, logged in', () => {
     expect(page.el('hub').children.map((o) => o.textContent)).toEqual(['rust']);
     // The server and the shortcut are on the settings page.
     for (const id of ['serverHost', 'openSettings', 'shortcutHint']) expect(() => page.el(id)).toThrow();
+  });
+
+  it.each(['file:///Users/someone/notes.txt', 'chrome://extensions/', 'about:blank', 'moz-extension://x/options.html'])(
+    'never sends %s anywhere, not even to ask, and says only web pages can be saved',
+    async (url) => {
+      chrome.tabs.query.mockResolvedValue([{ url, title: 'Local' }]);
+      const page = await openPopup();
+      expect(requests).toHaveLength(0);
+      expect(page.el('status').textContent).toBe('Only web pages (http or https) can be saved.');
+      expect(page.el('save').disabled).toBe(true);
+    },
+  );
+
+  it('says what leaves the browser, on the login form', () => {
+    const html = readFileSync(new URL('../../popup.html', import.meta.url), 'utf8');
+    const login = html.slice(html.indexOf('id="loginForm"'), html.indexOf('id="saveForm"'));
+    expect(login).toContain('Saving a page sends its address and title to this server, and nowhere else.');
+    expect(login).toContain('Opening this popup on a page sends its address there too');
   });
 
   it('asks the server what it knows of the page, with the token', async () => {
