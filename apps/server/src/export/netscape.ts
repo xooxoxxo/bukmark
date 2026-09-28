@@ -1,6 +1,8 @@
 import type { ExportLink } from './types.js';
 
 const UNSORTED = 'Unsorted';
+/** The one top-level folder: the same one bookmark sync keeps in the browser. */
+const ROOT = 'bukmark';
 
 function esc(s: string): string {
   return s
@@ -15,11 +17,11 @@ function anchor(l: ExportLink): string[] {
   const tags = esc([...l.hubs].sort().join(','));
   const label = esc(l.title === '' ? l.url : l.title);
   const lines = [
-    `        <DT><A HREF="${esc(l.url)}" ADD_DATE="${added}" TAGS="${tags}">${label}</A>`,
+    `            <DT><A HREF="${esc(l.url)}" ADD_DATE="${added}" TAGS="${tags}">${label}</A>`,
   ];
   // <DD> is the standard Netscape description element. The v0 exporter never
   // used it, so notes — the record of WHY a link was kept — were lost on export.
-  if (l.note !== '') lines.push(`        <DD>${esc(l.note)}`);
+  if (l.note !== '') lines.push(`            <DD>${esc(l.note)}`);
   return lines;
 }
 
@@ -31,6 +33,10 @@ function anchor(l: ExportLink): string[] {
  * genuinely is in both, browsers cope with it, and TAGS carries the full set for
  * importers that understand tags. Choosing a "primary" hub would invent a
  * ranking that does not exist in the data.
+ *
+ * Every folder sits inside one "bukmark" folder, so importing the file lays
+ * links out as bookmark sync does, and none of them land loose among the
+ * browser's own bookmarks.
  */
 export function toNetscapeHtml(links: ExportLink[]): string {
   const byHub = new Map<string, ExportLink[]>();
@@ -54,6 +60,8 @@ export function toNetscapeHtml(links: ExportLink[]): string {
     '<TITLE>Bookmarks</TITLE>',
     '<H1>Bookmarks</H1>',
     '<DL><p>',
+    `    <DT><H3>${ROOT}</H3>`,
+    '    <DL><p>',
   ];
 
   const folders: [string, ExportLink[]][] = [...byHub.entries()].sort(([a], [b]) =>
@@ -62,11 +70,11 @@ export function toNetscapeHtml(links: ExportLink[]): string {
   if (unsorted.length > 0) folders.push([UNSORTED, unsorted]);
 
   for (const [name, items] of folders) {
-    out.push(`    <DT><H3>${esc(name)}</H3>`, '    <DL><p>');
+    out.push(`        <DT><H3>${esc(name)}</H3>`, '        <DL><p>');
     for (const l of items) out.push(...anchor(l));
-    out.push('    </DL><p>');
+    out.push('        </DL><p>');
   }
 
-  out.push('</DL><p>', '');
+  out.push('    </DL><p>', '</DL><p>', '');
   return out.join('\n');
 }

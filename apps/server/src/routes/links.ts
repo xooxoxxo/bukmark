@@ -2,10 +2,12 @@ import { Type } from '@sinclair/typebox';
 import { and, asc, desc, eq, inArray, ne, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { normalizeUrl } from '@bukmark/shared';
+import { pgCode } from '../db/client.js';
 import { deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 import { addLink } from '../links/addLink.js';
 import { importLinks } from '../links/importLinks.js';
 import { assignHubs } from '../links/assignHubs.js';
+import { setLinkHubs } from '../links/setLinkHubs.js';
 import { backfillOg } from '../og/backfill.js';
 import { checkLinks, isBroken, type CheckPage } from '../og/checkLinks.js';
 
@@ -22,6 +24,25 @@ const linkHost = dsql`regexp_replace(lower(substring(${links.url} from '^[a-zA-Z
 /** Marks around the words a search matched in a snippet; the web app renders them. */
 export const HIT_START = '\u2e22';
 export const HIT_END = '\u2e23';
+
+/**
+ * A timestamptz as the changes feed writes it: UTC, ISO 8601, all six
+ * fractional digits. Made in Postgres, never through a JS Date, which keeps
+ * only milliseconds: a cursor cut to the millisecond would re-send rows, and
+ * one rounded up would skip them.
+ */
+const feedTime = (value: unknown) =>
+  dsql<string>`to_char(${value} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+
+/**
+ * How far back an open transaction holds the changes feed. A write stamps
+ * updated_at with its transaction's start but becomes visible only at commit,
+ * so a pull taken meanwhile could move its cursor past a row that has not
+ * appeared yet. The feed therefore stops short of the oldest transaction still
+ * open on this database; one open longer than this (a forgotten psql session)
+ * no longer holds it.
+ */
+const OPEN_TRANSACTION_WAIT = '5 minutes';
 
 const SORTS = {
   relevance: [dsql`${links.relevance} DESC NULLS LAST`, desc(links.lastSeen)],
@@ -145,6 +166,97 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
     };
   });
 
+  // What changed since a sync client's cursor: links written at or after it,
+  // and links deleted at or after it. Inclusive, so writes that share the
+  // cursor's timestamp are never skipped; the client drops what it already has.
+  app.get('/links/changes', {
+    schema: {
+      querystring: Type.Object({
+        since: Type.Optional(Type.String({
+          pattern: '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}(:?\\d{2})?)$',
+        })),
+        limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 1000, default: 500 })),
+      }),
+      response: {
+        200: Type.Object({
+          items: Type.Array(Type.Object({
+            id: Type.String(), url: Type.String(), title: Type.String(), note: Type.String(),
+            status: Type.String(), hubs: Type.Array(Type.String()), updatedAt: Type.String(),
+          })),
+          deleted: Type.Array(Type.Object({ id: Type.String(), deletedAt: Type.String() })),
+          cursor: Type.Union([Type.String(), Type.Null()]),
+          more: Type.Boolean(),
+        }),
+        400: Type.Object({ error: Type.String() }),
+      },
+    },
+  }, async (req, reply) => {
+    const { since, limit = 500 } = req.query as { since?: string; limit?: number };
+    const { db } = req.server;
+
+    let from: string | null = null;
+    if (since !== undefined) {
+      try {
+        const [row] = await db.execute(dsql`SELECT ${feedTime(dsql`${since}::timestamptz`)} AS at`);
+        from = row!.at as string;
+      } catch (err) {
+        // 22007 invalid_datetime_format, 22008 datetime_field_overflow: a day 31 in June.
+        if (['22007', '22008'].includes(pgCode(err) ?? '')) {
+          return reply.code(400).send({ error: 'invalid since' });
+        }
+        throw err;
+      }
+    }
+    const start = from === null ? dsql`'-infinity'::timestamptz` : dsql`${from}::timestamptz`;
+
+    // A page takes `limit` changes after the cursor, plus every change that
+    // shares the cursor's timestamp or the last one's. One statement can stamp
+    // thousands of rows alike (a bulk archive, a hub rename); splitting such a
+    // group would leave the next page, which starts at the same timestamp, no
+    // way forward.
+    const rows = await db.execute(dsql`
+      WITH open_tx AS (
+        SELECT min(xact_start) AS at FROM pg_stat_activity
+        WHERE datname = current_database() AND backend_type = 'client backend'
+          AND pid <> pg_backend_pid() AND xact_start IS NOT NULL
+          AND xact_start > now() - ${OPEN_TRANSACTION_WAIT}::interval
+      ),
+      changes AS (
+        SELECT id, updated_at AS at, false AS gone FROM links WHERE updated_at >= ${start}
+        UNION ALL
+        SELECT link_id, deleted_at, true FROM link_deletions WHERE deleted_at >= ${start}
+      ),
+      settled AS (
+        SELECT * FROM changes WHERE at < coalesce((SELECT at FROM open_tx), 'infinity')
+      ),
+      edge AS (
+        SELECT at FROM settled WHERE at > ${start} ORDER BY at, id OFFSET ${limit - 1} LIMIT 1
+      )
+      SELECT c.id, c.gone, ${feedTime(dsql`c.at`)} AS at,
+        l.url, l.title, l.note, l.status,
+        coalesce((
+          SELECT array_agg(h.name ORDER BY h.name) FROM hub_links hl JOIN hubs h ON h.id = hl.hub_id
+          WHERE hl.link_id = c.id AND h.status <> 'archived'
+        ), '{}') AS hubs,
+        EXISTS (SELECT 1 FROM settled WHERE at > (SELECT at FROM edge)) AS more
+      FROM settled c
+      LEFT JOIN links l ON l.id = c.id AND NOT c.gone
+      WHERE c.at <= coalesce((SELECT at FROM edge), 'infinity')
+      ORDER BY c.at, c.id
+    `) as unknown as {
+      id: string; gone: boolean; at: string; url: string; title: string; note: string;
+      status: string; hubs: string[]; more: boolean;
+    }[];
+
+    const items = [];
+    const deleted = [];
+    for (const r of rows) {
+      if (r.gone) deleted.push({ id: r.id, deletedAt: r.at });
+      else items.push({ id: r.id, url: r.url, title: r.title, note: r.note, status: r.status, hubs: r.hubs, updatedAt: r.at });
+    }
+    return { items, deleted, cursor: rows.at(-1)?.at ?? from, more: rows[0]?.more ?? false };
+  });
+
   // One link with everything bukmark holds for it, the saved page text included.
   app.get('/links/:id', {
     schema: { params: Type.Object({ id: Type.String({ format: 'uuid' }) }) },
@@ -263,24 +375,32 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
         note: Type.Optional(Type.String()),
         status: Type.Optional(Type.Union([Type.Literal('active'), Type.Literal('archived')])),
         relevance: Type.Optional(Type.Union([Type.Integer({ minimum: 1, maximum: 5 }), Type.Null()])),
+        // Hub names, replacing the hubs the link is in: see setLinkHubs.
+        hubs: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { maxItems: 100 })),
       }),
     },
   }, async (req, reply) => {
     const { id } = req.params as { id: string };
-    const body = req.body as { title?: string; note?: string; status?: 'active' | 'archived'; relevance?: number | null };
-    const [row] = await req.server.db
-      .update(links)
-      .set({ ...body, updatedAt: dsql`now()` })
-      .where(eq(links.id, id))
-      .returning({
-        id: links.id, url: links.url, title: links.title, note: links.note,
-        status: links.status, relevance: links.relevance, dupeCount: links.dupeCount, firstSeen: links.firstSeen,
-        imageUrl: links.imageUrl,
-      });
-    if (!row) return reply.code(404).send({ error: 'link not found' });
-    const hubRows = await req.server.db
-      .select({ hubId: hubLinks.hubId }).from(hubLinks).where(eq(hubLinks.linkId, id));
-    return { ...row, firstSeen: row.firstSeen.toISOString(), hubIds: hubRows.map((h) => h.hubId) };
+    const { hubs: hubNames, ...fields } = req.body as {
+      title?: string; note?: string; status?: 'active' | 'archived'; relevance?: number | null; hubs?: string[];
+    };
+    const result = await req.server.db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(links)
+        .set({ ...fields, updatedAt: dsql`now()` })
+        .where(eq(links.id, id))
+        .returning({
+          id: links.id, url: links.url, title: links.title, note: links.note,
+          status: links.status, relevance: links.relevance, dupeCount: links.dupeCount, firstSeen: links.firstSeen,
+          imageUrl: links.imageUrl,
+        });
+      if (!row) return null;
+      if (hubNames) await setLinkHubs(tx, id, hubNames);
+      const hubRows = await tx.select({ hubId: hubLinks.hubId }).from(hubLinks).where(eq(hubLinks.linkId, id));
+      return { ...row, firstSeen: row.firstSeen.toISOString(), hubIds: hubRows.map((h) => h.hubId) };
+    });
+    if (!result) return reply.code(404).send({ error: 'link not found' });
+    return result;
   });
 
   app.post('/links/bulk', {

@@ -95,8 +95,10 @@ export async function importLinks(
           // Only fill a title in; never overwrite one you have already curated.
           title: dsql`CASE WHEN ${links.title} = '' THEN excluded.title ELSE ${links.title} END`,
           lastSeen: dsql`now()`,
-          updatedAt: dsql`now()`,
           // dupeCount and status are intentionally absent — see the docblock.
+          // So is updatedAt: the links trigger moves it only when the title is
+          // filled in, so re-importing a browser tree does not make every
+          // synced browser pull every link again.
         },
       })
       .returning({ id: links.id, urlHash: links.urlHash });

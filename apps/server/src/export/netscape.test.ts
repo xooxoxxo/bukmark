@@ -94,10 +94,31 @@ describe('toNetscapeHtml', () => {
     expect(out.indexOf('<H3>zebra</H3>')).toBeLessThan(out.indexOf('<H3>Unsorted</H3>'));
   });
 
-  it('produces a valid empty document for no links', () => {
+  it('produces a valid empty document for no links: only the bukmark folder', () => {
     const out = toNetscapeHtml([]);
     expect(out).toContain('<DL><p>');
     expect(out).toContain('</DL><p>');
-    expect(out).not.toContain('<H3>');
+    expect(out.match(/<H3>/g)).toEqual(['<H3>']);
+    expect(out).toContain('<H3>bukmark</H3>');
+  });
+
+  it('puts every folder inside one top-level bukmark folder, as sync lays them out', () => {
+    const out = toNetscapeHtml([
+      link({ url: 'https://a.com', hubs: ['rust'] }),
+      link({ url: 'https://c.com', hubs: [] }),
+    ]);
+    // Nesting depth of each folder and link, counted from the <DL> opens and closes before it.
+    const depthAt = (needle: string): number => {
+      const before = out.slice(0, out.indexOf(needle));
+      return (before.match(/<DL><p>/g) ?? []).length - (before.match(/<\/DL><p>/g) ?? []).length;
+    };
+    expect(depthAt('<H3>bukmark</H3>')).toBe(1);
+    expect(depthAt('<H3>rust</H3>')).toBe(2);
+    expect(depthAt('<H3>Unsorted</H3>')).toBe(2);
+    expect(depthAt('HREF="https://a.com"')).toBe(3);
+    expect(depthAt('HREF="https://c.com"')).toBe(3);
+    // Opens and closes balance, and bukmark is the only thing at the top.
+    expect((out.match(/<DL><p>/g) ?? []).length).toBe((out.match(/<\/DL><p>/g) ?? []).length);
+    expect(out.indexOf('<H3>bukmark</H3>')).toBeLessThan(out.indexOf('<H3>rust</H3>'));
   });
 });

@@ -1,6 +1,7 @@
 import { eq, sql as dsql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { captures, deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
+import { reactivateHub } from './setLinkHubs.js';
 
 export interface AddLinkInput {
   url: string;
@@ -64,7 +65,7 @@ export async function addLink(
     if (hub) {
       const hs = await tx
         .insert(hubs).values({ name: hub })
-        .onConflictDoUpdate({ target: hubs.name, set: { updatedAt: dsql`now()` } })
+        .onConflictDoUpdate({ target: hubs.name, set: reactivateHub })
         .returning({ id: hubs.id });
       await tx
         .insert(hubLinks)

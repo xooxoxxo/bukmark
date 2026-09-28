@@ -8,3 +8,10 @@ export function getDb(url: string = config.databaseUrl) {
   return { db: drizzle(sql, { schema }), sql };
 }
 export type Db = ReturnType<typeof getDb>['db'];
+
+/** The SQLSTATE of a failed query, whether the driver's error arrives bare or wrapped. */
+export function pgCode(err: unknown): string | undefined {
+  const e = err as { code?: unknown; cause?: { code?: unknown } } | null;
+  const code = typeof e?.code === 'string' ? e.code : e?.cause?.code;
+  return typeof code === 'string' ? code : undefined;
+}

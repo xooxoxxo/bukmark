@@ -2,6 +2,7 @@ import { Type } from '@sinclair/typebox';
 import { asc, desc, eq, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { isBroken } from '../og/checkLinks.js';
+import { pgCode } from '../db/client.js';
 import { hubLinks, hubs, links } from '../db/schema.js';
 
 export async function hubRoutes(app: FastifyInstance): Promise<void> {
@@ -42,11 +43,19 @@ export async function hubRoutes(app: FastifyInstance): Promise<void> {
   }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const body = req.body as { name?: string; description?: string; status?: 'active' | 'dormant' | 'archived' };
-    const [row] = await req.server.db
-      .update(hubs)
-      .set({ ...body, updatedAt: dsql`now()` })
-      .where(eq(hubs.id, id))
-      .returning();
+    let row;
+    try {
+      [row] = await req.server.db
+        .update(hubs)
+        .set({ ...body, updatedAt: dsql`now()` })
+        .where(eq(hubs.id, id))
+        .returning();
+    } catch (err) {
+      // 23505 unique_violation: renamed to a name another hub has. Sync renames
+      // hubs when a folder is renamed, so this is an answer, not a crash.
+      if (pgCode(err) === '23505') return reply.code(409).send({ error: 'hub name exists' });
+      throw err;
+    }
     if (!row) return reply.code(404).send({ error: 'hub not found' });
     return row;
   });

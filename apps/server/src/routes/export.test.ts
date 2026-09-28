@@ -140,6 +140,9 @@ describe('export api', () => {
     expect(res.headers['content-type']).toContain('text/html');
     expect(res.body).toContain('<!DOCTYPE NETSCAPE-Bookmark-file-1>');
     expect(res.body).toContain('<H3>rust</H3>');
+    // Hub folders sit inside the one bukmark folder.
+    expect(res.body.indexOf('<DT><H3>bukmark</H3>')).toBeGreaterThan(-1);
+    expect(res.body.indexOf('<DT><H3>bukmark</H3>')).toBeLessThan(res.body.indexOf('<H3>rust</H3>'));
   });
 
   it('exports csv with the header row and the right content type', async () => {
