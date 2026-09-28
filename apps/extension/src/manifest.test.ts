@@ -11,6 +11,14 @@ import { matchesEverywhere, validEverywhere } from './test/matchPattern';
 const packageFile = (path: string) => new URL(`../${path}`, import.meta.url);
 
 describe('manifestFor', () => {
+  it.each(TARGETS)('gives %s the bukmark mark as its icon and toolbar button, from files the build ships', (target) => {
+    const m = manifestFor(target);
+    expect(Object.keys(m.icons)).toEqual(['16', '32', '48', '128']);
+    expect(m.action.default_icon).toEqual({ '16': m.icons['16'], '32': m.icons['32'] });
+    // Vite copies public/ into every target's dist.
+    for (const file of Object.values(m.icons)) expect(existsSync(packageFile(`public/${file}`)), file).toBe(true);
+  });
+
   it('keeps Chrome’s build as it was: a module service worker and every permission', () => {
     const m = manifestFor('chrome');
     expect(m.manifest_version).toBe(3);

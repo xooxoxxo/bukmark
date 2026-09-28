@@ -80,7 +80,8 @@ Rules that follow from this:
   tracks remain transparent.
 - Primary action · solid ink block, paper text, uppercase display font,
   hover → accent fill + 2px lift. Secondary · 2px ink outline, transparent.
-- Logo mark (`apps/site/public/logo-mark.png`) sits left in any header,
+- Logo mark (`logo-mark.svg`, drawn with every favicon and icon from one
+  geometry by `pnpm --filter @bukmark/web icons`) sits left in any header,
   lowercase `bukmark` wordmark beside it in display 800.
 - Accent is scarce: hovers, active nav item, links, focus rings, small
   highlights. Never large fills except CTA hover.

@@ -57,7 +57,8 @@ export interface Manifest {
   permissions: string[];
   host_permissions: string[];
   optional_host_permissions: string[];
-  action: { default_popup: string; default_title: string };
+  icons: Record<string, string>;
+  action: { default_popup: string; default_title: string; default_icon: Record<string, string> };
   options_page: string;
   background: Background;
   commands: Record<string, { suggested_key: { default: string; mac: string }; description: string }>;
@@ -70,6 +71,11 @@ export function isTarget(value: string): value is Target {
 
 const PERMISSIONS = ['activeTab', 'tabs', 'bookmarks', 'storage', 'identity'];
 
+/** Drawn with the web app's icons by `pnpm --filter @bukmark/web icons`, into public/icons. */
+export const ICONS: Record<string, string> = Object.fromEntries(
+  [16, 32, 48, 128].map((size) => [String(size), `icons/icon-${size}.png`]),
+);
+
 export function manifestFor(target: Target): Manifest {
   const manifest: Manifest = {
     manifest_version: 3,
@@ -81,7 +87,12 @@ export function manifestFor(target: Target): Manifest {
     // pattern may carry a port (see lib/permissions.ts).
     host_permissions: ['http://localhost/*'],
     optional_host_permissions: ['http://*/*', 'https://*/*'],
-    action: { default_popup: 'popup.html', default_title: 'Save to bukmark' },
+    icons: ICONS,
+    action: {
+      default_popup: 'popup.html',
+      default_title: 'Save to bukmark',
+      default_icon: { '16': ICONS['16']!, '32': ICONS['32']! },
+    },
     options_page: 'options.html',
     background: { service_worker: 'background.js', type: 'module' },
     commands: {

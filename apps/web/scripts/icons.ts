@@ -1,13 +1,16 @@
 /**
- * Draws the web app icons from the logo mark: `pnpm --filter @bukmark/web icons`.
+ * Draws every logo asset from one geometry: `pnpm --filter @bukmark/web icons`.
  *
- * public/logo-mark.png is a 140×200 raster with hard edges, so scaling it up
- * to 512 px would show every stair-step. The mark is plain geometry, so it is
- * redrawn from shapes fitted to that file instead; src/pwa.test.ts holds the
- * fit to the PNG and the committed icons to this output.
+ * The mark is plain shapes, so it is described, not traced: a stem, a bowl (a
+ * circle plus the block below its centre) with a round counter, a V notch cut
+ * from the bottom edge, and a dot. The numbers are measured from the brand
+ * artwork, a 1254 px square. From them come the SVGs (the mark and the favicon,
+ * for the web app and the site), the web app's install icons and PNG favicon,
+ * the site's PNG favicon, and the extension's toolbar icons. src/pwa.test.ts
+ * holds every committed file to this output.
  */
-import { writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { encodePng, type Image } from './png';
 
@@ -17,20 +20,17 @@ interface Circle {
   r: number;
 }
 
-/**
- * In logo-mark.png pixels: a stem, a bowl (a circle plus the block below its
- * centre) with a round counter, a V notch cut from the bottom edge, and a dot.
- */
-const MARK = {
-  left: 16.9,
-  right: 108.1,
-  top: 13,
-  bottom: 166.2,
-  stemRight: 53,
-  bowl: { x: 62.2, y: 98.25, r: 46 },
-  counter: { x: 62.35, y: 99.4, r: 15.4 },
-  notch: { x: 62.5, y: 142.65 },
-  dot: { x: 93.25, y: 35.75, r: 11 },
+/** In artwork pixels. */
+export const MARK = {
+  left: 271,
+  right: 982,
+  top: 98,
+  bottom: 1160,
+  stemRight: 536,
+  bowl: { x: 626.5, y: 728, r: 355.5 },
+  counter: { x: 627, y: 728, r: 130 },
+  notch: { x: 626.5, y: 980 },
+  dot: { x: 856.5, y: 260, r: 82.5 },
 };
 
 const MARK_WIDTH = MARK.right - MARK.left;
@@ -39,6 +39,7 @@ const MARK_HEIGHT = MARK.bottom - MARK.top;
 /** --bk-paper and --bk-accent from src/global.css. */
 export const PAPER = [0xfb, 0xf7, 0xf3] as const;
 export const ACCENT = [0xfd, 0x44, 0x1d] as const;
+const ACCENT_HEX = `#${ACCENT.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
 
 function inCircle({ x: cx, y: cy, r }: Circle, x: number, y: number): boolean {
   const dx = x - cx;
@@ -59,11 +60,46 @@ function inMark(x: number, y: number): boolean {
   return y <= floor;
 }
 
+const n = (v: number) => String(Math.round(v * 100) / 100);
+
+/** The same shapes as inMark, as SVG: the body with its counter cut out, and the dot. */
+export function markShapes(fill = ACCENT_HEX): string {
+  const { left, right, top, bottom, stemRight, bowl, counter, notch, dot } = MARK;
+  // Where the stem's right edge meets the bowl's circle.
+  const joinY = bowl.y - Math.sqrt(bowl.r ** 2 - (stemRight - bowl.x) ** 2);
+  const body =
+    `M${n(left)} ${n(top)}H${n(stemRight)}V${n(joinY)}` +
+    `A${n(bowl.r)} ${n(bowl.r)} 0 0 1 ${n(right)} ${n(bowl.y)}` +
+    `V${n(bottom)}L${n(notch.x)} ${n(notch.y)}L${n(left)} ${n(bottom)}Z`;
+  const hole =
+    `M${n(counter.x - counter.r)} ${n(counter.y)}` +
+    `a${n(counter.r)} ${n(counter.r)} 0 1 0 ${n(2 * counter.r)} 0` +
+    `a${n(counter.r)} ${n(counter.r)} 0 1 0 ${n(-2 * counter.r)} 0Z`;
+  return (
+    `<path fill="${fill}" fill-rule="evenodd" d="${body}${hole}"/>` +
+    `<circle fill="${fill}" cx="${n(dot.x)}" cy="${n(dot.y)}" r="${n(dot.r)}"/>`
+  );
+}
+
+/** The mark alone, its box tight around it: for headers and inline use. */
+export function logoSvg(): string {
+  const box = `${n(MARK.left)} ${n(MARK.top)} ${n(MARK_WIDTH)} ${n(MARK_HEIGHT)}`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box}">${markShapes()}</svg>\n`;
+}
+
+/** The mark centred in a square, filling most of its height: for browser tabs. */
+export function faviconSvg(): string {
+  const side = MARK_HEIGHT / HEIGHT_SHARE.glyph;
+  const x = MARK.left - (side - MARK_WIDTH) / 2;
+  const y = MARK.top - (side - MARK_HEIGHT) / 2;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${n(x)} ${n(y)} ${n(side)} ${n(side)}">${markShapes()}</svg>\n`;
+}
+
 const SAMPLES = 8;
 
 /**
- * How much of each pixel the mark covers, 0–1, with one logo pixel drawn as
- * `scale` pixels and the logo's origin at (originX, originY).
+ * How much of each pixel the mark covers, 0–1, with one artwork pixel drawn as
+ * `scale` pixels and the artwork's origin at (originX, originY).
  */
 export function markCoverage(
   width: number,
@@ -88,12 +124,16 @@ export function markCoverage(
   return cover;
 }
 
+/** `glyph`: a favicon or toolbar icon, where every pixel of height counts. */
+export type Purpose = 'any' | 'maskable' | 'glyph';
+
 export interface Icon {
   file: string;
   size: number;
-  purpose: 'any' | 'maskable';
+  purpose: Purpose;
 }
 
+/** The web app manifest's icons, in apps/web/public. */
 export const ICONS: Icon[] = [
   { file: 'icon-192.png', size: 192, purpose: 'any' },
   { file: 'icon-512.png', size: 512, purpose: 'any' },
@@ -101,12 +141,30 @@ export const ICONS: Icon[] = [
   { file: 'icon-maskable-512.png', size: 512, purpose: 'maskable' },
 ];
 
+/** Everything written, by path from apps/. */
+export const PNGS: { path: string; icon: Icon }[] = [
+  ...ICONS.map((icon) => ({ path: `web/public/${icon.file}`, icon })),
+  { path: 'web/public/favicon.png', icon: { file: 'favicon.png', size: 64, purpose: 'glyph' } },
+  { path: 'site/public/favicon.png', icon: { file: 'favicon.png', size: 64, purpose: 'glyph' } },
+  ...[16, 32, 48, 128].map((size) => ({
+    path: `extension/public/icons/icon-${size}.png`,
+    icon: { file: `icon-${size}.png`, size, purpose: 'glyph' as const },
+  })),
+];
+
+export const SVGS: { path: string; draw: () => string }[] = [
+  { path: 'web/public/logo-mark.svg', draw: logoSvg },
+  { path: 'web/public/favicon.svg', draw: faviconSvg },
+  { path: 'site/public/logo-mark.svg', draw: logoSvg },
+  { path: 'site/public/favicon.svg', draw: faviconSvg },
+];
+
 /**
  * Mark height as a share of the icon. A launcher may crop a maskable icon to
  * the circle of radius 40% (the manifest spec's safe zone); at 64% the mark's
  * outermost corners sit at 37%.
  */
-const HEIGHT_SHARE = { any: 0.8, maskable: 0.64 };
+const HEIGHT_SHARE: Record<Purpose, number> = { any: 0.8, maskable: 0.64, glyph: 0.94 };
 
 export function renderIcon({ size, purpose }: Icon): Image {
   const scale = (size * HEIGHT_SHARE[purpose]) / MARK_HEIGHT;
@@ -135,9 +193,12 @@ export function renderIcon({ size, purpose }: Icon): Image {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const publicDir = fileURLToPath(new URL('../public/', import.meta.url));
-  for (const icon of ICONS) {
-    writeFileSync(join(publicDir, icon.file), encodePng(renderIcon(icon)));
-    console.log(`wrote public/${icon.file}`);
-  }
+  const appsDir = fileURLToPath(new URL('../../', import.meta.url));
+  const write = (path: string, data: string | Uint8Array) => {
+    mkdirSync(dirname(join(appsDir, path)), { recursive: true });
+    writeFileSync(join(appsDir, path), data);
+    console.log(`wrote apps/${path}`);
+  };
+  for (const { path, icon } of PNGS) write(path, encodePng(renderIcon(icon)));
+  for (const { path, draw } of SVGS) write(path, draw());
 }

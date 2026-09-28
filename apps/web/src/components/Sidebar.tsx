@@ -26,7 +26,7 @@ export function Sidebar() {
   return (
     <nav className={styles.sidebar}>
       <h1 className={styles.title}>
-        <img src="/logo-mark.png" alt="" className={styles.logo} />
+        <img src="/logo-mark.svg" alt="" className={styles.logo} />
         bukmark
       </h1>
       <NavLink

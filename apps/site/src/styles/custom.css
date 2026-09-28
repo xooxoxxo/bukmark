@@ -1,8 +1,9 @@
 /* Hallmark · macrostructure: Manifesto×Workbench hybrid · theme: Brutal (tempered) · nav: N7 · footer: Ft4 · tone: brutalist-product */
 /* Brand tokens. Source of truth for the bukmark identity: the site adopted
    them first; apps/web is to be restyled against this same set. Accent, paper
-   and ink are exact pixel samples from the logo asset (public/logo-mark.png),
-   kept as hex so they never drift from the artwork. */
+   and ink are exact samples from the logo artwork, kept as hex so they never
+   drift from it; public/logo-mark.svg is drawn in the accent by
+   apps/web/scripts/icons.ts. */
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..120,400;12..120,700;12..120,800&family=Geist:wght@400;500;600;700&display=swap');
 
 :root {

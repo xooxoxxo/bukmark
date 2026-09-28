@@ -85,7 +85,7 @@ export function SavePage() {
     <div className={styles.page}>
       <div className={styles.card}>
         <h1 className={styles.brand}>
-          <img src="/logo-mark.png" alt="" className={styles.logo} />
+          <img src="/logo-mark.svg" alt="" className={styles.logo} />
           bukmark
         </h1>
 

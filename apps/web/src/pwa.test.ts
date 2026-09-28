@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { ACCENT, ICONS, PAPER, markCoverage, renderIcon } from '../scripts/icons';
+import { ACCENT, ICONS, MARK, PAPER, PNGS, SVGS, markCoverage, renderIcon } from '../scripts/icons';
 import { decodePng } from '../scripts/png';
 
 interface ManifestIcon {
@@ -13,6 +13,7 @@ interface ManifestIcon {
 }
 
 const webDir = join(dirname(fileURLToPath(import.meta.url)), '..');
+const appsDir = join(webDir, '..');
 const publicDir = join(webDir, 'public');
 const manifest = JSON.parse(readFileSync(join(publicDir, 'manifest.webmanifest'), 'utf8')) as {
   icons: ManifestIcon[];
@@ -94,28 +95,33 @@ describe('web app manifest', () => {
 });
 
 describe('icons', () => {
-  it('draw the mark the logo artwork shows', () => {
-    const logo = readPng('logo-mark.png');
-    const cover = markCoverage(logo.width, logo.height, 1);
-    let inked = 0;
-    let differ = 0;
-    cover.forEach((c, i) => {
-      const alpha = logo.rgba[i * 4 + 3]!;
-      if (alpha >= 128) inked++;
-      if (c >= 0.5 !== alpha >= 128) differ++;
-    });
-    expect(inked).toBeGreaterThan(9000);
-    // Only single stray edge pixels differ; a 1 px change to any shape costs far more.
-    expect(differ / inked).toBeLessThan(0.005);
+  it('cover exactly the area of the shapes the artwork is made of', () => {
+    // The stem above the bowl's centre line, the bowl's cap right of the stem,
+    // the block below the line less the notch, and the dot, less the counter.
+    const { left, right, top, bottom, stemRight, bowl, counter, dot, notch } = MARK;
+    const theta = Math.acos((stemRight - bowl.x) / bowl.r);
+    const expected =
+      (stemRight - left) * (bowl.y - top) +
+      (bowl.r ** 2 / 2) * (theta - Math.sin(theta) * Math.cos(theta)) +
+      (right - left) * (bottom - bowl.y) - ((right - left) * (bottom - notch.y)) / 2 +
+      Math.PI * dot.r ** 2 - Math.PI * counter.r ** 2;
+    const scale = 0.5;
+    const cover = markCoverage(Math.ceil(right * scale) + 2, Math.ceil(bottom * scale) + 2, scale);
+    const inked = cover.reduce((sum, c) => sum + c, 0) / scale ** 2;
+    expect(Math.abs(inked - expected) / expected).toBeLessThan(0.002);
   });
 
   it('match the generator pixel for pixel (regenerate: `pnpm --filter @bukmark/web icons`)', () => {
-    for (const icon of ICONS) {
-      const shipped = readPng(icon.file);
+    for (const { path, icon } of PNGS) {
+      const shipped = decodePng(readFileSync(join(appsDir, path)));
       const drawn = renderIcon(icon);
       expect([shipped.width, shipped.height]).toEqual([icon.size, icon.size]);
-      expect(Buffer.from(shipped.rgba).equals(Buffer.from(drawn.rgba)), icon.file).toBe(true);
+      expect(Buffer.from(shipped.rgba).equals(Buffer.from(drawn.rgba)), path).toBe(true);
     }
+  });
+
+  it('ship the SVG mark and favicons the generator draws', () => {
+    for (const { path, draw } of SVGS) expect(readFileSync(join(appsDir, path), 'utf8'), path).toBe(draw());
   });
 
   it('use the brand paper and accent', () => {

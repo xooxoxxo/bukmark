@@ -12,8 +12,8 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'bukmark',
-      logo: { src: './public/logo-mark.png', alt: 'bukmark' },
-      favicon: '/favicon.png',
+      logo: { src: './public/logo-mark.svg', alt: 'bukmark' },
+      favicon: '/favicon.svg',
       description:
         'Self-hosted bookmark manager built around triage. Capture in one click; sorting is a separate, deliberate pass.',
       social: [
