@@ -5,6 +5,7 @@ export interface ExportOptions {
   q?: string;
   hub?: string;
   unassigned?: boolean;
+  broken?: boolean;
   status?: 'active' | 'archived' | 'all';
 }
 
@@ -21,6 +22,7 @@ export function buildExportUrl(opts: ExportOptions): string {
   if (opts.q) params.set('q', opts.q);
   if (opts.hub) params.set('hub', opts.hub);
   if (opts.unassigned) params.set('unassigned', 'true');
+  if (opts.broken) params.set('broken', 'true');
   if (opts.status) params.set('status', opts.status);
   return `/api/export?${params.toString()}`;
 }

@@ -61,6 +61,17 @@ describe('AppToolbar', () => {
     );
   });
 
+  it('names the broken-links view and exports only those links', async () => {
+    useFilters.getState().setBroken(true);
+    renderAt();
+    expect(await screen.findByRole('heading', { name: 'Broken links' })).toBeInTheDocument();
+    await openActions('Broken links');
+    expect(screen.getByRole('menuitem', { name: 'Export CSV' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('broken=true'),
+    );
+  });
+
   it('names the unassigned context and carries that filter into exports', async () => {
     useFilters.getState().setUnassigned(true);
     useFilters.getState().setQ('rust');

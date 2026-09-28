@@ -22,19 +22,20 @@ export async function exportRoutes(app: FastifyInstance): Promise<void> {
         q: Type.Optional(Type.String()),
         hub: Type.Optional(Type.String({ format: 'uuid' })),
         unassigned: Type.Optional(Type.Boolean()),
+        broken: Type.Optional(Type.Boolean()),
         status: Type.Optional(
           Type.Union([Type.Literal('active'), Type.Literal('archived'), Type.Literal('all')]),
         ),
       }),
     },
   }, async (req, reply) => {
-    const { format, q, hub, unassigned, status = 'active' } = req.query as {
+    const { format, q, hub, unassigned, broken, status = 'active' } = req.query as {
       format: 'html' | 'json' | 'csv';
-      q?: string; hub?: string; unassigned?: boolean;
+      q?: string; hub?: string; unassigned?: boolean; broken?: boolean;
       status?: 'active' | 'archived' | 'all';
     };
 
-    const filters: ExportFilters = { q, hub, unassigned, status };
+    const filters: ExportFilters = { q, hub, unassigned, broken, status };
     const rows = await selectForExport(req.server.db, filters);
 
     // Scope names the file. A hub name is user-supplied and reaches a response
@@ -44,6 +45,8 @@ export async function exportRoutes(app: FastifyInstance): Promise<void> {
       const [row] = await req.server.db
         .select({ name: hubs.name }).from(hubs).where(eq(hubs.id, hub)).limit(1);
       scope = row?.name ?? 'hub';
+    } else if (broken) {
+      scope = 'broken';
     } else if (unassigned) {
       scope = 'unsorted';
     }

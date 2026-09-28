@@ -1,12 +1,14 @@
 import { and, desc, eq, sql as dsql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { hubLinks, hubs, links } from '../db/schema.js';
+import { isBroken } from '../og/checkLinks.js';
 import type { ExportLink } from './types.js';
 
 export interface ExportFilters {
   q?: string;
   hub?: string;
   unassigned?: boolean;
+  broken?: boolean;
   status: 'active' | 'archived' | 'all';
 }
 
@@ -20,7 +22,7 @@ export interface ExportFilters {
  * archived links is not a backup.
  */
 export async function selectForExport(db: Db, filters: ExportFilters): Promise<ExportLink[]> {
-  const { q, hub, unassigned, status } = filters;
+  const { q, hub, unassigned, broken, status } = filters;
 
   const conds = [];
   if (status !== 'all') conds.push(eq(links.status, status));
@@ -31,6 +33,7 @@ export async function selectForExport(db: Db, filters: ExportFilters): Promise<E
   if (unassigned) {
     conds.push(dsql`NOT EXISTS (SELECT 1 FROM hub_links hl WHERE hl.link_id = ${links.id})`);
   }
+  if (broken) conds.push(isBroken);
 
   const rows = await db
     .select({

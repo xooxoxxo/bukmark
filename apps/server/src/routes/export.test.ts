@@ -83,6 +83,15 @@ describe('export api', () => {
     expect(body.links[0].url).toBe('https://rust-lang.org/');
   });
 
+  it('filters to broken links, and names the file after them', async () => {
+    await seed();
+    await db.execute(dsql`UPDATE links SET http_status = 404 WHERE url = 'https://fastify.dev/'`);
+    const res = await app.inject({ method: 'GET', url: '/api/export?format=json&broken=true', headers });
+    expect(res.json().count).toBe(1);
+    expect(res.json().links[0].url).toBe('https://fastify.dev/');
+    expect(res.headers['content-disposition']).toMatch(/broken/);
+  });
+
   it('filters to unassigned', async () => {
     await seed();
     const body = (await app.inject({ method: 'GET', url: '/api/export?format=json&unassigned=true', headers })).json();

@@ -20,6 +20,7 @@ export function AppToolbar() {
   const hub = hubs?.items.find((item) => item.id === hubId);
   const q = useFilters((state) => state.q);
   const unassigned = useFilters((state) => state.unassigned);
+  const broken = useFilters((state) => state.broken);
   const status = useFilters((state) => state.status);
   const patchHub = usePatchHub();
   const deleteHub = useDeleteHub();
@@ -35,12 +36,12 @@ export function AppToolbar() {
     setConfirmingDelete(false);
   }, [hubId]);
 
-  const title = hub?.name ?? (hubId ? 'Hub' : unassigned ? 'Unassigned' : 'All links');
+  const title = hub?.name ?? (hubId ? 'Hub' : broken ? 'Broken links' : unassigned ? 'Unassigned' : 'All links');
   const archived = hub?.status === 'archived';
   const mutationError = patchHub.error ?? deleteHub.error;
 
   const currentExport = (format: ExportFormat): string =>
-    buildExportUrl({ format, q, hub: hubId, unassigned, status });
+    buildExportUrl({ format, q, hub: hubId, unassigned, broken, status });
 
   function saveRename(event: FormEvent) {
     event.preventDefault();

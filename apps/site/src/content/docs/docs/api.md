@@ -728,6 +728,7 @@ includes a `Content-Disposition: attachment` header with a filename.
 - `q` (string, optional) — Full-text search filter
 - `hub` (UUID, optional) — Filter to links in this hub
 - `unassigned` (boolean, optional) — If true, filter to links with no hub
+- `broken` (boolean, optional) — If true, only links whose page is gone (as `GET /api/links?broken=true`)
 - `status` (string, optional) — `active`, `archived`, or `all`; defaults to `active`
 
 **Response:**
