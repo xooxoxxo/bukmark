@@ -1,16 +1,68 @@
 ---
 title: Install
-description: Run bukmark with Docker Compose in four commands.
+description: Install bukmark with one command, with Homebrew, or with Docker Compose from source.
 sidebar:
   order: 1
 ---
 
+bukmark runs in Docker, on your own computer or server. There are three ways to
+set it up. The install script and Homebrew give you the
+[`bukmark` command](#the-bukmark-command), which runs the published image, so
+nothing is built on your machine. Docker Compose from source builds the image
+from a checkout.
+
 ## Requirements
 
-- Docker and Docker Compose
-- Node.js >= 22 and pnpm 10 (only for the extension build and the CLI)
+- Docker with Compose v2 (`docker compose`), and it has to be running.
+  - macOS: Docker Desktop, OrbStack or Colima.
+  - Linux: Docker Engine with the Compose plugin.
+- git, for Docker Compose from source.
+- Node.js >= 22 and pnpm 10, only to [build the extension](/docs/extension/#build)
+  and for the v0 [triage CLI](/docs/cli/).
 
-## Quickstart
+## Install
+
+:::note[Coming with the first release]
+The install script and Homebrew need the first published release. Until it is
+out, use [Docker Compose from source](#docker-compose-from-source).
+:::
+
+### Install script
+
+```bash
+curl -fsSL https://bukmark.it/install.sh | sh
+```
+
+The script checks that Docker is running, puts the `bukmark` command in
+`~/.local/bin`, and runs `bukmark setup`. It installs into your home folder
+only and never uses sudo. If `~/.local/bin` is not on your `PATH`, it prints
+the line that adds it.
+
+To choose the port, pass options for `bukmark setup` after `sh -s --`:
+
+```bash
+curl -fsSL https://bukmark.it/install.sh | sh -s -- --port 3001
+```
+
+You can read [the script](https://bukmark.it/install.sh) and
+[the command it installs](https://bukmark.it/bukmark) before you run them.
+To install the command into another folder, set `BUKMARK_BIN_DIR` for `sh`.
+
+### Homebrew
+
+```bash
+brew install xooxoxxo/tap/bukmark
+bukmark setup
+```
+
+Homebrew installs the `bukmark` command, not Docker. Install it by the full
+name, as above: Homebrew then trusts this one formula from the tap. After
+`brew tap xooxoxxo/tap`, the short name `bukmark` works only once you run
+`brew trust --formula xooxoxxo/tap/bukmark`.
+
+### Docker Compose from source
+
+For building the image yourself, or changing the code:
 
 ```bash
 git clone https://github.com/xooxoxxo/bukmark.git bukmark && cd bukmark
@@ -20,18 +72,151 @@ curl localhost:3000/healthz   # {"ok":true}
 ```
 
 That builds the server image, starts Postgres, applies migrations on boot, and
-serves the API and web UI on `http://localhost:3000`. Open it and
-[set your password](#first-run-setup) straight away.
-
-## Port Configuration
+serves the API and web UI on `http://localhost:3000`. Settings go in `.env` in
+the checkout; see [Environment variables](#environment-variables).
 
 If port 5432 or 3000 is already in use, set `POSTGRES_PORT` and/or `PORT`
 to free ports in `.env` before running `docker compose up`.
 
+To update, pull and rebuild. Without `--build`, Compose keeps running the image
+it built before:
+
+```bash
+git pull && docker compose up -d --build
+```
+
+### After installing
+
+Open `http://localhost:3000`, or the port you chose, and
+[set your password](#first-run-setup) straight away. Then
+[add the browser extension](/docs/extension/) and log in to the same address.
+
+## The bukmark command
+
+The install script and Homebrew both install `bukmark`, one shell script that
+runs bukmark with Docker Compose. `bukmark help` lists its commands:
+
+| Command | What it does |
+| --- | --- |
+| `bukmark setup` | Writes your settings, downloads the images, starts bukmark and waits until it answers. `--port N` picks the port. `--lan` lets other devices on your network reach it; `--local` makes it this machine only again (the default). Safe to run again: it keeps your settings. |
+| `bukmark start` | Starts bukmark. |
+| `bukmark stop` | Stops bukmark. Your data is kept. |
+| `bukmark restart` | Restarts bukmark, with any changes to `.env`. |
+| `bukmark status` | Shows whether bukmark is running. Exits 0 when it is, 3 when it is stopped or not set up, and 1 when it runs but does not answer. |
+| `bukmark logs` | Shows the server's logs. `-f` keeps following them. |
+| `bukmark update` | Downloads the newest image and restarts. Your data is kept. |
+| `bukmark open` | Opens bukmark in your browser. |
+| `bukmark uninstall` | Removes bukmark's containers. Your data is kept. With `--delete-data`, it also deletes all your bookmarks and settings, after you type `delete`; `--yes` skips that question. |
+| `bukmark version` | Prints the command's version. |
+| `bukmark help` | Lists the commands. |
+
+### Where your data lives
+
+Everything is in one folder, `~/.bukmark`:
+
+- `.env` holds your settings. `bukmark setup` writes it once, readable by you
+  only. Run again, it changes only `BUKMARK_LISTEN`, and only when you pass
+  `--lan` or `--local`.
+- `compose.yml` is written by the command on every run. Don't edit it; your
+  changes would be replaced.
+- `compose.override.yml` is yours and optional, for a change `.env` can't
+  make. The command loads it after `compose.yml`.
+  [Behind a reverse proxy](#behind-a-reverse-proxy) has an example.
+
+Your bookmarks are in the Docker volume `bukmark-cli_pgdata`. Keep `.env` with
+it: it holds the database password, and the data opens only with that password.
+If the volume is there but `.env` is gone, `bukmark setup` stops rather than
+lock you out. The command's containers and volume are named `bukmark-cli`, so a
+checkout run with Docker Compose never touches them, nor they it.
+
+To use another folder, export `BUKMARK_HOME` in your shell profile, so every
+`bukmark` command finds it.
+
+### Settings
+
+`~/.bukmark/.env` holds the same settings as `.env` in a checkout, described
+under [Environment variables](#environment-variables), with these differences:
+
+- `POSTGRES_PASSWORD` is made up at random by `bukmark setup`. Don't change it:
+  the database keeps the password it started with, so a new one locks the app
+  out.
+- `PORT` comes from `bukmark setup --port`, or `BUKMARK_PORT`, and is 3000 by
+  default.
+- `POSTGRES_PORT` is not used. The database has no port on your machine at
+  all; only the app reaches it.
+- `CORS_ORIGINS` is not used. It is only for a web dev server, which runs from
+  a checkout.
+- `BUKMARK_VERSION` is the server version to run: `latest`, the default, or a
+  release such as `0.3.0`.
+- `BUKMARK_LISTEN` decides who can reach bukmark. `127.0.0.1`, the default,
+  is this machine only. `0.0.0.0` is every device that can reach this one, such
+  as your phone on the same Wi-Fi. Switch with `bukmark setup --lan` and
+  `bukmark setup --local`. Set your password before you open it up: until then,
+  whoever opens the web app first sets it.
+
+After changing a setting, run `bukmark restart`. The command reads `PORT`,
+`POSTGRES_PASSWORD` and the other server settings from `.env` only: the same
+names set in your shell are ignored, so another project's `PORT` can't change
+bukmark's.
+
+### Change the port
+
+Choose it at setup with `bukmark setup --port 3001`, or through the install
+script as shown [above](#install-script). If the port is taken, setup stops,
+says so and suggests another.
+
+To change it later, set `PORT` in `~/.bukmark/.env` and run `bukmark restart`.
+Running `bukmark setup --port` again doesn't change it: setup keeps the port in
+`.env` and tells you so.
+
+The extension expects `http://localhost:3000`. On another port, enter the
+address when you log in to the extension.
+
+### Update
+
+```bash
+bukmark update
+```
+
+This downloads the newest image for `BUKMARK_VERSION` and restarts bukmark on
+it. Your data is kept, and the server brings its database up to date as it
+starts. If the download fails, the version you had keeps running and the
+command exits 1.
+
+To stay on one release, set `BUKMARK_VERSION` in `~/.bukmark/.env` to it, such
+as `0.3.0`, and run `bukmark update`.
+
+That updates the server. To update the command itself, run
+`brew upgrade bukmark`, or the install script again. The script keeps your
+settings and data.
+
+### Uninstall
+
+```bash
+bukmark uninstall
+```
+
+This removes bukmark's containers. Your bookmarks stay in the Docker volume
+and your settings in `~/.bukmark`, so `bukmark start` brings everything back.
+
+```bash
+bukmark uninstall --delete-data
+```
+
+This also deletes the volume, with every bookmark in it, and bukmark's files in
+`~/.bukmark`. It asks you to type `delete` first; `--yes` skips the question.
+
+Then remove the command itself: `brew uninstall bukmark`, or delete
+`~/.local/bin/bukmark`. Docker keeps the images it downloaded; remove them with
+`docker image rm` if you want the space back.
+
 ## Environment Variables
 
-These variables control bukmark's behavior. Every value below has a working default, so
-`docker compose up -d` works with no `.env` at all — `.env` is for changing them.
+These variables control bukmark's behavior. From source, they go in `.env` in
+the checkout. Every value below has a working default, so `docker compose up -d`
+works with no `.env` at all — `.env` is for changing them. The `bukmark`
+command keeps them in `~/.bukmark/.env`; [Settings](#settings) lists what
+differs there.
 
 ```
 POSTGRES_PASSWORD=
@@ -46,10 +231,12 @@ BUKMARK_CHECK_PAGES=
 **POSTGRES_PASSWORD** — Postgres password. Compose publishes the database on
 `127.0.0.1` only, so nothing outside this machine can reach it; that is what
 makes the default acceptable. Change it before you publish the database any wider.
+The `bukmark` command makes up a random one and gives the database no port at all.
 
 **POSTGRES_PORT** — Port the Postgres database is published on, on the host's
 `127.0.0.1`. Change this only if you already run Postgres locally on 5432 and want to
 avoid conflict. The app always reaches it at `db:5432` over the compose network.
+The `bukmark` command doesn't use it.
 
 **PORT** — Port the API and web UI are served on, on the host.
 
@@ -58,6 +245,7 @@ browser, comma-separated, for example `CORS_ORIGINS=http://localhost:5173`.
 Empty (the default) registers no CORS at all, which is what bukmark itself
 needs: the web app is served from the same origin, and the browser extension
 reaches the server through the host access you grant it, not through CORS.
+The `bukmark` command doesn't use it.
 
 **TRUST_PROXY** — `true` only when a reverse proxy is the sole way to reach
 bukmark; `false` by default. See [Behind a reverse proxy](#behind-a-reverse-proxy).
@@ -116,15 +304,18 @@ To reset the owner password (for example, if it's lost):
 # Local development
 pnpm --filter @bukmark/server auth:reset-owner
 
-# Docker
+# Docker Compose from source, in the checkout
 docker compose exec app node_modules/.bin/tsx apps/server/src/auth/resetOwner.ts
+
+# The bukmark command
+cd ~/.bukmark && docker compose exec app node_modules/.bin/tsx apps/server/src/auth/resetOwner.ts
 ```
 
 This deletes the owner and all sessions, so the web app shows the setup screen
 again: open it and set a new password straight away. Until you do, every API
 request is refused with `setup_required` — including access tokens. Tokens you
 kept start working again once the new password is set. To delete them as well,
-add `--revoke-tokens` to either command.
+add `--revoke-tokens` to any of these commands.
 
 ## HTTPS
 
@@ -157,11 +348,14 @@ nginx replaces it with the upstream address unless you add
 it). Without it, even setting the password fails with "Cross-site request
 refused".
 
-**Set `TRUST_PROXY=true`** in `.env`, then run `docker compose up -d` again:
+**Set `TRUST_PROXY=true`** in `.env`:
 
 ```bash
 TRUST_PROXY=true
 ```
+
+Then run `docker compose up -d` again. With the `bukmark` command, the file is
+`~/.bukmark/.env`, and `bukmark restart` applies it.
 
 The server then reads the original scheme from `X-Forwarded-Proto`, so the
 session cookie is marked `Secure` over HTTPS, and the client's address from
@@ -175,8 +369,18 @@ whatever `X-Forwarded-For` says, so a client that reaches the app port directly
 can claim a new address for every guess and never hit the rate limit. When the
 proxy runs on the same machine, publish the app on loopback only: in
 `docker-compose.yml`, change the app's `ports` entry to
-`"127.0.0.1:${PORT:-3000}:3000"`. The proxy must also set `X-Forwarded-For` to
-the client's address rather than append to whatever the client sent.
+`"127.0.0.1:${PORT:-3000}:3000"`. With the `bukmark` command, leave its
+`compose.yml` alone, since it rewrites that file on every run. Create
+`~/.bukmark/compose.override.yml` instead, then run `bukmark restart`:
+
+```yaml
+services:
+  app:
+    ports: !override ["127.0.0.1:${PORT:-3000}:3000"]
+```
+
+The proxy must also set `X-Forwarded-For` to the client's address rather than
+append to whatever the client sent.
 
 **Keep the login code out of the proxy's log.** In browsers without an
 extension login window, such as Safari and Firefox for Android, the extension's
@@ -216,6 +420,9 @@ location = /authorize/done {
 ```
 
 ## Upgrading from a version without auth
+
+This is for Docker Compose from source. The published image, which the
+`bukmark` command runs, has had auth since its first release.
 
 1. Pull and rebuild. The app image is built from your checkout, so without
    `--build` Compose keeps running the old, unauthenticated version:

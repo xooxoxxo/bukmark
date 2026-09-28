@@ -13,26 +13,32 @@ const SHARE = {
 };
 
 // The ways in, quickest first. All need Docker; the install guide has the rest.
+// `live` turns a way in on once it works for anyone: the script and Homebrew
+// need the first release (the published image and the formula in the tap).
 const CHANNELS = [
 	{
 		id: 'script',
 		label: 'Script',
+		live: false,
 		lines: ['curl -fsSL https://bukmark.it/install.sh | sh'],
 		note: 'Needs Docker. Installs the bukmark command in your home folder, no sudo.',
 	},
 	{
 		id: 'brew',
 		label: 'Homebrew',
+		live: false,
 		lines: ['brew install xooxoxxo/tap/bukmark', 'bukmark setup'],
 		note: 'Needs Docker Desktop, OrbStack or Colima.',
 	},
 	{
 		id: 'docker',
 		label: 'Docker',
+		live: true,
 		lines: ['git clone https://github.com/xooxoxxo/bukmark.git', 'cd bukmark', 'docker compose up -d'],
 		note: 'Builds from source with Docker Compose.',
 	},
 ];
+const LIVE_CHANNELS = CHANNELS.filter((c) => c.live);
 ---
 
 <!doctype html>
@@ -119,7 +125,7 @@ const CHANNELS = [
 							<div class="install__bar">
 								<span class="install__label">Install</span>
 								<div class="install__tabs" role="tablist" aria-label="How to install">
-									{CHANNELS.map((c, i) => (
+									{LIVE_CHANNELS.map((c, i) => (
 										<button
 											type="button"
 											role="tab"
@@ -133,7 +139,7 @@ const CHANNELS = [
 									))}
 								</div>
 							</div>
-							{CHANNELS.map((c, i) => (
+							{LIVE_CHANNELS.map((c, i) => (
 								<div
 									class="install__panel"
 									role="tabpanel"

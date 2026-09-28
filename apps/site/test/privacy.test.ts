@@ -200,6 +200,14 @@ describe('the privacy page matches what the server does', () => {
     expect(compose).toMatch(/^volumes:\n\s+pgdata:/m);
     expect(section(privacy, 'Deleting your data')).toContain('`docker compose down -v`');
   });
+
+  it('deletes everything with the bukmark command too, volume included', () => {
+    const cli = read('packaging/bin/bukmark');
+    const uninstall = /^cmd_uninstall\(\) \{\n([\s\S]*?)^\}/m.exec(cli)?.[1] ?? '';
+    expect(uninstall).toContain('--delete-data) delete=true');
+    expect(uninstall).toContain('dc down --volumes');
+    expect(section(privacy, 'Deleting your data')).toContain('`bukmark uninstall --delete-data`');
+  });
 });
 
 describe('the privacy page names every outside service the site and the web app load', () => {

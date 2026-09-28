@@ -28,7 +28,7 @@ the background reading off ([Install](/docs/install/#environment-variables)).
 
 ## Getting Started
 
-- **[Install](/docs/install)** — Run bukmark with Docker Compose in four commands
+- **[Install](/docs/install)** — One command, Homebrew, or Docker Compose from source
 - **[Browser Extension](/docs/extension)** — The capture extension for Chrome, Edge, Firefox and Safari, with bookmark import
 - **[Capture from your phone](/docs/phone)** — Android's Share sheet, an iOS Shortcut, or a bookmarklet
 - **[Sorting with MCP](/docs/sorting)** — Use any MCP client to intelligently sort your bookmarks

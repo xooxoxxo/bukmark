@@ -151,8 +151,10 @@ runs the AI model behind it.
   **Delete**. Its title, note, hubs and saved text go with it. The server keeps
   only a SHA-256 hash of its address, so that importing the same bookmarks again
   doesn't bring it back.
-- **Everything:** `docker compose down -v` stops bukmark and deletes its
-  database volume, with every link, hub, token and session in it.
+- **Everything:** `bukmark uninstall --delete-data` stops bukmark and deletes its
+  database volume, with every link, hub, token and session in it, along with
+  its settings in `~/.bukmark`. From source, `docker compose down -v` in the
+  checkout deletes the database volume.
 
 ## This website
 
