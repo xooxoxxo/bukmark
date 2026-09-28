@@ -153,6 +153,7 @@ unless `TRUST_PROXY=true`, so all clients share one count.
 | POST | `/api/auth/tokens` | Create a new access token |
 | DELETE | `/api/auth/tokens/:id` | Revoke an access token |
 | GET | `/api/links` | List links with search and filters |
+| GET | `/api/links/lookup` | Whether a page is saved, and how its site is filed |
 | POST | `/api/links` | Create or update a link |
 | POST | `/api/links/import` | Import a batch of links |
 | POST | `/api/links/og-backfill` | Backfill missing Open Graph metadata |
@@ -217,6 +218,43 @@ List links with optional full-text search, hub filtering, and status filtering.
 ```
 
 **Note:** The `groupHint` field (string or null) represents the browser bookmark folder path or import source grouping. It is included in `GET /api/links` responses but omitted from `POST /api/links` responses due to response schema validation.
+
+### GET /api/links/lookup
+
+What bukmark already holds for a page, before saving it: the page itself and
+the hubs it is in, and how the rest of its site is filed. The extension's popup
+shows this above the save form.
+
+**Query Parameters:**
+
+- `url` (string, required) — The page's address. It is normalized the way
+  `POST /api/links` normalizes it, so `https://www.Example.com/a?utm_source=x`
+  finds `https://example.com/a`.
+
+**Response:**
+
+```json
+{
+  "saved": { "id": "uuid", "hubs": ["reading", "rust"] },
+  "domain": {
+    "host": "github.com",
+    "links": 12,
+    "hubs": [
+      { "name": "dev-tools", "links": 9 },
+      { "name": "rust", "links": 2 }
+    ]
+  }
+}
+```
+
+- `saved` is `null` when the page isn't saved. A saved page in no hub has
+  `"hubs": []`.
+- `domain.links` counts the other active links with the same host (a leading
+  `www.` is ignored; subdomains count separately). `domain.hubs` names up to
+  three hubs they are in, most links first.
+
+**Errors:** `400` with `{ "error": "unparseable url" }` or
+`{ "error": "non-http url" }` when the address can't be read or isn't http(s).
 
 ### POST /api/links
 

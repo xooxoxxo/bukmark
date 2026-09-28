@@ -1,8 +1,8 @@
 import { Type } from '@sinclair/typebox';
-import { and, desc, eq, inArray, sql as dsql } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { normalizeUrl } from '@bukmark/shared';
-import { deletedHashes, hubLinks, links } from '../db/schema.js';
+import { deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 import { addLink } from '../links/addLink.js';
 import { importLinks } from '../links/importLinks.js';
 import { assignHubs } from '../links/assignHubs.js';
@@ -15,7 +15,61 @@ const LinkDto = Type.Object({
   hubIds: Type.Array(Type.String()), imageUrl: Type.Union([Type.String(), Type.Null()]), firstSeen: Type.String(),
 });
 
+/** A stored URL's host, as normalizeUrl writes it: lower case, no leading www. */
+const linkHost = dsql`regexp_replace(lower(substring(${links.url} from '^[a-zA-Z][a-zA-Z0-9+.-]*://(?:[^/?#@]*@)?([^/?#:]+)')), '^www\.', '')`;
+
 export async function linkRoutes(app: FastifyInstance): Promise<void> {
+  // What bukmark already holds for a page before it is saved: the page itself
+  // and the hubs it is in, else how the rest of its site is filed.
+  app.get('/links/lookup', {
+    schema: {
+      querystring: Type.Object({ url: Type.String({ minLength: 1 }) }),
+      response: {
+        200: Type.Object({
+          saved: Type.Union([Type.Object({ id: Type.String(), hubs: Type.Array(Type.String()) }), Type.Null()]),
+          domain: Type.Object({
+            host: Type.String(),
+            links: Type.Integer(),
+            hubs: Type.Array(Type.Object({ name: Type.String(), links: Type.Integer() })),
+          }),
+        }),
+        400: Type.Object({ error: Type.String() }),
+      },
+    },
+  }, async (req, reply) => {
+    const norm = normalizeUrl((req.query as { url: string }).url);
+    if (!norm.ok) return reply.code(400).send({ error: `${norm.reason} url` });
+    const { db } = req.server;
+    const host = new URL(norm.url).hostname;
+
+    const [link] = await db.select({ id: links.id }).from(links).where(eq(links.urlHash, norm.urlHash));
+    const saved = link
+      ? {
+          id: link.id,
+          hubs: (await db
+            .select({ name: hubs.name })
+            .from(hubLinks)
+            .innerJoin(hubs, eq(hubs.id, hubLinks.hubId))
+            .where(eq(hubLinks.linkId, link.id))
+            .orderBy(hubs.name)).map((h) => h.name),
+        }
+      : null;
+
+    const sameSite = and(eq(links.status, 'active'), ne(links.urlHash, norm.urlHash), dsql`${linkHost} = ${host}`);
+    const [{ n }] = await db.select({ n: dsql<number>`count(*)::int` }).from(links).where(sameSite) as [{ n: number }];
+    const top = await db
+      .select({ name: hubs.name, links: dsql<number>`count(*)::int` })
+      .from(links)
+      .innerJoin(hubLinks, eq(hubLinks.linkId, links.id))
+      .innerJoin(hubs, eq(hubs.id, hubLinks.hubId))
+      .where(sameSite)
+      .groupBy(hubs.name)
+      .orderBy(dsql`count(*) DESC`, hubs.name)
+      .limit(3);
+
+    return { saved, domain: { host, links: n, hubs: top } };
+  });
+
   app.get('/links', {
     schema: {
       querystring: Type.Object({
