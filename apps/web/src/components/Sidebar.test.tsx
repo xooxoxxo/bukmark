@@ -28,7 +28,7 @@ describe('Sidebar', () => {
       active: 201,
       archived: 42,
       hubs: 2,
-      unassigned: 17,
+      unassigned: 17, broken: 0, unchecked: 0,
     });
   });
 
@@ -79,5 +79,30 @@ describe('Sidebar', () => {
 
     await userEvent.click(screen.getByRole('link', { name: 'All links' }));
     expect(useFilters.getState().unassigned).toBe(false);
+  });
+
+  it('offers Broken links only when there are some, as a filter that All links clears', async () => {
+    vi.mocked(client.fetchHubs).mockResolvedValue({ items: [] });
+    renderSidebar();
+    await screen.findByRole('button', { name: 'Unassigned 17' });
+    expect(screen.queryByRole('button', { name: /Broken links/ })).toBeNull();
+  });
+
+  it('filters to broken links, and All links or Unassigned leave that filter', async () => {
+    vi.mocked(client.fetchStats).mockResolvedValue({
+      links: 243, active: 201, archived: 42, hubs: 2, unassigned: 17, broken: 3, unchecked: 0,
+    });
+    vi.mocked(client.fetchHubs).mockResolvedValue({ items: [] });
+    renderSidebar();
+    const broken = await screen.findByRole('button', { name: 'Broken links 3' });
+    await userEvent.click(broken);
+    expect(useFilters.getState().broken).toBe(true);
+    expect(broken).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Unassigned 17' }));
+    expect(useFilters.getState()).toMatchObject({ broken: false, unassigned: true });
+    await userEvent.click(broken);
+    await userEvent.click(screen.getByRole('link', { name: 'All links' }));
+    expect(useFilters.getState()).toMatchObject({ broken: false, unassigned: false });
   });
 });

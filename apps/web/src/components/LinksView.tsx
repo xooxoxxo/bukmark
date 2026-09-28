@@ -4,6 +4,7 @@ import { useFilters } from '../state/filters';
 import { useSelection } from '../state/selection';
 import { BulkBar } from './BulkBar';
 import { FilterBar } from './FilterBar';
+import { LinkEditor } from './LinkEditor';
 import { LinksGrid } from './LinksGrid';
 import { LinksTable } from './LinksTable';
 import styles from './LinksView.module.css';
@@ -13,12 +14,14 @@ export function LinksView({ hubId }: { hubId?: string }) {
   const q = useFilters((s) => s.q);
   const unassigned = useFilters((s) => s.unassigned);
   const status = useFilters((s) => s.status);
+  const broken = useFilters((s) => s.broken);
+  const sort = useFilters((s) => s.sort);
   const view = useFilters((s) => s.view);
   const selected = useSelection((s) => s.selected);
   const setMany = useSelection((s) => s.setMany);
   const clear = useSelection((s) => s.clear);
 
-  const scopeKey = `${hubId ?? 'all'}\u0000${q}\u0000${unassigned}\u0000${status}`;
+  const scopeKey = `${hubId ?? 'all'}\u0000${q}\u0000${unassigned}\u0000${status}\u0000${broken}`;
   useEffect(() => clear(), [scopeKey, clear]);
 
   const query = useLinksInfinite({
@@ -26,15 +29,18 @@ export function LinksView({ hubId }: { hubId?: string }) {
     hub: hubId,
     unassigned: unassigned || undefined,
     status,
+    broken: broken || undefined,
+    sort,
   });
   const rows = query.data?.pages.flatMap((p) => p.items) ?? [];
   const total = query.data?.pages[0]?.total ?? 0;
   const selectedLinks = rows.filter((row) => selected.has(row.id));
   const allLoadedSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
-  const filtered = Boolean(q || unassigned || status === 'archived' || hubId);
+  const filtered = Boolean(q || unassigned || broken || status === 'archived' || hubId);
 
   return (
     <>
+      <LinkEditor />
       <FilterBar hubMode={hubId !== undefined} total={total} />
       {rows.length > 0 ? (
         <div className={styles.selectionToolbar} data-testid="selection-toolbar">

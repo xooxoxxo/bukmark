@@ -12,6 +12,8 @@ export function Sidebar() {
   const [name, setName] = useState('');
   const unassigned = useFilters((state) => state.unassigned);
   const setUnassigned = useFilters((state) => state.setUnassigned);
+  const broken = useFilters((state) => state.broken);
+  const setBroken = useFilters((state) => state.setBroken);
   const location = useLocation();
   const navigate = useNavigate();
   const atRoot = location.pathname === '/';
@@ -32,16 +34,20 @@ export function Sidebar() {
       <NavLink
         to="/"
         end
-        onClick={() => setUnassigned(false)}
-        className={({ isActive }) => (isActive && !unassigned ? styles.active : styles.item)}
+        onClick={() => {
+          setUnassigned(false);
+          setBroken(false);
+        }}
+        className={({ isActive }) => (isActive && !unassigned && !broken ? styles.active : styles.item)}
       >
         All links
       </NavLink>
       <button
         type="button"
-        className={`${atRoot && unassigned ? styles.active : styles.item} ${styles.filterItem}`}
+        className={`${atRoot && unassigned && !broken ? styles.active : styles.item} ${styles.filterItem}`}
         onClick={() => {
           setUnassigned(true);
+          setBroken(false);
           navigate('/');
         }}
         aria-pressed={atRoot && unassigned}
@@ -49,12 +55,30 @@ export function Sidebar() {
         Unassigned
         {stats ? <span className={styles.count}>{stats.unassigned}</span> : null}
       </button>
+      {stats && stats.broken > 0 ? (
+        <button
+          type="button"
+          className={`${atRoot && broken ? styles.active : styles.item} ${styles.filterItem}`}
+          onClick={() => {
+            setBroken(true);
+            setUnassigned(false);
+            navigate('/');
+          }}
+          aria-pressed={atRoot && broken}
+        >
+          Broken links
+          <span className={styles.count}>{stats.broken}</span>
+        </button>
+      ) : null}
       <ul className={styles.hubList}>
         {(data?.items ?? []).map((hub) => (
           <li key={hub.id}>
             <NavLink
               to={`/hubs/${hub.id}`}
-              onClick={() => setUnassigned(false)}
+              onClick={() => {
+                setUnassigned(false);
+                setBroken(false);
+              }}
               className={({ isActive }) => (isActive ? styles.active : styles.item)}
             >
               {hub.name} <span className={styles.count}>{hub.linkCount}</span>

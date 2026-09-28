@@ -2,6 +2,7 @@ import type {
   BulkAction,
   HubDto,
   HubPatch,
+  LinkDetail,
   LinkDto,
   LinkPatch,
   LinksQuery,
@@ -51,6 +52,8 @@ export function fetchLinks(query: LinksQuery = {}): Promise<{ items: LinkDto[]; 
   if (query.hub) params.set('hub', query.hub);
   if (query.unassigned) params.set('unassigned', 'true');
   if (query.status) params.set('status', query.status);
+  if (query.broken) params.set('broken', 'true');
+  if (query.sort && query.sort !== 'relevance') params.set('sort', query.sort);
   if (query.limit !== undefined) params.set('limit', String(query.limit));
   if (query.offset !== undefined) params.set('offset', String(query.offset));
   const qs = params.toString();
@@ -78,6 +81,10 @@ export function saveLink(input: SaveLinkInput): Promise<SaveLinkResult> {
   if (input.note) body.note = input.note;
   if (input.hub) body.hub = input.hub;
   return http('/links', jsonInit('POST', body));
+}
+
+export function fetchLink(id: string): Promise<LinkDetail> {
+  return http(`/links/${id}`);
 }
 
 export function patchLink(id: string, body: LinkPatch): Promise<LinkDto> {

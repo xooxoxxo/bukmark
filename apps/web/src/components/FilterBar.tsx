@@ -1,10 +1,18 @@
 import { useNavigate } from 'react-router-dom';
 import { useHubs } from '../api/queries';
+import type { LinkSort } from '../api/types';
 import { useFilters } from '../state/filters';
 import styles from './FilterBar.module.css';
 import { SearchBox } from './SearchBox';
 import { Checkbox } from './ui/Checkbox';
 import { Select } from './ui/Select';
+
+const SORT_OPTIONS: { value: LinkSort; label: string }[] = [
+  { value: 'relevance', label: 'Most relevant' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
+  { value: 'title', label: 'Title A–Z' },
+];
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
@@ -18,6 +26,8 @@ export function FilterBar({ hubMode, total }: { hubMode: boolean; total: number 
   const setStatus = useFilters((s) => s.setStatus);
   const view = useFilters((s) => s.view);
   const setView = useFilters((s) => s.setView);
+  const sort = useFilters((s) => s.sort);
+  const setSort = useFilters((s) => s.setSort);
   const { data: hubs } = useHubs();
   const navigate = useNavigate();
 
@@ -51,6 +61,13 @@ export function FilterBar({ hubMode, total }: { hubMode: boolean; total: number 
             className={styles.filterSelect}
           />
         ) : null}
+        <Select
+          value={sort}
+          onValueChange={(value) => setSort(value as LinkSort)}
+          options={SORT_OPTIONS}
+          ariaLabel="Sort"
+          className={styles.filterSelect}
+        />
         <div className={styles.viewToggle} aria-label="View">
           <button aria-pressed={view === 'list'} onClick={() => setView('list')}>
             List

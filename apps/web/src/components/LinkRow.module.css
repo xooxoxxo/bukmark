@@ -94,6 +94,55 @@
   max-width: 18rem;
 }
 
+.gone {
+  flex-shrink: 0;
+  padding: 0 var(--bk-space-xs);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  font-family: var(--bk-font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.snippet {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: var(--bk-space-2xs) 0 0;
+  color: var(--bk-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.snippet mark {
+  background: color-mix(in oklch, var(--bk-accent) 22%, transparent);
+  color: var(--bk-ink);
+  font-weight: 600;
+}
+
+.edit {
+  padding: var(--bk-space-2xs) var(--bk-space-sm);
+  border: 1px solid var(--bk-ink);
+  background: transparent;
+  color: var(--bk-ink);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.edit:hover {
+  border-color: var(--bk-accent);
+  color: var(--bk-accent);
+}
+
+.edit:focus-visible {
+  outline: 2px solid var(--bk-accent);
+  outline-offset: 2px;
+}
+
 .chip {
   padding: var(--bk-space-2xs) var(--bk-space-sm);
   border: 1px solid var(--bk-rule);

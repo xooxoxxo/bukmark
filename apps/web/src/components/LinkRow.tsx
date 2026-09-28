@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { useHubs } from '../api/queries';
 import type { LinkDto } from '../api/types';
+import { useEditing } from '../state/editing';
 import { useSelection } from '../state/selection';
 import styles from './LinkRow.module.css';
+import { Snippet } from './Snippet';
 import { Checkbox } from './ui/Checkbox';
 
 export function LinkRow({ link }: { link: LinkDto }) {
   const selected = useSelection((s) => s.selected.has(link.id));
   const toggle = useSelection((s) => s.toggle);
+  const edit = useEditing((s) => s.open);
   const { data: hubs } = useHubs();
   const [thumbBroken, setThumbBroken] = useState(false);
   const hubName = new Map((hubs?.items ?? []).map((h) => [h.id, h.name]));
@@ -37,8 +40,10 @@ export function LinkRow({ link }: { link: LinkDto }) {
             {link.title || link.url}
           </a>
           {link.dupeCount > 1 ? <span className={styles.dupe}>×{link.dupeCount}</span> : null}
+          {link.broken ? <span className={styles.gone}>{goneLabel(link)}</span> : null}
         </div>
         {link.note ? <p className={styles.note}>{link.note}</p> : null}
+        {link.snippet ? <Snippet text={link.snippet} className={styles.snippet} /> : null}
       </div>
       <div className={styles.chips}>
         {link.hubIds.map((id) => (
@@ -46,7 +51,15 @@ export function LinkRow({ link }: { link: LinkDto }) {
             {hubName.get(id) ?? '…'}
           </span>
         ))}
+        <button type="button" className={styles.edit} onClick={() => edit(link.id)} aria-label={`Edit ${link.title || link.url}`}>
+          Edit
+        </button>
       </div>
     </div>
   );
+}
+
+/** A broken link's marker: what the check found. */
+export function goneLabel(link: Pick<LinkDto, 'httpStatus' | 'checkError'>): string {
+  return link.checkError === 'dns' ? 'Gone · no domain' : `Gone · ${link.httpStatus}`;
 }

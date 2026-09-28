@@ -19,7 +19,7 @@ describe('App shell', () => {
       active: 1,
       archived: 0,
       hubs: 0,
-      unassigned: 1,
+      unassigned: 1, broken: 0, unchecked: 0,
     });
     vi.mocked(client.fetchLinks).mockResolvedValue({ items: [], total: 0 });
     const Wrapper = makeWrapper();

@@ -10,6 +10,22 @@ Capture a page in one click, and everything lands **unsorted** on purpose — so
 is a separate, deliberate pass you run later by asking your AI assistant, not a decision you
 make at 1am with sixty tabs open.
 
+## What you keep
+
+- **The page, not just the link.** The server reads each saved page in the
+  background and keeps its text. Search finds words from inside the page, not
+  only its title, and the text stays with you if the page later disappears.
+  Open a link's **Edit** dialog to read the saved copy.
+- **Broken links, found for you.** Pages are checked again every 30 days. A page
+  that answers 404 or 410, or whose domain no longer exists, shows up under
+  **Broken links** in the sidebar. A site that just turns bots away doesn't.
+- **Every link editable.** Title, note, hubs, relevance, archive and delete are
+  in each link's **Edit** dialog; the list sorts by relevance, newest, oldest or
+  title.
+
+Only public addresses are ever fetched. Set `BUKMARK_CHECK_PAGES=false` to turn
+the background reading off ([Install](/docs/install/#environment-variables)).
+
 ## Getting Started
 
 - **[Install](/docs/install)** — Run bukmark with Docker Compose in four commands

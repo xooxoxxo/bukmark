@@ -29,6 +29,14 @@ describe('api client', () => {
     );
   });
 
+  it('fetchLinks asks for broken links and a sort, leaving the default sort out', async () => {
+    fetchMock.mockImplementation(async () => okResponse({ items: [], total: 0 }));
+    await fetchLinks({ broken: true, sort: 'newest' });
+    expect(fetchMock).toHaveBeenCalledWith('/api/links?broken=true&sort=newest', undefined);
+    await fetchLinks({ sort: 'relevance' });
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/links', undefined);
+  });
+
   it('fetchLinks with no params hits bare /api/links', async () => {
     fetchMock.mockResolvedValue(okResponse({ items: [], total: 0 }));
     await fetchLinks();

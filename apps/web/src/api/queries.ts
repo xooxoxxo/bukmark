@@ -6,7 +6,7 @@ import {
   type QueryClient,
 } from '@tanstack/react-query';
 import * as api from './client';
-import type { BulkAction, HubPatch, LinkPatch } from './types';
+import type { BulkAction, HubPatch, LinkPatch, LinkSort } from './types';
 
 export const PAGE_SIZE = 200;
 
@@ -15,6 +15,8 @@ export interface LinkFilters {
   hub?: string;
   unassigned?: boolean;
   status?: 'active' | 'archived';
+  broken?: boolean;
+  sort?: LinkSort;
 }
 
 export function useLinksInfinite(filters: LinkFilters) {
@@ -51,6 +53,43 @@ export function useSaveLink() {
     onSuccess: () => {
       void invalidate();
     },
+  });
+}
+
+export function useLink(id: string | null) {
+  return useQuery({
+    queryKey: ['link', id],
+    queryFn: () => api.fetchLink(id!),
+    enabled: id !== null,
+  });
+}
+
+/**
+ * Saves the edit dialog: the fields in one PATCH, then the hub changes, which
+ * the server takes per hub. Everything that shows the link refetches after.
+ */
+export function useEditLink() {
+  const invalidate = useInvalidate('links', 'link', 'hubs', 'stats');
+  return useMutation({
+    mutationFn: async ({ id, body, addHubs, removeHubs }: {
+      id: string;
+      body: LinkPatch;
+      addHubs: string[];
+      removeHubs: string[];
+    }) => {
+      if (Object.keys(body).length > 0) await api.patchLink(id, body);
+      for (const hubId of addHubs) await api.bulkLinks({ ids: [id], action: 'assign', hubId });
+      for (const hubId of removeHubs) await api.bulkLinks({ ids: [id], action: 'unassign', hubId });
+    },
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useDeleteLink() {
+  const invalidate = useInvalidate('links', 'hubs', 'stats');
+  return useMutation({
+    mutationFn: (id: string) => api.bulkLinks({ ids: [id], action: 'delete' }),
+    onSuccess: () => invalidate(),
   });
 }
 
