@@ -49,6 +49,7 @@ const syncSectionEl = $<HTMLElement>('syncSection');
 const syncToggleEl = $<HTMLInputElement>('syncToggle');
 const syncHintEl = $<HTMLParagraphElement>('syncHint');
 const syncInfoEl = $<HTMLParagraphElement>('syncInfo');
+const syncWarningEl = $<HTMLParagraphElement>('syncWarning');
 const syncNowEl = $<HTMLButtonElement>('syncNow');
 const syncStatusEl = $<HTMLParagraphElement>('syncStatus');
 const shortcutSectionEl = $<HTMLElement>('shortcutSection');
@@ -142,6 +143,8 @@ async function renderSync(importable: boolean, auth: Auth | null): Promise<void>
   syncHintEl.hidden = !!auth;
   syncInfoEl.hidden = !on;
   syncInfoEl.textContent = on && state ? syncSummary(state) : '';
+  // Chrome only: Firefox doesn't say whether Firefox Sync carries the folder.
+  syncWarningEl.hidden = !(on && state?.browserSynced);
   syncNowEl.hidden = !on;
   syncNowEl.disabled = syncing;
   if (syncing) return;

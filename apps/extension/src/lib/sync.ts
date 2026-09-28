@@ -34,6 +34,12 @@ export const SYNC_KEY = 'sync';
 export const SYNC_FOLDER = 'bukmark';
 /** The subfolder for links in no hub; the HTML export uses the same name. */
 export const UNSORTED = 'Unsorted';
+/**
+ * Added to the folder name of a hub called Unsorted, which would otherwise
+ * look like the folder for links in no hub; also to "Unsorted (hub)" and so
+ * on, so that every hub has a folder name of its own. The export does the same.
+ */
+const HUB_SUFFIX = ' (hub)';
 export const SYNC_ALARM = 'bukmark-sync';
 export const SYNC_PERIOD_MINUTES = 5;
 
@@ -54,11 +60,13 @@ const RETRY_STATUSES = new Set([408, 429, 502, 503, 504]);
 export type PendingChange =
   | { kind: 'save'; bookmarkId: string; url: string; title: string; hub: string | null }
   | { kind: 'title'; linkId: string; title: string }
-  | { kind: 'hubs'; linkId: string; hubs: string[] }
+  /** Only the hubs named change: the server may have filed the link elsewhere since the last pull. */
+  | { kind: 'hubs'; linkId: string; addHubs: string[]; removeHubs: string[] }
   | { kind: 'archive'; linkId: string }
   | { kind: 'createHub'; name: string }
   | { kind: 'renameHub'; from: string; to: string }
-  | { kind: 'archiveHub'; name: string; linkIds: string[] };
+  /** `archived` is set once this change has archived the hub, for a retry of what is left. */
+  | { kind: 'archiveHub'; name: string; linkIds: string[]; archived?: boolean };
 
 export interface SyncedLink {
   url: string;
@@ -69,11 +77,22 @@ export interface SyncedLink {
 
 export interface SyncState {
   enabled: boolean;
-  /** The server synced with. Another login, or none, turns sync off. */
+  /**
+   * The server synced with, kept while sync is off. Another login, or none,
+   * turns sync off; turning it on for another server sets this folder aside.
+   */
   server: string;
   rootId: string | null;
+  /** Hub name to folder id. The folder's name is hubFolderTitle(hub). */
   hubFolders: Record<string, string>;
+  /** Known by id, not name: a hub may be called Unsorted too. */
   unsortedId: string | null;
+  /**
+   * More folders with the name of a hub, or of Unsorted (null), by folder id.
+   * The browser's own sync brings them when another browser syncing the same
+   * folder made the same folder: they hold the same hub's bookmarks.
+   */
+  twinFolders: Record<string, string | null>;
   links: Record<string, SyncedLink>;
   /** The changes feed's `since` for the next pull; null pulls everything. */
   cursor: string | null;
@@ -84,6 +103,8 @@ export interface SyncState {
   lastSync: number | null;
   /** What went wrong last, for the settings page; cleared by a pull that works. */
   error: string | null;
+  /** Chrome says its own sync carries the folder to other browsers, where bukmark may sync it too. */
+  browserSynced: boolean;
 }
 
 export interface SyncRequest {
@@ -107,12 +128,14 @@ function freshState(server: string, rootId: string | null = null): SyncState {
     rootId,
     hubFolders: {},
     unsortedId: null,
+    twinFolders: {},
     links: {},
     cursor: null,
     queue: [],
     full: true,
     lastSync: null,
     error: null,
+    browserSynced: false,
   };
 }
 
@@ -207,6 +230,26 @@ export function comparableUrl(raw: string): string {
 }
 
 const sameAddress = (a: string, b: string): boolean => comparableUrl(a) === comparableUrl(b);
+
+// ---------------------------------------------------------------- folder names
+
+/** "Unsorted", once any number of " (hub)" endings are taken off. */
+function isUnsortedName(title: string): boolean {
+  let base = title;
+  while (base.endsWith(HUB_SUFFIX)) base = base.slice(0, -HUB_SUFFIX.length);
+  return base === UNSORTED;
+}
+
+/** The name of a hub's folder: the hub's own, unless it would read as Unsorted. */
+export function hubFolderTitle(hub: string): string {
+  return isUnsortedName(hub) ? hub + HUB_SUFFIX : hub;
+}
+
+/** The hub a folder name stands for, or null for "Unsorted" itself. The inverse of hubFolderTitle. */
+export function hubOfTitle(title: string): string | null {
+  if (title === UNSORTED) return null;
+  return isUnsortedName(title) ? title.slice(0, -HUB_SUFFIX.length) : title;
+}
 
 // ---------------------------------------------------------------- echoes
 
@@ -303,10 +346,66 @@ function hubOfFolder(state: SyncState, folderId: string | undefined): string | n
   if (folderId === undefined) return undefined;
   if (folderId === state.rootId || folderId === state.unsortedId) return null;
   const entry = Object.entries(state.hubFolders).find(([, id]) => id === folderId);
-  return entry ? entry[0] : undefined;
+  if (entry) return entry[0];
+  return Object.hasOwn(state.twinFolders, folderId) ? state.twinFolders[folderId] : undefined;
+}
+
+/** Every folder of a hub, or of Unsorted (null): its own first. */
+function foldersOf(state: SyncState, hub: string | null): string[] {
+  const own = hub === null ? state.unsortedId : state.hubFolders[hub];
+  const twins = Object.keys(state.twinFolders).filter((id) => state.twinFolders[id] === hub);
+  return own ? [own, ...twins] : twins;
+}
+
+/**
+ * Takes a folder out of the state, gone or moved out. Where its hub, or
+ * Unsorted, has another folder, that one takes over. Returns whether the hub
+ * still has a folder.
+ */
+function forgetFolder(state: SyncState, folderId: string): boolean {
+  const hub = hubOfFolder(state, folderId);
+  if (hub === undefined) return false;
+  if (Object.hasOwn(state.twinFolders, folderId)) {
+    delete state.twinFolders[folderId];
+    return foldersOf(state, hub).length > 0;
+  }
+  if (hub === null) state.unsortedId = null;
+  else delete state.hubFolders[hub];
+  const heir = foldersOf(state, hub)[0];
+  if (heir === undefined) return false;
+  delete state.twinFolders[heir];
+  if (hub === null) state.unsortedId = heir;
+  else state.hubFolders[hub] = heir;
+  return true;
+}
+
+/**
+ * Other folders of a hub renamed away from its own folder stay folders of the
+ * old name: the first of them becomes that name's own.
+ */
+function promoteOrphans(state: SyncState): void {
+  for (const [id, hub] of Object.entries(state.twinFolders)) {
+    if (hub === null ? state.unsortedId : state.hubFolders[hub]) continue;
+    delete state.twinFolders[id];
+    if (hub === null) state.unsortedId = id;
+    else state.hubFolders[hub] = id;
+  }
 }
 
 const inside = (state: SyncState, folderId: string | undefined): boolean => hubOfFolder(state, folderId) !== undefined;
+
+/**
+ * Whether Chrome's own sync carries the folder (Chrome 134+ marks synced
+ * nodes with `syncing`). Another browser on the same account then gets every
+ * change a pull makes, and if bukmark sync runs there too, takes them for the
+ * person's. Firefox has no such mark: there Firefox Sync can't be seen.
+ */
+async function carriedByBrowser(root: Node | undefined): Promise<boolean> {
+  if (!root) return false;
+  if (root.syncing === true) return true;
+  const parent = root.parentId ? await getNode(root.parentId) : null;
+  return parent?.syncing === true;
+}
 
 /**
  * The folder as a pull found it: every bookmark directly in it or in one of its
@@ -332,21 +431,32 @@ class FolderView {
       state.rootId = found?.id ?? (await createNode({ parentId: otherId, title: SYNC_FOLDER })).id;
     }
     const [tree] = (await chrome.bookmarks.getSubTree(state.rootId!)) as Node[];
+    state.browserSynced = await carriedByBrowser(tree);
     const top = tree?.children ?? [];
     const folders = top.filter(isFolder);
     const ids = new Set(folders.map((f) => f.id));
 
-    // Mappings to folders that are gone, or no longer directly in the folder, go.
-    for (const [name, id] of Object.entries(state.hubFolders)) if (!ids.has(id)) delete state.hubFolders[name];
-    if (state.unsortedId && !ids.has(state.unsortedId)) state.unsortedId = null;
-    const mapped = new Set([...Object.values(state.hubFolders), state.unsortedId]);
+    // Mappings to folders that are gone, or no longer directly in the folder,
+    // go; so do those of other folders of a hub renamed meanwhile, which are
+    // taken up again below by their new names.
+    const titles = new Map(folders.map((f) => [f.id, f.title]));
+    for (const [id, hub] of Object.entries(state.twinFolders)) {
+      if (!ids.has(id) || hubOfTitle(titles.get(id)!) !== hub) forgetFolder(state, id);
+    }
+    for (const id of [...Object.values(state.hubFolders), state.unsortedId]) if (id && !ids.has(id)) forgetFolder(state, id);
+    const mapped = new Set([...Object.values(state.hubFolders), state.unsortedId, ...Object.keys(state.twinFolders)]);
     // A folder no hub owns yet is taken up by its name: after sync was off, or
-    // a folder the person made while the worker was not listening.
+    // a folder the person made while the worker was not listening. A second
+    // one of a name is another folder of the same hub.
     for (const folder of folders) {
       if (mapped.has(folder.id)) continue;
-      if (folder.title === UNSORTED && !state.unsortedId) state.unsortedId = folder.id;
-      else if (folder.title !== UNSORTED && folder.title.trim() !== '' && !state.hubFolders[folder.title]) {
-        state.hubFolders[folder.title] = folder.id;
+      const hub = hubOfTitle(folder.title);
+      if (hub === null) {
+        if (!state.unsortedId) state.unsortedId = folder.id;
+        else state.twinFolders[folder.id] = null;
+      } else if (hub.trim() !== '') {
+        if (!state.hubFolders[hub]) state.hubFolders[hub] = folder.id;
+        else state.twinFolders[folder.id] = hub;
       }
     }
     // A hub folder renamed while no event reached the extension: the hub is
@@ -354,14 +464,21 @@ class FolderView {
     // hub's name back.
     for (const [name, id] of Object.entries(state.hubFolders)) {
       const title = folders.find((f) => f.id === id)!.title;
-      if (title === name) continue;
-      if (title.trim() !== '' && title !== UNSORTED && !state.hubFolders[title]) {
+      if (title === hubFolderTitle(name)) continue;
+      const renamed = hubOfTitle(title);
+      if (renamed !== null && renamed.trim() !== '' && !state.hubFolders[renamed]) {
         delete state.hubFolders[name];
-        state.hubFolders[title] = id;
-        state.queue.push({ kind: 'renameHub', from: name, to: title });
+        state.hubFolders[renamed] = id;
+        state.queue.push({ kind: 'renameHub', from: name, to: renamed });
       } else {
-        await write(echoKey('changed', id), () => chrome.bookmarks.update(id, { title: name })).catch(() => {});
+        await write(echoKey('changed', id), () => chrome.bookmarks.update(id, { title: hubFolderTitle(name) })).catch(() => {});
       }
+    }
+    promoteOrphans(state);
+    // Unsorted is not a hub, so its name can't change: renamed, it is named back.
+    const unsorted = folders.find((f) => f.id === state.unsortedId);
+    if (unsorted && unsorted.title !== UNSORTED) {
+      await write(echoKey('changed', unsorted.id), () => chrome.bookmarks.update(unsorted.id, { title: UNSORTED })).catch(() => {});
     }
 
     const held = new Set(Object.values(state.links).flatMap((l) => l.bookmarkIds));
@@ -396,17 +513,17 @@ class FolderView {
     return list;
   }
 
-  /** The folder for a hub, or for Unsorted, made if missing. Hub folders go before Unsorted. */
-  async folderFor(hub: string): Promise<string> {
+  /** The folder for a hub, or for Unsorted (null), made if missing. Hub folders go before Unsorted. */
+  async folderFor(hub: string | null): Promise<string> {
     const { state } = this;
-    if (hub === UNSORTED) {
+    if (hub === null) {
       if (!state.unsortedId) state.unsortedId = (await createNode({ parentId: state.rootId!, title: UNSORTED })).id;
       return state.unsortedId;
     }
     const known = state.hubFolders[hub];
     if (known) return known;
     const unsorted = state.unsortedId ? await getNode(state.unsortedId) : null;
-    const details: { parentId: string; title: string; index?: number } = { parentId: state.rootId!, title: hub };
+    const details: { parentId: string; title: string; index?: number } = { parentId: state.rootId!, title: hubFolderTitle(hub) };
     if (unsorted?.index !== undefined) details.index = unsorted.index;
     const folder = await createNode(details);
     state.hubFolders[hub] = folder.id;
@@ -448,17 +565,34 @@ class FolderView {
     await write(echoKey('removed', node.id), () => chrome.bookmarks.remove(node.id)).catch(() => {});
   }
 
-  /** Removes the hub folders and Unsorted this pull emptied: a hub no link is in has no folder. */
-  async removeEmptied(): Promise<void> {
+  /**
+   * Removes the folders this pull emptied: Unsorted, and those of hubs the
+   * server no longer has, archived or renamed. A hub that is left with no
+   * links keeps its folders. Where the browser's own sync carries the folder
+   * to another browser syncing it too, that browser would take the removal
+   * for the person deleting the folder, and archive the hub.
+   */
+  async removeEmptied(auth: Credentials): Promise<void> {
     const { state } = this;
+    // Hub names still in use on the server, asked once, only when a hub folder
+    // was emptied. Unanswered, every hub folder stays until a later pull.
+    let live: Set<string> | null | undefined;
     for (const folderId of this.emptied) {
       const hub = hubOfFolder(state, folderId);
       if (hub === undefined || folderId === state.rootId) continue;
       const children = await chrome.bookmarks.getChildren(folderId).catch(() => null);
       if (!children || children.length > 0) continue;
+      if (hub !== null) {
+        if (live === undefined) {
+          live = await listAllHubs(auth, timeout()).then(
+            (hubs) => new Set(hubs.filter((h) => h.status !== 'archived').map((h) => h.name)),
+            () => null,
+          );
+        }
+        if (live === null || live.has(hub)) continue;
+      }
       await write(echoKey('removed', folderId), () => chrome.bookmarks.remove(folderId)).catch(() => {});
-      if (hub === null) state.unsortedId = null;
-      else delete state.hubFolders[hub];
+      forgetFolder(state, folderId);
     }
   }
 }
@@ -475,41 +609,57 @@ async function dropLink(view: FolderView, id: string, url?: string): Promise<voi
   delete view.state.links[id];
 }
 
-/** Makes the folder show one link as the server has it: one bookmark in each of its hubs' folders. */
+/**
+ * Makes the folder show one link as the server has it: a bookmark in each of
+ * its hubs' folders, or in Unsorted.
+ *
+ * Every bookmark of the link's address belongs to it, and a second one in the
+ * same folder is kept. Where the browser's own sync carries the folder to
+ * another browser that syncs it too, both make a bookmark for a new link and
+ * each gets the other's; were each to remove the extra one, both copies would
+ * go, and the other browser would take that for the person deleting them and
+ * archive the link.
+ *
+ * A bookmark in a folder the link has left is moved to one it is in, or,
+ * when each of those already had one, removed: those are the same nodes in
+ * every browser, so the removals agree and a copy is left everywhere.
+ */
 async function applyLink(view: FolderView, link: LinkChange): Promise<void> {
   if (link.status !== 'active') {
     await dropLink(view, link.id, link.url);
     return;
   }
   const { state } = view;
-  const wanted = [...new Set(link.hubs.filter((h) => h.trim() !== ''))];
-  if (wanted.length === 0) wanted.push(UNSORTED);
-  const folders = new Map<string, string>();
-  for (const hub of wanted) folders.set(hub, await view.folderFor(hub));
+  const hubs = [...new Set(link.hubs.filter((h) => h.trim() !== ''))];
+  const wanted = hubs.length > 0 ? hubs : [null];
+  const folders: string[] = [];
+  for (const hub of wanted) folders.push(await view.folderFor(hub));
+  // A hub's bookmarks may be in any folder of it.
+  const homes = wanted.map((hub) => foldersOf(state, hub));
+  const home = new Set(homes.flat());
 
   const mine = (state.links[link.id]?.bookmarkIds ?? [])
     .map((id) => view.nodes.get(id))
     .filter((n): n is Node => n !== undefined);
-  const strays = view.straysFor(link.url);
+  // Untracked bookmarks of the address are claimed, all of them.
+  const nodes = [...mine, ...view.straysFor(link.url).splice(0)];
+  const placed = nodes.filter((n) => home.has(n.parentId!));
+  const spare = nodes.filter((n) => !home.has(n.parentId!));
   const kept: string[] = [];
-  const unfilled: string[] = [];
-  const take = (list: Node[], folderId: string): Node | undefined => {
-    const at = list.findIndex((n) => n.parentId === folderId);
-    return at >= 0 ? list.splice(at, 1)[0] : undefined;
-  };
-  // A bookmark already in the right folder stays; one elsewhere is moved rather
-  // than replaced, and a new one is made only when none is left over.
-  for (const [hub, folderId] of folders) {
-    const node = take(mine, folderId) ?? take(strays, folderId);
-    if (node) kept.push(await view.fit(node, folderId, link));
-    else unfilled.push(hub);
+  for (const node of placed) kept.push(await view.fit(node, node.parentId!, link));
+  // A hub with none gets one moved from elsewhere, or a new one.
+  let movedTo: string | undefined;
+  for (const [i, folderId] of folders.entries()) {
+    if (placed.some((n) => homes[i]!.includes(n.parentId!))) continue;
+    const node = spare.shift();
+    if (node) movedTo ??= folderId;
+    kept.push(node ? await view.fit(node, folderId, link) : await view.create(folderId, link));
   }
-  for (const hub of unfilled) {
-    const folderId = folders.get(hub)!;
-    const spare = mine.shift() ?? strays.shift();
-    kept.push(spare ? await view.fit(spare, folderId, link) : await view.create(folderId, link));
+  // The rest follow the first one moved; if none had to move, they go.
+  for (const node of spare) {
+    if (movedTo) kept.push(await view.fit(node, movedTo, link));
+    else await view.remove(node);
   }
-  for (const node of [...mine, ...strays]) await view.remove(node);
   state.links[link.id] = { url: link.url, title: link.title, bookmarkIds: kept };
 }
 
@@ -530,9 +680,15 @@ async function send(state: SyncState, auth: Credentials, change: PendingChange):
     case 'title':
       await updateLink(auth, change.linkId, { title: change.title }, timeout());
       return;
-    case 'hubs':
-      await updateLink(auth, change.linkId, { hubs: change.hubs }, timeout());
+    case 'hubs': {
+      // Empty lists are left out, and a change with neither, as one queued
+      // by an older version holding the whole set, sends nothing.
+      const patch: { addHubs?: string[]; removeHubs?: string[] } = {};
+      if (change.addHubs?.length) patch.addHubs = change.addHubs;
+      if (change.removeHubs?.length) patch.removeHubs = change.removeHubs;
+      if (patch.addHubs || patch.removeHubs) await updateLink(auth, change.linkId, patch, timeout());
       return;
+    }
     case 'archive':
       await updateLink(auth, change.linkId, { status: 'archived' }, timeout());
       return;
@@ -552,7 +708,20 @@ async function send(state: SyncState, auth: Credentials, change: PendingChange):
     case 'archiveHub': {
       const hub = await hubNamed(change.name);
       if (!hub) return;
-      await updateHub(auth, hub.id, { status: 'archived' }, timeout());
+      if (!change.archived) {
+        // Archived already, its links keep it, as they do when the server
+        // archives a hub: the folder went in a pull, here or in another browser
+        // whose removal the browser's own sync brought.
+        if (hub.status === 'archived') return;
+        await updateHub(auth, hub.id, { status: 'archived' }, timeout());
+        // Kept at once: if taking the hub off its links fails, the retry finds
+        // the hub archived, and must still know this change archived it.
+        change.archived = true;
+        await saveState(state);
+      } else if (hub.status !== 'archived') {
+        // Brought back in the web app before the retry: its links stay.
+        return;
+      }
       if (change.linkIds.length > 0) await unassignHub(auth, hub.id, change.linkIds, timeout());
       return;
     }
@@ -648,7 +817,7 @@ async function runPull(state: SyncState, auth: Auth): Promise<void> {
       kind: 'save', bookmarkId: node.id, url: node.url!, title: node.title, hub: hubOfFolder(state, node.parentId) ?? null,
     });
   }
-  await view.removeEmptied();
+  await view.removeEmptied(auth);
   state.lastSync = Date.now();
   // Cleared here, so that what the last sends ran into still shows.
   state.error = null;
@@ -722,6 +891,25 @@ export async function pullIfEnabled(): Promise<void> {
 }
 
 /**
+ * Renames the folder another server was synced with to "bukmark (its host)",
+ * which no pull looks for: it and its bookmarks are left as they are from then
+ * on. False only when it is there and could not be renamed.
+ */
+async function setAside(old: SyncState): Promise<boolean> {
+  const folder = await getNode(old.rootId!);
+  if (!folder || !isFolder(folder)) return true;
+  let host = old.server;
+  try {
+    host = new URL(old.server).host;
+  } catch {
+    // Named after the address as stored.
+  }
+  const title = `${SYNC_FOLDER} (${host})`;
+  return write(echoKey('changed', folder.id), () => chrome.bookmarks.update(folder.id, { title }))
+    .then(() => true, () => false);
+}
+
+/**
  * Turns sync on for the current login and fills the folder. The page asks for
  * the bookmarks permission first, in the click (allowBookmarkImport).
  */
@@ -732,9 +920,18 @@ export function enableSync(): Promise<SyncReply> {
     const auth = await authFor(baseUrl);
     if (!auth) return { ok: false, error: 'Log in to sync.' };
     const stored = await loadSyncState();
-    // Bookmarks already matched to this server's links stay matched; another
-    // server's matches mean nothing. The folder is found again either way.
-    const state = stored?.server === auth.server ? stored : freshState(auth.server, stored?.rootId ?? null);
+    let state: SyncState;
+    if (stored?.server === auth.server) {
+      // Bookmarks already matched to this server's links stay matched.
+      state = stored;
+    } else {
+      // The folder holds another server's links: filled from it, they would
+      // all be sent here. It is set aside, and this server gets a new one.
+      if (stored?.server && stored.rootId && !(await setAside(stored))) {
+        return { ok: false, error: `Not turned on — rename the ${SYNC_FOLDER} folder in your bookmarks, then try again.` };
+      }
+      state = freshState(auth.server);
+    }
     Object.assign(state, { enabled: true, cursor: null, full: true, queue: [], error: null });
     await saveState(state);
     // The first pull comes after a minute, not five. Bookmark listeners added
@@ -827,29 +1024,49 @@ function dropQueuedSave(state: SyncState, bookmarkId: string): void {
   state.queue = state.queue.filter((c) => !(c.kind === 'save' && c.bookmarkId === bookmarkId));
 }
 
-/** The bookmarks of these that are still in the folder, where they are now. */
-async function stillInside(state: SyncState, ids: string[]): Promise<Node[]> {
-  const nodes = await Promise.all(ids.map(getNode));
-  return nodes.filter((n): n is Node => n !== null && inside(state, n.parentId));
+/** Every bookmark directly in the folder or in one of its synced subfolders, where it is now. */
+async function bookmarksInside(state: SyncState): Promise<Array<Node & { url: string }>> {
+  const found: Array<Node & { url: string }> = [];
+  const [tree] = (await chrome.bookmarks.getSubTree(state.rootId!).catch(() => [])) as Node[];
+  for (const node of tree?.children ?? []) {
+    if (isBookmark(node)) found.push(node);
+    else if (inside(state, node.id)) for (const child of node.children ?? []) if (isBookmark(child)) found.push(child);
+  }
+  return found;
 }
 
-const hubsOf = (state: SyncState, nodes: Node[]): string[] =>
-  [...new Set(nodes.map((n) => hubOfFolder(state, n.parentId)).filter((h): h is string => typeof h === 'string'))];
+/** The link's bookmarks in the folder now, any of its address that no link holds yet included. */
+async function copiesOf(state: SyncState, link: SyncedLink): Promise<Node[]> {
+  const copies = (await bookmarksInside(state)).filter((n) => link.bookmarkIds.includes(n.id) || sameAddress(n.url, link.url));
+  link.bookmarkIds = copies.map((n) => n.id);
+  return copies;
+}
 
 /**
- * A bookmark left the folder or was deleted (S4): the link loses that hub, or
- * is archived when no bookmark of it is left.
+ * A bookmark of a link left a folder of `hub`: deleted, moved out of the
+ * bukmark folder, or given another address (S4). The link leaves the hub only
+ * when no copy is left in a folder of it, and is archived only when none is
+ * left anywhere: a duplicate, or a copy the browser's own sync brought, still
+ * stands for it.
  */
-async function detach(state: SyncState, linkId: string, bookmarkId: string): Promise<void> {
+async function detach(
+  state: SyncState,
+  linkId: string,
+  bookmarkId: string | null,
+  hub: string | null | undefined,
+): Promise<void> {
   const link = state.links[linkId]!;
-  const left = await stillInside(state, link.bookmarkIds.filter((id) => id !== bookmarkId));
+  link.bookmarkIds = link.bookmarkIds.filter((id) => id !== bookmarkId);
+  const left = (await copiesOf(state, link)).filter((n) => n.id !== bookmarkId);
+  link.bookmarkIds = left.map((n) => n.id);
   if (left.length === 0) {
     delete state.links[linkId];
     state.queue.push({ kind: 'archive', linkId });
     return;
   }
-  link.bookmarkIds = left.map((n) => n.id);
-  state.queue.push({ kind: 'hubs', linkId, hubs: hubsOf(state, left) });
+  if (typeof hub === 'string' && !left.some((n) => hubOfFolder(state, n.parentId) === hub)) {
+    state.queue.push({ kind: 'hubs', linkId, addHubs: [], removeHubs: [hub] });
+  }
 }
 
 /** Queues a bookmark to be sent as a link, once: a bookmark already held or queued is not sent twice. */
@@ -866,54 +1083,60 @@ function queueSave(state: SyncState, node: Node & { url: string }): void {
  * taken. One moved in, or named after being made, may hold bookmarks already.
  */
 async function folderArrived(state: SyncState, folder: Node, withContents: boolean): Promise<void> {
-  const name = folder.title;
-  if (name === UNSORTED) {
+  const name = hubOfTitle(folder.title);
+  if (name === null) {
     if (!state.unsortedId) state.unsortedId = folder.id;
+    else state.twinFolders[folder.id] = null;
+  } else if (name.trim() === '') {
     return;
+  } else if (state.hubFolders[name]) {
+    // A second folder of a hub, as the browser's own sync brings one that
+    // another browser made: another folder of the same hub.
+    state.twinFolders[folder.id] = name;
+  } else {
+    state.hubFolders[name] = folder.id;
+    state.queue.push({ kind: 'createHub', name });
   }
-  if (name.trim() === '' || state.hubFolders[name]) return;
-  state.hubFolders[name] = folder.id;
-  state.queue.push({ kind: 'createHub', name });
   if (!withContents) return;
   const children = (await chrome.bookmarks.getChildren(folder.id).catch(() => [])) as Node[];
   for (const node of children) if (isBookmark(node)) queueSave(state, node);
 }
 
-/** Every bookmark id still in the folder or its subfolders. */
-async function idsInside(state: SyncState): Promise<Set<string>> {
-  const ids = new Set<string>();
-  const [tree] = (await chrome.bookmarks.getSubTree(state.rootId!).catch(() => [])) as Node[];
-  for (const node of tree?.children ?? []) {
-    ids.add(node.id);
-    if (inside(state, node.id)) for (const child of node.children ?? []) ids.add(child.id);
-  }
-  return ids;
-}
-
 /**
  * A hub folder was deleted or moved out (S4): the hub is archived and taken
- * off its links, which stay. Unsorted going means its bookmarks going.
+ * off its links, which stay. Where the hub has another folder, it stays, and
+ * the bookmarks count as deleted one by one. Unsorted is no hub: like the
+ * whole bukmark folder, it going changes nothing on the server, and the next
+ * pull, a full one, makes it again with its links.
  */
 async function folderLeft(state: SyncState, folderId: string): Promise<void> {
   const hub = hubOfFolder(state, folderId);
   if (hub === undefined) return;
-  if (hub === null) state.unsortedId = null;
-  else delete state.hubFolders[hub];
-  const present = await idsInside(state);
-  state.queue = state.queue.filter((c) => c.kind !== 'save' || present.has(c.bookmarkId));
-  const affected: string[] = [];
-  for (const [linkId, link] of Object.entries(state.links)) {
-    const left = link.bookmarkIds.filter((id) => present.has(id));
-    if (left.length === link.bookmarkIds.length) continue;
-    if (hub === null) {
-      // As if each bookmark in it had been deleted.
-      await detach(state, linkId, link.bookmarkIds.find((id) => !present.has(id))!);
-      continue;
+  let stays = forgetFolder(state, folderId);
+  if (hub !== null && !stays) {
+    // Another folder of this hub may be in the tree without the extension
+    // having seen it arrive (browser sync can add one while no event reaches
+    // this background). It still holds the hub, so nothing is archived.
+    const siblings = ((await chrome.bookmarks.getChildren(state.rootId!).catch(() => [])) as Node[]).filter(
+      (n) => isFolder(n) && n.id !== folderId && hubOfTitle(n.title) === hub,
+    );
+    if (siblings.length > 0) {
+      for (const twin of siblings) await folderArrived(state, twin, true);
+      stays = true;
     }
-    link.bookmarkIds = left;
-    affected.push(linkId);
   }
-  if (hub !== null) state.queue.push({ kind: 'archiveHub', name: hub, linkIds: affected });
+  const present = new Set((await bookmarksInside(state)).map((n) => n.id));
+  state.queue = state.queue.filter((c) => c.kind !== 'save' || present.has(c.bookmarkId));
+  const affected = Object.keys(state.links).filter((id) => state.links[id]!.bookmarkIds.some((b) => !present.has(b)));
+  if (hub === null) {
+    for (const id of affected) state.links[id]!.bookmarkIds = state.links[id]!.bookmarkIds.filter((b) => present.has(b));
+    state.full = true;
+  } else if (stays) {
+    for (const id of affected) await detach(state, id, null, hub);
+  } else {
+    for (const id of affected) state.links[id]!.bookmarkIds = state.links[id]!.bookmarkIds.filter((b) => present.has(b));
+    state.queue.push({ kind: 'archiveHub', name: hub, linkIds: affected });
+  }
 }
 
 async function onCreated(id: string, node: Node): Promise<void> {
@@ -934,14 +1157,28 @@ async function onChanged(id: string, info: { title: string; url?: string }): Pro
   const on = await active();
   if (!on) return;
   const { state } = on;
+  // Unsorted renamed changes nothing on the server: the next pull names it back.
   if (id === state.rootId || id === state.unsortedId) return;
+  if (Object.hasOwn(state.twinFolders, id)) {
+    // Another folder of a hub, renamed: a folder of its new name from now on.
+    const hub = state.twinFolders[id];
+    const node = await getNode(id);
+    if (!node || hubOfTitle(node.title) === hub) return;
+    forgetFolder(state, id);
+    await folderArrived(state, node, true);
+    await pushed(on);
+    return;
+  }
   const hub = hubOfFolder(state, id);
   if (typeof hub === 'string') {
-    // A name another hub folder has would merge two hubs: the next pull names it back.
-    if (info.title === hub || info.title.trim() === '' || info.title === UNSORTED || state.hubFolders[info.title]) return;
+    // "Unsorted", or a name another hub folder has, would merge two folders:
+    // the next pull names it back.
+    const renamed = hubOfTitle(info.title);
+    if (renamed === null || renamed === hub || renamed.trim() === '' || state.hubFolders[renamed]) return;
     delete state.hubFolders[hub];
-    state.hubFolders[info.title] = id;
-    state.queue.push({ kind: 'renameHub', from: hub, to: info.title });
+    state.hubFolders[renamed] = id;
+    promoteOrphans(state);
+    state.queue.push({ kind: 'renameHub', from: hub, to: renamed });
     await pushed(on);
     return;
   }
@@ -958,7 +1195,7 @@ async function onChanged(id: string, info: { title: string; url?: string }): Pro
   if (linkId && link) {
     if (!sameAddress(node.url, link.url)) {
       // Another address is another link: the old one is let go as if deleted.
-      await detach(state, linkId, id);
+      await detach(state, linkId, id, hubOfFolder(state, node.parentId));
       queueSave(state, node);
     } else if (node.title !== link.title) {
       link.title = node.title;
@@ -994,13 +1231,19 @@ async function onMoved(id: string, info: { parentId: string; oldParentId: string
   } else if (isBookmark(node)) {
     const linkId = linkOf(state, id);
     if (wasIn && !isIn) {
-      if (linkId) await detach(state, linkId, id);
+      if (linkId) await detach(state, linkId, id, hubOfFolder(state, info.oldParentId));
       else dropQueuedSave(state, id);
     } else if (linkId) {
-      const link = state.links[linkId]!;
-      const now = await stillInside(state, [...new Set([...link.bookmarkIds, id])]);
-      link.bookmarkIds = now.map((n) => n.id);
-      state.queue.push({ kind: 'hubs', linkId, hubs: hubsOf(state, now) });
+      // Into the new folder's hub, and out of the old one's unless another
+      // copy is still in a folder of it. Unsorted and the bukmark folder itself
+      // are no hub; two folders of the same hub are one.
+      const copies = await copiesOf(state, state.links[linkId]!);
+      const from = hubOfFolder(state, info.oldParentId);
+      const to = hubOfFolder(state, info.parentId);
+      const still = typeof from === 'string' && copies.some((n) => hubOfFolder(state, n.parentId) === from);
+      const removeHubs = typeof from === 'string' && from !== to && !still ? [from] : [];
+      const addHubs = typeof to === 'string' && to !== from ? [to] : [];
+      if (removeHubs.length > 0 || addHubs.length > 0) state.queue.push({ kind: 'hubs', linkId, addHubs, removeHubs });
     } else {
       const queued = queuedSave(state, id);
       if (queued) queued.hub = hubOfFolder(state, info.parentId) ?? null;
@@ -1019,13 +1262,13 @@ async function onRemoved(id: string, info: { parentId: string; node: Node }): Pr
   const { state } = on;
   if (id === state.rootId) {
     // The whole folder: nothing changes on the server. The next pull makes it again.
-    Object.assign(state, { rootId: null, hubFolders: {}, unsortedId: null, links: {}, cursor: null, full: true });
+    Object.assign(state, { rootId: null, hubFolders: {}, unsortedId: null, twinFolders: {}, links: {}, cursor: null, full: true });
     state.queue = state.queue.filter((c) => c.kind !== 'save');
   } else if (hubOfFolder(state, id) !== undefined) {
     await folderLeft(state, id);
   } else if (inside(state, info.parentId) && !isFolder(info.node)) {
     const linkId = linkOf(state, id);
-    if (linkId) await detach(state, linkId, id);
+    if (linkId) await detach(state, linkId, id, hubOfFolder(state, info.parentId));
     else dropQueuedSave(state, id);
   } else {
     return;

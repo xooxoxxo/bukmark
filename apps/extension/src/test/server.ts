@@ -176,8 +176,25 @@ export class FakeServer {
     const linkMatch = /^\/api\/links\/([^/]+)$/.exec(path);
     if (req.method === 'PATCH' && linkMatch) {
       const link = this.links.get(decodeURIComponent(linkMatch[1]!));
+      const { addHubs, removeHubs, ...patch } = body as {
+        title?: string; status?: ServerLink['status']; hubs?: string[]; addHubs?: string[]; removeHubs?: string[];
+      };
+      if (patch.hubs && (addHubs || removeHubs)) return { status: 400, body: { error: 'hubs cannot be sent with addHubs or removeHubs' } };
       if (!link) return { status: 404, body: { error: 'link not found' } };
-      this.edit(link, body as { title?: string; status?: ServerLink['status']; hubs?: string[] });
+      // Only the hubs named change; adding brings an archived hub back, and an
+      // archived hub keeps the link even when named for removal.
+      if (removeHubs) {
+        link.hubs = link.hubs.filter((id) => {
+          const hub = this.hubs.get(id)!;
+          return hub.status === 'archived' || !removeHubs.includes(hub.name);
+        });
+      }
+      for (const name of addHubs ?? []) {
+        const hub = this.hub(name);
+        if (hub.status === 'archived') this.setHubStatus(hub, 'active');
+        if (!link.hubs.includes(hub.id)) link.hubs.push(hub.id);
+      }
+      this.edit(link, patch);
       return { body: this.item(link) };
     }
     if (req.method === 'GET' && path === '/api/hubs') {

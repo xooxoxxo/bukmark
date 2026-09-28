@@ -47,11 +47,15 @@ export interface ChangesPage {
   more: boolean;
 }
 
-/** What PATCH /api/links/:id changes. `hubs` replaces the link's hub set, by name. */
+/**
+ * What PATCH /api/links/:id changes. Hubs by name, only those named: the
+ * server may have filed the link into others since the last pull.
+ */
 export interface LinkPatch {
   title?: string;
   status?: 'active' | 'archived';
-  hubs?: string[];
+  addHubs?: string[];
+  removeHubs?: string[];
 }
 
 /** GET /api/links/lookup: the page itself if saved, and how its site is filed. */

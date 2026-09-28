@@ -12,6 +12,7 @@ import {
   type FakeChrome,
   type FakeRequest,
 } from '../test/chrome';
+import { BrowserSync } from '../test/bookmarks';
 import { FakeServer } from '../test/server';
 
 const SERVER = 'http://nas.lan:3000';
@@ -146,6 +147,26 @@ describe('turning sync on, more', () => {
     expect(server.view(server.byUrl('https://meanwhile.com/'))?.hubs).toEqual(['dev']);
     expect(tree().child('2', 'bukmark')).toBeDefined();
     expect(tree().outline('2')).toEqual({ bukmark: folder() });
+  });
+
+  it('notes when Chrome’s own sync carries the folder, and not otherwise', async () => {
+    await start();
+    server.add('https://a.com/', 'A', ['dev']);
+    await ask('enable');
+    expect(state().browserSynced).toBe(false);
+    tree().syncing = false;
+    await ask('pull');
+    expect(state().browserSynced).toBe(false);
+    tree().syncing = true;
+    await ask('pull');
+    expect(state().browserSynced).toBe(true);
+  });
+
+  it('can’t tell in Firefox, which does not say what Firefox Sync carries', async () => {
+    await start('firefox');
+    tree().syncing = true;
+    await ask('enable');
+    expect(state().browserSynced).toBe(false);
   });
 
   it('says so when the browser has not given access to bookmarks', async () => {
@@ -343,13 +364,50 @@ describe('pushing what the person changes in the folder', () => {
     expect(server.view(server.byUrl('https://a2.com/'))).toMatchObject({ title: 'A', status: 'active', hubs: ['dev'] });
   });
 
-  it('moving a bookmark between hub folders changes the link’s hubs', async () => {
+  it('moving a bookmark between hub folders takes the link out of one hub and into the other', async () => {
     const { a, dev, rust, before } = await synced();
     person().move(bookmarkIn(dev, 'A').id, { parentId: rust });
     await quiet();
     expect(since(before)).toEqual([`PATCH /api/links/${a.id}`]);
-    expect(requests.at(-1)!.body).toEqual({ hubs: ['rust'] });
+    expect(requests.at(-1)!.body).toEqual({ addHubs: ['rust'], removeHubs: ['dev'] });
     expect(server.view(a)!.hubs).toEqual(['rust']);
+  });
+
+  it('a move keeps a hub the server added since the last pull', async () => {
+    const { a, dev, rust } = await synced();
+    server.edit(a, { hubs: ['dev', 'reading'] });
+    person().move(bookmarkIn(dev, 'A').id, { parentId: rust });
+    await quiet();
+    expect(server.view(a)!.hubs).toEqual(['reading', 'rust']);
+    await ask('pull');
+    expect(tree().outline(tree().at('bukmark', 'reading')!.id)['*']).toEqual(['A → https://a.com/']);
+    expect(tree().outline(rust)['*']).toContain('A → https://a.com/');
+  });
+
+  it('a move into Unsorted only takes the link out of the hub it left', async () => {
+    const { a, dev, unsorted } = await synced();
+    person().move(bookmarkIn(dev, 'A').id, { parentId: unsorted });
+    await quiet();
+    expect(requests.at(-1)!.body).toEqual({ removeHubs: ['dev'] });
+    expect(server.view(a)!.hubs).toEqual([]);
+    // Out of Unsorted, it only goes into the new one.
+    person().move(bookmarkIn(unsorted, 'A').id, { parentId: tree().at('bukmark', 'rust')!.id });
+    await quiet();
+    expect(requests.at(-1)!.body).toEqual({ addHubs: ['rust'] });
+    expect(server.view(a)!.hubs).toEqual(['rust']);
+  });
+
+  it('moving one of two copies out of a folder leaves the link in that folder’s hub', async () => {
+    const { a, dev, rust, before } = await synced();
+    person().create({ parentId: dev, title: 'A too', url: 'https://a.com/' });
+    await quiet();
+    person().move(bookmarkIn(dev, 'A').id, { parentId: rust });
+    await quiet();
+    expect(requests.slice(before).map((r) => r.body)).toEqual([
+      { url: 'https://a.com/', title: 'A too', hub: 'dev' },
+      { addHubs: ['rust'] },
+    ]);
+    expect(server.view(a)!.hubs).toEqual(['dev', 'rust']);
   });
 
   it('moving one of a link’s two bookmarks into Unsorted leaves it in its other hub', async () => {
@@ -462,10 +520,41 @@ describe('deleting in the browser (S4)', () => {
 
   it('deleting one of a link’s bookmarks, while another hub folder still has it, takes off only that hub', async () => {
     const { b, rust } = await synced();
+    server.edit(b, { hubs: ['dev', 'rust', 'reading'] });
     person().remove(bookmarkIn(rust, 'B').id);
     await quiet();
-    expect(requests.at(-1)!.body).toEqual({ hubs: ['dev'] });
-    expect(server.view(b)).toMatchObject({ status: 'active', hubs: ['dev'] });
+    expect(requests.at(-1)!.body).toEqual({ removeHubs: ['rust'] });
+    // reading, filed on the server since the last pull, stays.
+    expect(server.view(b)).toMatchObject({ status: 'active', hubs: ['dev', 'reading'] });
+  });
+
+  it('deleting one of two bookmarks of a link in the same folder changes nothing; deleting both archives it', async () => {
+    const { a, dev, before } = await synced();
+    const copy = person().create({ parentId: dev, title: 'A too', url: 'https://a.com/' });
+    await quiet();
+    expect(state().links[a.id]!.bookmarkIds).toHaveLength(2);
+    const count = requests.length;
+    person().remove(copy.id);
+    await quiet();
+    expect(since(count)).toEqual([]);
+    expect(server.view(a)).toMatchObject({ status: 'active', hubs: ['dev'] });
+    person().remove(bookmarkIn(dev, 'A').id);
+    await quiet();
+    expect(requests.at(-1)!.body).toEqual({ status: 'archived' });
+    expect(since(before).filter((r) => r.startsWith('PATCH'))).toHaveLength(1);
+  });
+
+  it('a copy no link holds yet still counts: deleting the other one archives nothing', async () => {
+    const { a, dev } = await synced();
+    // Made while no event reached the extension: nothing holds it until a pull.
+    stopBackground(chrome);
+    person().create({ parentId: dev, title: 'A too', url: 'https://a.com/' });
+    await quiet();
+    await startBackground(chrome);
+    person().remove(bookmarkIn(dev, 'A').id);
+    await quiet();
+    expect(server.view(a)).toMatchObject({ status: 'active', hubs: ['dev'] });
+    expect(state().links[a.id]!.bookmarkIds).toEqual([bookmarkIn(dev, 'A too').id]);
   });
 
   it.each(['chrome', 'firefox'] as const)(
@@ -489,6 +578,77 @@ describe('deleting in the browser (S4)', () => {
     },
   );
 
+  it('deleting a hub folder archives nothing while another folder of that hub is there, unseen', async () => {
+    const { a, dev } = await synced();
+    const hub = server.hubByName('dev')!;
+    // Browser sync brings a second dev folder holding A, and no event reaches the extension.
+    person().hold();
+    const twin = person().create({ parentId: root().id, title: 'dev' });
+    person().create({ parentId: twin.id, title: 'A', url: 'https://a.com/' });
+    person().drop();
+    person().remove(dev, true);
+    await quiet();
+    expect(server.hubs.get(hub.id)!.status).toBe('active');
+    expect(server.view(a)!.hubs).toContain('dev');
+    expect(deletes()).toEqual([]);
+  });
+
+  it('deleting the folder of a hub archived on the server since the pull takes it off no link', async () => {
+    const { a, dev } = await synced();
+    const hub = server.hubByName('dev')!;
+    server.setHubStatus(hub, 'archived');
+    const count = requests.length;
+    person().remove(dev, true);
+    await quiet();
+    // Archived hubs keep their links, whoever archived them.
+    expect(since(count).filter((r) => r !== 'GET /api/hubs')).toEqual([]);
+    expect(server.links.get(a.id)!.hubs).toContain(hub.id);
+  });
+
+  it('a deleted hub folder whose links could not be taken off at once is finished on the retry', async () => {
+    const { a, b, dev } = await synced();
+    const hub = server.hubByName('dev')!;
+    // The hub is archived, then the server is busy for the next request.
+    let busy = false;
+    requests = stubFetch((req) => {
+      if (busy && req.url.endsWith('/api/links/bulk')) return { status: 503, body: { error: 'busy' } };
+      return server.route(req);
+    });
+    busy = true;
+    person().remove(dev, true);
+    await quiet();
+    expect(hub.status).toBe('archived');
+    expect(server.links.get(a.id)!.hubs).toContain(hub.id);
+    expect(state().queue).toMatchObject([{ kind: 'archiveHub', name: 'dev' }]);
+
+    busy = false;
+    await ask('pull');
+    expect(state().queue).toEqual([]);
+    // Taken off, not only hidden as an archived hub is: brought back, it would be empty.
+    expect(server.links.get(a.id)!.hubs).not.toContain(hub.id);
+    expect(server.links.get(b.id)!.hubs).not.toContain(hub.id);
+    expect(server.view(b)!.hubs).toEqual(['rust']);
+  });
+
+  it('a retry leaves the links alone when the hub was brought back meanwhile', async () => {
+    const { a, dev } = await synced();
+    const hub = server.hubByName('dev')!;
+    let busy = false;
+    requests = stubFetch((req) => {
+      if (busy && req.url.endsWith('/api/links/bulk')) return { status: 503, body: { error: 'busy' } };
+      return server.route(req);
+    });
+    busy = true;
+    person().remove(dev, true);
+    await quiet();
+    busy = false;
+    server.setHubStatus(hub, 'active');
+    const count = requests.length;
+    await ask('pull');
+    expect(since(count).filter((r) => r.startsWith('POST') || r.startsWith('PATCH'))).toEqual([]);
+    expect(server.view(a)!.hubs).toEqual(['dev']);
+  });
+
   it('moving a hub folder out of the bukmark folder counts as deleting it', async () => {
     const { a, dev } = await synced();
     person().move(dev, { parentId: '1' });
@@ -498,12 +658,42 @@ describe('deleting in the browser (S4)', () => {
     expect(tree().child('1', 'dev')).toBeDefined();
   });
 
-  it('deleting Unsorted archives the links in it', async () => {
-    const { c, unsorted } = await synced();
+  it('deleting Unsorted changes nothing on the server, and the next pull makes it again', async () => {
+    const { c, unsorted, before } = await synced();
+    person().create({ parentId: unsorted, title: 'U2', url: 'https://u2.com/' });
+    await quiet();
+    const count = requests.length;
     person().remove(unsorted, true);
     await quiet();
-    expect(server.links.get(c.id)!.status).toBe('archived');
-    expect(server.hubs.size).toBe(2);
+    expect(since(count)).toEqual([]);
+    expect(server.view(c)).toMatchObject({ status: 'active', hubs: [] });
+    expect(server.view(server.byUrl('https://u2.com/'))).toMatchObject({ status: 'active', hubs: [] });
+    await ask('pull');
+    expect(folder().Unsorted).toEqual({ '*': ['C → https://c.com/', 'U2 → https://u2.com/'] });
+    expect(since(before).filter((r) => r !== 'GET /api/links/changes')).toEqual(['POST /api/links']);
+  });
+
+  it('moving Unsorted out changes nothing on the server either, and leaves it where it was put', async () => {
+    const { c, unsorted } = await synced();
+    const count = requests.length;
+    person().move(unsorted, { parentId: '1' });
+    await quiet();
+    expect(since(count)).toEqual([]);
+    await ask('pull');
+    expect(server.view(c)).toMatchObject({ status: 'active' });
+    expect(tree().outline(unsorted)['*']).toEqual(['C → https://c.com/']);
+    expect(folder().Unsorted).toEqual({ '*': ['C → https://c.com/'] });
+  });
+
+  it('renaming Unsorted changes nothing on the server, and the next pull names it back', async () => {
+    const { unsorted, before } = await synced();
+    person().update(unsorted, { title: 'Inbox' });
+    await quiet();
+    expect(since(before)).toEqual([]);
+    await ask('pull');
+    expect(tree().at('bukmark', 'Unsorted')!.id).toBe(unsorted);
+    expect(since(before)).toEqual(['GET /api/links/changes']);
+    expect(server.hubByName('Inbox')).toBeUndefined();
   });
 
   it('deleting the whole bukmark folder changes nothing on the server', async () => {
@@ -524,6 +714,326 @@ describe('deleting in the browser (S4)', () => {
   });
 });
 
+describe('two browsers whose own sync carries the folder too', () => {
+  let one: FakeChrome;
+  let two: FakeChrome;
+  let mirror: BrowserSync;
+
+  /** Acts as one browser: its background gets the events and messages that follow. */
+  async function as(device: FakeChrome, work: () => unknown): Promise<void> {
+    chrome = device;
+    vi.stubGlobal('chrome', device);
+    await work();
+    await quiet();
+  }
+
+  async function twoBrowsers(): Promise<void> {
+    server = new FakeServer();
+    requests = stubFetch(server.route);
+    one = fakeChrome({ local: { auth: AUTH }, sync: { baseUrl: SERVER } });
+    two = fakeChrome({ local: { auth: AUTH }, sync: { baseUrl: SERVER } });
+    for (const device of [one, two]) await as(device, () => startBackground(device));
+    mirror = new BrowserSync([one.bookmarks.tree, two.bookmarks.tree]);
+  }
+
+  /** The browser's sync runs both ways; each side's events reach its own background. */
+  async function browserSyncs(): Promise<void> {
+    await as(two, () => mirror.deliver(0));
+    await as(one, () => mirror.deliver(1));
+  }
+
+  /** Both pull, then the browser's sync and more pulls run a few times over. */
+  async function pullsAndBrowserSync(): Promise<void> {
+    await as(one, () => ask('pull'));
+    await as(two, () => ask('pull'));
+    for (let round = 0; round < 3; round++) {
+      await browserSyncs();
+      await as(one, () => ask('pull'));
+      await as(two, () => ask('pull'));
+    }
+  }
+
+  /** Bukmark sync on in both, over one link in dev; the second takes up the folder the browser's sync brought. */
+  async function bothOn() {
+    await twoBrowsers();
+    const a = server.add('https://a.com/', 'A', ['dev']);
+    await as(one, () => ask('enable'));
+    await browserSyncs();
+    await as(two, () => ask('enable'));
+    await browserSyncs();
+    return a;
+  }
+
+  /**
+   * The bookmarks in every folder of this name: both browsers may make a
+   * hub's folder, and the browser's sync then gives each both.
+   */
+  const outlineOf = (device: FakeChrome, hub: string) => device.bookmarks.tree.at('bukmark')!.children!
+    .filter((f) => f.title === hub)
+    .flatMap((f) => device.bookmarks.tree.outline(f.id)['*'] as string[] ?? []);
+  const devOf = (device: FakeChrome) => outlineOf(device, 'dev');
+
+  it('never archives a link nobody deleted, however the pulls and the browser’s sync interleave', async () => {
+    const a = await bothOn();
+    expect(devOf(two)).toEqual(['A → https://a.com/']);
+    // A new link, pulled by both before the browser's sync carries either bookmark across.
+    const n = server.add('https://n.com/', 'N', ['dev']);
+    await pullsAndBrowserSync();
+    expect(server.view(a)).toMatchObject({ status: 'active', hubs: ['dev'] });
+    expect(server.view(n)).toMatchObject({ status: 'active', hubs: ['dev'] });
+    // Both copies stay in both browsers, and both belong to the link.
+    for (const device of [one, two]) {
+      expect(devOf(device)).toEqual(['A → https://a.com/', 'N → https://n.com/', 'N → https://n.com/']);
+      expect((device.storage.local.data.sync as SyncState).links[n.id]!.bookmarkIds).toHaveLength(2);
+    }
+
+    // The person deletes one copy: the other keeps the link, in both browsers.
+    const [first, second] = one.bookmarks.tree.at('bukmark', 'dev')!.children!.filter((b) => b.title === 'N');
+    await as(one, () => one.bookmarks.tree.remove(first!.id));
+    await browserSyncs();
+    await as(one, () => ask('pull'));
+    await as(two, () => ask('pull'));
+    expect(server.view(n)).toMatchObject({ status: 'active', hubs: ['dev'] });
+    expect(devOf(two)).toEqual(['A → https://a.com/', 'N → https://n.com/']);
+
+    // Deleting the last copy archives it.
+    await as(one, () => one.bookmarks.tree.remove(second!.id));
+    await browserSyncs();
+    expect(server.view(n)).toMatchObject({ status: 'archived' });
+    expect(server.view(a)).toMatchObject({ status: 'active', hubs: ['dev'] });
+    expect(devOf(two)).toEqual(['A → https://a.com/']);
+  });
+
+  it('a link with a copy from each browser, moved to a new hub on the server, stays, with both copies', async () => {
+    await bothOn();
+    const n = server.add('https://n.com/', 'N', ['dev']);
+    await pullsAndBrowserSync();
+    const count = requests.length;
+    server.edit(n, { hubs: ['rust'] });
+    // Both pull before the browser's sync brings either's new rust folder.
+    await pullsAndBrowserSync();
+    expect(server.view(n)).toMatchObject({ status: 'active', hubs: ['rust'] });
+    expect(since(count).filter((r) => r !== 'GET /api/links/changes')).toEqual([]);
+    for (const device of [one, two]) {
+      expect(devOf(device)).toEqual(['A → https://a.com/']);
+      // Two rust folders, one from each browser, both taken as the hub's.
+      expect(device.bookmarks.tree.at('bukmark')!.children!.filter((f) => f.title === 'rust')).toHaveLength(2);
+      expect(outlineOf(device, 'rust')).toEqual(['N → https://n.com/', 'N → https://n.com/']);
+    }
+    // Deleting a copy in either rust folder leaves the link in rust while the other is there.
+    const [first, second] = one.bookmarks.tree.at('bukmark')!.children!.filter((f) => f.title === 'rust')
+      .flatMap((f) => f.children ?? []);
+    await as(one, () => one.bookmarks.tree.remove(first!.id));
+    await browserSyncs();
+    expect(server.view(n)).toMatchObject({ status: 'active', hubs: ['rust'] });
+    await as(one, () => one.bookmarks.tree.remove(second!.id));
+    await browserSyncs();
+    expect(server.view(n)).toMatchObject({ status: 'archived' });
+    expect(server.hubByName('rust')!.status).toBe('active');
+  });
+
+  it('a link taken out of one of its hubs on the server loses the copies there, and nothing else', async () => {
+    await bothOn();
+    const n = server.add('https://n.com/', 'N', ['dev', 'rust']);
+    await pullsAndBrowserSync();
+    expect(devOf(one)).toEqual(['A → https://a.com/', 'N → https://n.com/', 'N → https://n.com/']);
+    expect(outlineOf(one, 'rust')).toEqual(['N → https://n.com/', 'N → https://n.com/']);
+    server.edit(n, { hubs: ['rust'] });
+    await pullsAndBrowserSync();
+    expect(server.view(n)).toMatchObject({ status: 'active', hubs: ['rust'] });
+    for (const device of [one, two]) {
+      expect(devOf(device)).toEqual(['A → https://a.com/']);
+      expect(outlineOf(device, 'rust')).toEqual(['N → https://n.com/', 'N → https://n.com/']);
+    }
+  });
+
+  it('a hub left with no links keeps its folders, so the other browser never archives it', async () => {
+    const a = await bothOn();
+    const n = server.add('https://n.com/', 'N', ['rust']);
+    await pullsAndBrowserSync();
+    // N leaves rust on the server: rust has no links now, and is still a hub.
+    server.edit(n, { hubs: ['dev'] });
+    // One pulls, and the browser's sync brings that to the other before it pulls.
+    await as(one, () => ask('pull'));
+    await browserSyncs();
+    await as(two, () => ask('pull'));
+    await browserSyncs();
+    expect(server.hubByName('rust')!.status).toBe('active');
+    expect(server.view(n)).toMatchObject({ status: 'active', hubs: ['dev'] });
+    expect(server.view(a)).toMatchObject({ status: 'active', hubs: ['dev'] });
+    for (const device of [one, two]) {
+      expect(outlineOf(device, 'rust')).toEqual([]);
+      expect(device.bookmarks.tree.at('bukmark', 'rust')).toBeDefined();
+    }
+
+    // Renamed on the server, the hub's old folders go once emptied, and the
+    // other browser seeing them go archives nothing.
+    server.edit(n, { hubs: ['dev', 'rust'] });
+    await pullsAndBrowserSync();
+    server.renameHub(server.hubByName('rust')!, 'rustlang');
+    await as(one, () => ask('pull'));
+    await browserSyncs();
+    await as(two, () => ask('pull'));
+    await browserSyncs();
+    expect(server.hubByName('rustlang')!.status).toBe('active');
+    expect(server.view(n)).toMatchObject({ status: 'active', hubs: ['dev', 'rustlang'] });
+    for (const device of [one, two]) {
+      expect(device.bookmarks.tree.at('bukmark', 'rust')).toBeUndefined();
+      expect(outlineOf(device, 'rustlang').length).toBeGreaterThan(0);
+    }
+  });
+
+  it('a hub archived on the server keeps its links, and has them again when brought back', async () => {
+    const a = await bothOn();
+    const n = server.add('https://n.com/', 'N', ['rust']);
+    await pullsAndBrowserSync();
+    const rust = server.hubByName('rust')!;
+    server.setHubStatus(rust, 'archived');
+    // One pull moves N to Unsorted and removes the rust folders; the other
+    // browser gets those as the person's changes before it pulls.
+    await as(one, () => ask('pull'));
+    await browserSyncs();
+    await as(two, () => ask('pull'));
+    await browserSyncs();
+    expect(server.links.get(n.id)!.hubs).toContain(rust.id);
+    expect(server.view(n)).toMatchObject({ status: 'active' });
+    server.setHubStatus(rust, 'active');
+    await pullsAndBrowserSync();
+    expect(server.view(n)).toMatchObject({ status: 'active', hubs: ['rust'] });
+    expect(server.view(a)).toMatchObject({ status: 'active', hubs: ['dev'] });
+    for (const device of [one, two]) expect(outlineOf(device, 'rust')).toContain('N → https://n.com/');
+  });
+
+  it('a pull keeps a second bookmark of a link in the same folder', async () => {
+    const { a, dev } = await synced();
+    stopBackground(chrome);
+    const copy = person().create({ parentId: dev, title: 'A', url: 'https://www.a.com/#top' });
+    await quiet();
+    await startBackground(chrome);
+    server.edit(a, { title: 'A2' });
+    const removes = chrome.bookmarks.remove.mock.calls.length;
+    await ask('pull');
+    expect(chrome.bookmarks.remove.mock.calls.length).toBe(removes);
+    expect(tree().outline(dev)['*']).toEqual(['A2 → https://a.com/', 'B → https://b.com/', 'A2 → https://www.a.com/#top']);
+    expect(state().links[a.id]!.bookmarkIds).toContain(copy.id);
+  });
+});
+
+describe('a hub called Unsorted', () => {
+  it('gets the folder “Unsorted (hub)”, apart from Unsorted for links in no hub', async () => {
+    await start();
+    const u = server.add('https://u.com/', 'U', ['Unsorted']);
+    const x = server.add('https://x.com/', 'X', ['Unsorted (hub)']);
+    server.add('https://c.com/', 'C');
+    await ask('enable');
+    expect(folder()).toEqual({
+      'Unsorted (hub)': { '*': ['U → https://u.com/'] },
+      'Unsorted (hub) (hub)': { '*': ['X → https://x.com/'] },
+      Unsorted: { '*': ['C → https://c.com/'] },
+    });
+    // Moving a bookmark between the two is a change of hub like any other.
+    person().move(bookmarkIn(tree().at('bukmark', 'Unsorted (hub)')!.id, 'U').id, { parentId: tree().at('bukmark', 'Unsorted')!.id });
+    await quiet();
+    expect(requests.at(-1)!.body).toEqual({ removeHubs: ['Unsorted'] });
+    expect(server.view(u)!.hubs).toEqual([]);
+    person().move(bookmarkIn(tree().at('bukmark', 'Unsorted')!.id, 'C').id, { parentId: tree().at('bukmark', 'Unsorted (hub) (hub)')!.id });
+    await quiet();
+    expect(requests.at(-1)!.body).toEqual({ addHubs: ['Unsorted (hub)'] });
+    expect(server.view(x)!.hubs).toEqual(['Unsorted (hub)']);
+  });
+
+  it('is what a folder named “Unsorted (hub)” makes, or a hub folder renamed to it', async () => {
+    const { dev } = await synced();
+    const made = person().create({ parentId: root().id, title: 'Unsorted (hub)' });
+    person().create({ parentId: made.id, title: 'In it', url: 'https://in.com/' });
+    await quiet();
+    expect(server.view(server.byUrl('https://in.com/'))!.hubs).toEqual(['Unsorted']);
+    const hub = server.hubByName('rust')!;
+    person().update(tree().at('bukmark', 'rust')!.id, { title: 'Unsorted (hub) (hub)' });
+    await quiet();
+    expect(server.hubs.get(hub.id)!.name).toBe('Unsorted (hub)');
+    // Renamed "Unsorted" itself, a hub folder is named back: that name is taken.
+    person().update(dev, { title: 'Unsorted' });
+    await quiet();
+    expect(server.hubByName('dev')).toBeDefined();
+    await ask('pull');
+    expect(tree().at('bukmark', 'dev')!.id).toBe(dev);
+    expect(Object.keys(folder()).filter((k) => k === 'Unsorted')).toHaveLength(1);
+  });
+
+  it('names folders so that every hub has one of its own', async () => {
+    const { hubFolderTitle, hubOfTitle } = await import('./sync');
+    for (const hub of ['dev', 'Unsorted', 'Unsorted (hub)', 'Unsorted (hub) (hub)', 'dev (hub)', 'unsorted', ' Unsorted']) {
+      expect(hubFolderTitle(hub)).not.toBe('Unsorted');
+      expect(hubOfTitle(hubFolderTitle(hub))).toBe(hub);
+    }
+    expect(hubOfTitle('Unsorted')).toBeNull();
+    expect(hubFolderTitle('Unsorted')).toBe('Unsorted (hub)');
+    expect(hubFolderTitle('dev (hub)')).toBe('dev (hub)');
+  });
+});
+
+describe('a second folder with a hub’s name', () => {
+  it('is another folder of that hub: bookmarks made in it are filed there, and a pull leaves them in it', async () => {
+    const { a, dev } = await synced();
+    const again = person().create({ parentId: root().id, title: 'dev' });
+    await quiet();
+    expect(server.hubs.size).toBe(2);
+    person().create({ parentId: again.id, title: 'More', url: 'https://more.com/' });
+    person().move(bookmarkIn(dev, 'A').id, { parentId: again.id });
+    await quiet();
+    expect(server.view(server.byUrl('https://more.com/'))!.hubs).toEqual(['dev']);
+    // Moved between two folders of one hub: nothing to send.
+    expect(requests.filter((r) => r.method === 'PATCH')).toEqual([]);
+    expect(server.view(a)!.hubs).toEqual(['dev']);
+    await ask('pull');
+    expect(tree().outline(again.id)['*']).toEqual(['More → https://more.com/', 'A → https://a.com/']);
+  });
+
+  it('deleted, its bookmarks count as deleted one by one, and the hub stays', async () => {
+    const { a, b, c, dev } = await synced();
+    const again = person().create({ parentId: root().id, title: 'dev' });
+    await quiet();
+    person().move(bookmarkIn(dev, 'A').id, { parentId: again.id });
+    person().create({ parentId: again.id, title: 'B', url: 'https://b.com/' });
+    person().create({ parentId: again.id, title: 'C', url: 'https://c.com/' });
+    await quiet();
+    expect(server.view(c)!.hubs).toEqual(['dev']);
+    person().remove(again.id, true);
+    await quiet();
+    expect(server.hubByName('dev')!.status).toBe('active');
+    // A had no other bookmark; B still has one in dev; C still has one in Unsorted.
+    expect(server.view(a)).toMatchObject({ status: 'archived' });
+    expect(server.view(b)).toMatchObject({ status: 'active', hubs: ['dev', 'rust'] });
+    expect(server.view(c)).toMatchObject({ status: 'active', hubs: [] });
+  });
+
+  it('the hub’s own folder deleted, the other takes over and the hub stays', async () => {
+    const { a, b, dev } = await synced();
+    const again = person().create({ parentId: root().id, title: 'dev' });
+    await quiet();
+    person().move(bookmarkIn(dev, 'A').id, { parentId: again.id });
+    await quiet();
+    person().remove(dev, true);
+    await quiet();
+    expect(server.hubByName('dev')!.status).toBe('active');
+    expect(server.view(a)!.hubs).toEqual(['dev']);
+    expect(server.view(b)!.hubs).toEqual(['rust']);
+    expect(state().hubFolders.dev).toBe(again.id);
+  });
+
+  it('renamed, is a folder of its new name', async () => {
+    await synced();
+    const again = person().create({ parentId: root().id, title: 'dev' });
+    await quiet();
+    person().update(again.id, { title: 'ops' });
+    await quiet();
+    expect(server.hubByName('ops')).toBeDefined();
+    expect(state().hubFolders.ops).toBe(again.id);
+    expect(state().twinFolders).toEqual({});
+  });
+});
+
 describe('echo suppression: a pull’s own writes are never sent back', () => {
   it('a full pull, and every pull after it, sends nothing but the feed request', async () => {
     const { before } = await synced();
@@ -534,7 +1044,9 @@ describe('echo suppression: a pull’s own writes are never sent back', () => {
     server.edit(server.byUrl('https://a.com/')!, { status: 'archived' });
     await ask('pull');
     await ask('pull');
-    expect(since(before)).toEqual(['GET /api/links/changes', 'GET /api/links/changes']);
+    // The first pull emptied the dev and rust folders, and reads the hubs once
+    // to see that those names are gone before it removes them.
+    expect(since(before)).toEqual(['GET /api/links/changes', 'GET /api/hubs', 'GET /api/links/changes']);
     expect(folder()).toEqual({
       dev2: { '*': ['B → https://b.com/', 'C2 → https://c.com/'] },
       rust2: { '*': ['B → https://b.com/'] },
@@ -619,7 +1131,9 @@ describe('when the server can’t be reached', () => {
     expect(server.view(a)).toMatchObject({ title: 'A moved', hubs: ['rust'] });
     expect(tree().child(rust, 'A moved')).toBeDefined();
     // Tried with each edit and each pull while offline, then sent in order.
-    expect(requests.filter((r) => r.method === 'PATCH').slice(-2).map((r) => r.body)).toEqual([{ hubs: ['rust'] }, { title: 'A moved' }]);
+    expect(requests.filter((r) => r.method === 'PATCH').slice(-2).map((r) => r.body)).toEqual([
+      { addHubs: ['rust'], removeHubs: ['dev'] }, { title: 'A moved' },
+    ]);
     expect(since(before).filter((r) => r === 'POST /api/links')).toEqual([]);
   });
 
@@ -700,20 +1214,62 @@ describe('turning sync off', () => {
     expect(Object.keys(folder())).toEqual(['dev', 'rust', 'Unsorted']);
   });
 
-  it('turns off when logged in to another server, and starts afresh with it', async () => {
-    await synced();
+  it('turns off when logged in to another server; turned on there, sets the old folder aside and starts a new one', async () => {
+    const { dev } = await synced();
+    const old = root().id;
+    const outline = folder();
     await chrome.storage.sync.set({ baseUrl: 'http://other.lan:3000' });
     await chrome.storage.local.set({ auth: { ...AUTH, server: 'http://other.lan:3000' } });
     await quiet();
-    expect(state().enabled).toBe(false);
+    // Off, and still knows which server the folder was synced with.
+    expect(state()).toMatchObject({ enabled: false, server: SERVER, rootId: old });
     const other = new FakeServer();
     other.add('https://z.com/', 'Z', ['zed']);
     requests = stubFetch((req) => other.route(req));
+    expect(await ask('enable')).toEqual({ ok: true });
+
+    // Nothing of the first server's is sent to the second.
+    expect(sent().filter((r) => r !== 'GET /api/links/changes')).toEqual([]);
+    expect(other.links.size).toBe(1);
+    expect(tree().child('2', 'bukmark (nas.lan:3000)')!.id).toBe(old);
+    expect(tree().outline(old)).toEqual(outline);
+    expect(root().id).not.toBe(old);
+    expect(folder()).toEqual({ zed: { '*': ['Z → https://z.com/'] } });
+    expect(state()).toMatchObject({ server: 'http://other.lan:3000', rootId: root().id });
+
+    // The old folder is left alone from then on.
+    const count = requests.length;
+    person().create({ parentId: dev, title: 'Old', url: 'https://old.com/' });
+    person().remove(bookmarkIn(dev, 'A').id);
+    await quiet();
+    await ask('pull');
+    expect(since(count)).toEqual(['GET /api/links/changes']);
+    expect(tree().outline(dev)['*']).toEqual(['B → https://b.com/', 'Old → https://old.com/']);
+  });
+
+  it('stays off, and sends nothing, when the old folder can’t be set aside', async () => {
+    await synced();
+    const old = root().id;
+    await ask('disable');
+    await chrome.storage.sync.set({ baseUrl: 'http://other.lan:3000' });
+    await chrome.storage.local.set({ auth: { ...AUTH, server: 'http://other.lan:3000' } });
+    chrome.bookmarks.update.mockRejectedValueOnce(new Error("Can't modify managed bookmarks."));
+    const other = new FakeServer();
+    requests = stubFetch((req) => other.route(req));
+    expect(await ask('enable')).toEqual({
+      ok: false, error: 'Not turned on — rename the bukmark folder in your bookmarks, then try again.',
+    });
+    expect(requests).toEqual([]);
+    expect(state()).toMatchObject({ enabled: false, server: SERVER, rootId: old });
+  });
+
+  it('turned on again for the same server, keeps its folder', async () => {
+    await synced();
+    const old = root().id;
+    await ask('disable');
     await ask('enable');
-    // The same folder, now matched to the other server: what it had there is sent.
-    expect(state().server).toBe('http://other.lan:3000');
-    expect(Object.keys(folder())).toContain('zed');
-    expect(other.byUrl('https://a.com/')).toBeDefined();
+    expect(root().id).toBe(old);
+    expect(tree().child('2', 'bukmark (nas.lan:3000)')).toBeUndefined();
   });
 
   it('turns off, and says why, when the server ends the session', async () => {

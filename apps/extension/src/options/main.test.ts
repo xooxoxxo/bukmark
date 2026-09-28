@@ -734,6 +734,23 @@ describe('options, bookmark sync', () => {
     expect(page.el('syncInfo').textContent).toBe(`${lastSynced()} · 2 links in the bukmark folder.`);
   });
 
+  it('warns when Chrome’s own sync carries the folder to other browsers, where bukmark may sync it too', async () => {
+    await withBackground();
+    const page = await openOptions();
+    page.el('syncToggle').click();
+    await quiet();
+    expect(page.el('syncWarning').hidden).toBe(true);
+    chrome.bookmarks.tree.syncing = true;
+    page.el('syncNow').click();
+    await quiet();
+    expect(page.el('syncWarning').hidden).toBe(false);
+    expect(readFileSync(new URL('../../options.html', import.meta.url), 'utf8'))
+      .toMatch(/<p id="syncWarning"[^>]*>Your browser syncs this folder too\. Turn bukmark sync on in one browser only\.<\/p>/);
+    page.el('syncToggle').click();
+    await quiet();
+    expect(page.el('syncWarning').hidden).toBe(true);
+  });
+
   it('turning it off tells the background, and leaves the folder', async () => {
     await withBackground();
     const page = await openOptions();
