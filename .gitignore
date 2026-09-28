@@ -21,3 +21,6 @@ apps/extension/dist/
 .superpowers/
 # Stray viewport captures from browser checks (the real one is apps/site/public/)
 /*.png
+
+# Planning docs live in the Obsidian vault, not the repo.
+docs/superpowers/
