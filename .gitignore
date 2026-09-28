@@ -24,3 +24,6 @@ apps/extension/dist/
 
 # Planning docs live in the Obsidian vault, not the repo.
 docs/superpowers/
+
+# Local settings: .env.example is the committed template.
+.env

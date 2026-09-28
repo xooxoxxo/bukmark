@@ -1,2 +1,4 @@
 dist/
 .astro/
+# wrangler pages dev state
+.wrangler/
