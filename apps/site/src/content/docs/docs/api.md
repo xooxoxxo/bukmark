@@ -569,13 +569,23 @@ Update the title, note, status, relevance or hubs of a single link.
 }
 ```
 
-- All fields optional
+- All fields optional; they change together or not at all
 - `status`: `active` or `archived`
 - `relevance`: 1–5, or `null` to clear it
 - `hubs`: up to 100 hub names. They replace the hubs the link is in: a missing
   hub is created, an archived one is made active again, and `[]` takes the link
   out of every hub. Archived hubs you leave out keep the link, since sync never
   shows them.
+- `addHubs`, `removeHubs`: up to 100 hub names each, instead of `hubs`. The link
+  goes into the first (created or made active as with `hubs`) and out of the
+  second, and stays in every other hub. A name in both ends up added. An
+  archived hub keeps the link even when named in `removeHubs`, as archiving a
+  hub keeps its links. Bookmark sync sends these, so that a hub the link got on
+  the server since the browser's last sync is kept.
+
+```json
+{ "addHubs": ["rust"], "removeHubs": ["reading"] }
+```
 
 **Response (200):**
 
@@ -591,6 +601,14 @@ Update the title, note, status, relevance or hubs of a single link.
   "hubIds": ["uuid"],
   "imageUrl": "https://example.com/og-image.png",
   "firstSeen": "2024-01-15T10:30:00.000Z"
+}
+```
+
+**Response (400):** `hubs` sent with `addHubs` or `removeHubs`.
+
+```json
+{
+  "error": "hubs cannot be sent with addHubs or removeHubs"
 }
 ```
 

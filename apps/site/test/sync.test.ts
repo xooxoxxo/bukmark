@@ -22,6 +22,26 @@ describe('the bookmark sync docs match the extension and the HTML export', () =>
     expect(html).toContain(`**${unsorted}** for links in no hub`);
   });
 
+  it('names a hub called Unsorted apart from Unsorted, the same way in sync and the export', () => {
+    const netscape = read('apps/server/src/export/netscape.ts');
+    const suffix = constant(sync, 'HUB_SUFFIX');
+    expect(suffix).toBeDefined();
+    expect(constant(netscape, 'HUB_SUFFIX')).toBe(suffix);
+    const name = `**${constant(sync, 'UNSORTED')}${suffix}**`;
+    expect(docs).toContain(`a hub called Unsorted gets ${name}`);
+    expect(read('apps/site/src/content/docs/docs/export.md')).toContain(`a hub called Unsorted gets ${name}`);
+  });
+
+  it('says what happens to Unsorted, another server’s folder, and a folder the browser syncs too', () => {
+    expect(docs).toContain('Deleting or renaming Unsorted changes nothing on the server: the next sync puts it back.');
+    expect(sync).toContain('const title = `${SYNC_FOLDER} (${host})`;');
+    expect(docs).toContain("Turned on for another server, sync renames the old folder to **bukmark (old server's address)**");
+    const warning = /<p id="syncWarning"[^>]*>([^<]+)<\/p>/.exec(read('apps/extension/options.html'))?.[1];
+    expect(warning).toBe('Your browser syncs this folder too. Turn bukmark sync on in one browser only.');
+    expect(docs).toContain('**One browser per synced profile:**');
+    expect(docs).toContain('Chrome says so on the options page; Firefox can\'t tell.');
+  });
+
   it('names the switch the options page shows, only where Import is offered', () => {
     const label = /<input id="syncToggle"[^>]*\/>\s*([^<]+?)\s*<\/label>/.exec(read('apps/extension/options.html'))?.[1];
     expect(label).toBeDefined();

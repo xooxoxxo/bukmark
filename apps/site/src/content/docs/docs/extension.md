@@ -192,9 +192,9 @@ Firefox for Android has no extension shortcuts.
 
 Sync keeps a **bukmark** folder in your browser's Other bookmarks and your
 server the same, both ways. It reads and changes only that folder. Inside it is
-a folder for each hub and **Unsorted** for links in none. A link in two hubs has
-a bookmark in both; archived links are left out. Folders inside a hub folder are
-not synced.
+a folder for each hub and **Unsorted** for links in none (a hub called Unsorted
+gets **Unsorted (hub)**). A link in two hubs has a bookmark in both; archived
+links are left out. Folders inside a hub folder are not synced.
 
 - **Turning it on:** on the options page, check
   **Sync with your browser's bookmarks** while logged in. Your browser asks for
@@ -209,16 +209,24 @@ not synced.
 - **Server changes** arrive every 5 minutes, when the browser starts, and after
   a save from the popup or the shortcut. **Sync now** fetches them at once.
 - **Deleting** never deletes anything on the server. A deleted bookmark archives
-  its link, which you can restore in the web app, unless the link still has a
-  bookmark in another hub folder: then it only leaves this hub. A deleted hub
-  folder archives the hub, and its links stay: at the next sync they show up in
-  their other hub folders, or in Unsorted. Moving a bookmark or folder out of
-  the bukmark folder counts as deleting it.
+  its link, which you can restore in the web app, unless the link still has
+  another bookmark in the folder: then it leaves this hub only if no bookmark of
+  it is left in the hub's folder. A deleted hub folder archives the hub, and its
+  links stay: at the next sync they show up in their other hub folders, or in
+  Unsorted. Moving a bookmark or folder out of the bukmark folder counts as
+  deleting it. Deleting or renaming Unsorted changes nothing on the server: the
+  next sync puts it back.
 - **Turning it off:** uncheck the same box. The folder stays as it is; changes
   not yet sent are dropped. Logging out or changing the server turns sync off
   too. So does taking back the extension's access to your bookmarks, or, in
   Firefox, its permission to share them with your server. To remove the folder,
-  turn sync off first, or the next sync makes it again.
+  turn sync off first, or the next sync makes it again. Turned on for another
+  server, sync renames the old folder to **bukmark (old server's address)**,
+  leaves it alone from then on, and starts a new one.
+- **One browser per synced profile:** if Chrome Sync or Firefox Sync also
+  carries your bookmarks to another browser, turn bukmark sync on in only one
+  of them. Two would each see the other's changes as yours. Chrome says so on
+  the options page; Firefox can't tell.
 
 Tested in Chrome and Firefox. Safari and Firefox for Android give extensions no
 bookmarks, so they have no sync. In Firefox, a change made in the folder in the
