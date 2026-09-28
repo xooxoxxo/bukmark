@@ -15,7 +15,7 @@ import { RateLimiter } from './auth/rateLimit.js';
 import { requireAuth } from './auth/plugin.js';
 import { publicAuthRoutes } from './auth/routes.js';
 import { protectedAuthRoutes } from './auth/protectedRoutes.js';
-import { authorizePage } from './auth/authorizePage.js';
+import { authorizeDonePage, authorizePage } from './auth/authorizePage.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -43,6 +43,9 @@ export async function buildApp(
     corsOrigins?: string[];
     trustProxy?: boolean | number | string;
     logStream?: NodeJS.WritableStream;
+    /** null means unset, whatever BUKMARK_EXTENSION_IDS says. */
+    extensionIds?: string[] | null;
+    webDist?: string;
   } = {},
 ): Promise<FastifyInstance> {
   const app = Fastify({
@@ -79,7 +82,10 @@ export async function buildApp(
 
   await app.register(cookie);
   await app.register(publicAuthRoutes, { prefix: '/api/auth' });
-  await app.register(authorizePage);
+  await app.register(authorizePage, {
+    extensionIds: opts.extensionIds === undefined ? config.extensionIds : opts.extensionIds,
+  });
+  await app.register(authorizeDonePage);
 
   await app.register(async (api) => {
     api.addHook('onRequest', requireAuth);
@@ -89,9 +95,22 @@ export async function buildApp(
     await api.register(exportRoutes);
   }, { prefix: '/api' });
 
-  const webDist = join(import.meta.dirname, '../../web/dist');
+  const webDist = opts.webDist ?? join(import.meta.dirname, '../../web/dist');
   if (existsSync(webDist)) {
-    await app.register(fastifyStatic, { root: webDist, wildcard: false });
+    await app.register(fastifyStatic, {
+      root: webDist,
+      wildcard: false,
+      // A same-site page (another app on this host) gets the Lax session cookie
+      // inside a frame, so any framable page, /save above all, could be laid
+      // under a decoy and clickjacked. Also runs for reply.sendFile, so it
+      // covers the SPA fallback below.
+      setHeaders: (res, path) => {
+        if (path.endsWith('.html')) {
+          res.setHeader('x-frame-options', 'DENY');
+          res.setHeader('content-security-policy', "frame-ancestors 'none'");
+        }
+      },
+    });
     app.setNotFoundHandler((req, reply) => {
       if (req.method === 'GET' && !req.url.startsWith('/api')) return reply.sendFile('index.html');
       return reply.code(404).send({ error: 'not found' });

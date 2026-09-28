@@ -4,7 +4,9 @@ import { sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance, InjectOptions } from 'fastify';
 import { buildApp } from '../app.js';
 import { runMigrations } from '../db/migrate.js';
-import { setupOwner, authHeaders, authCookie, SAME_ORIGIN, REDIRECT_URI, TEST_PASSWORD, mintCode, exchange } from '../test/auth.js';
+import {
+  setupOwner, authHeaders, authCookie, SAME_ORIGIN, REDIRECT_URI, FIREFOX_REDIRECT_URI, TAB_REDIRECT_URI, TEST_PASSWORD, mintCode, exchange,
+} from '../test/auth.js';
 import { owner, sessions, apiTokens, authCodes } from '../db/schema.js';
 import { hashPassword, pkceS256, randomToken, sha256hex, verifyPassword } from './crypto.js';
 import { createAccessToken } from './tokens.js';
@@ -15,6 +17,8 @@ const TEST_URL =
 
 const SESSION_COOKIE = /^bukmark_session=[A-Za-z0-9_-]{43}; Max-Age=2592000; Path=\/; HttpOnly; SameSite=Lax$/;
 const INVALID_GRANT = { error: 'Invalid or expired authorization code', code: 'invalid_grant' };
+// Contract §1.5: the extension checks this list before it opens a login window.
+const REDIRECT_KINDS = ['chromium', 'firefox', 'tab'];
 
 function newApp(opts: Parameters<typeof buildApp>[0] = {}): Promise<FastifyInstance> {
   return buildApp({ databaseUrl: TEST_URL, ...opts });
@@ -50,7 +54,7 @@ describe('auth', () => {
       expect(res.headers['set-cookie']).toMatch(SESSION_COOKIE);
       const cookie = res.cookies.find((c) => c.name === 'bukmark_session')!.value;
       const me = await app.inject({ method: 'GET', url: '/api/auth/status', cookies: { bukmark_session: cookie } });
-      expect(me.json()).toEqual({ setupComplete: true, authenticated: true });
+      expect(me.json()).toEqual({ setupComplete: true, authenticated: true, redirectKinds: REDIRECT_KINDS });
       await app.close();
     });
 
@@ -241,7 +245,7 @@ describe('auth', () => {
       const app = await newApp();
       const res = await app.inject({ method: 'GET', url: '/api/auth/status' });
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ setupComplete: false, authenticated: false });
+      expect(res.json()).toEqual({ setupComplete: false, authenticated: false, redirectKinds: REDIRECT_KINDS });
       await app.close();
     });
 
@@ -249,7 +253,7 @@ describe('auth', () => {
       const app = await newApp();
       await setupOwner(app.db);
       const res = await app.inject({ method: 'GET', url: '/api/auth/status' });
-      expect(res.json()).toEqual({ setupComplete: true, authenticated: false });
+      expect(res.json()).toEqual({ setupComplete: true, authenticated: false, redirectKinds: REDIRECT_KINDS });
       await app.close();
     });
 
@@ -258,7 +262,7 @@ describe('auth', () => {
       const { Authorization } = await authHeaders(app.db);
       for (const authorization of [Authorization, Authorization.replace('Bearer', 'bearer')]) {
         const res = await app.inject({ method: 'GET', url: '/api/auth/status', headers: { authorization } });
-        expect(res.json()).toEqual({ setupComplete: true, authenticated: true });
+        expect(res.json()).toEqual({ setupComplete: true, authenticated: true, redirectKinds: REDIRECT_KINDS });
       }
       await app.close();
     });
@@ -267,7 +271,7 @@ describe('auth', () => {
       const app = await newApp();
       const { cookie } = await authCookie(app.db);
       const res = await app.inject({ method: 'GET', url: '/api/auth/status', cookies: { bukmark_session: cookie } });
-      expect(res.json()).toEqual({ setupComplete: true, authenticated: true });
+      expect(res.json()).toEqual({ setupComplete: true, authenticated: true, redirectKinds: REDIRECT_KINDS });
       await app.close();
     });
 
@@ -277,7 +281,7 @@ describe('auth', () => {
       const res = await app.inject({
         method: 'GET', url: '/api/auth/status', headers: { authorization: 'bearer bkm_wrong' }, cookies: { bukmark_session: cookie },
       });
-      expect(res.json()).toEqual({ setupComplete: true, authenticated: false });
+      expect(res.json()).toEqual({ setupComplete: true, authenticated: false, redirectKinds: REDIRECT_KINDS });
       await app.close();
     });
   });
@@ -473,6 +477,36 @@ describe('auth', () => {
       expect(json.name).toBe('my browser');
       const [row] = await app.db.select().from(apiTokens);
       expect(row!.id).toBe(json.tokenId);
+      await app.close();
+    });
+
+    it.each([
+      ['a Firefox add-on', FIREFOX_REDIRECT_URI],
+      ['the tab login', TAB_REDIRECT_URI],
+    ])('exchanges a code sent to %s for a working token', async (_name, redirectUri) => {
+      const app = await newApp();
+      const { code, verifier, location } = await mintCode(app, { redirect_uri: redirectUri });
+      expect(location.startsWith(`${redirectUri}?`)).toBe(true);
+      const res = await exchange(app, { grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: redirectUri });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().name).toBe('bukmark capture');
+      const links = await app.inject({ method: 'GET', url: '/api/links', headers: { authorization: `Bearer ${res.json().token}` } });
+      expect(links.statusCode).toBe(200);
+      await app.close();
+    });
+
+    it.each([
+      ['a tab code', TAB_REDIRECT_URI, FIREFOX_REDIRECT_URI],
+      ['a Firefox code', FIREFOX_REDIRECT_URI, REDIRECT_URI],
+      ['a Chromium code', REDIRECT_URI, TAB_REDIRECT_URI],
+    ])('refuses %s presented with another kind\'s redirect_uri, and burns it', async (_name, mintedFor, presented) => {
+      const app = await newApp();
+      const { code, verifier } = await mintCode(app, { redirect_uri: mintedFor });
+      const wrong = await exchange(app, { grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: presented });
+      expect(wrong.statusCode).toBe(400);
+      expect(wrong.json()).toEqual(INVALID_GRANT);
+      const retry = await exchange(app, { grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: mintedFor });
+      expect(retry.json()).toEqual(INVALID_GRANT);
       await app.close();
     });
 

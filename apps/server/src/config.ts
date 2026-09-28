@@ -12,6 +12,15 @@ export function parseTrustProxy(value: string | undefined): boolean | number | s
   return value;
 }
 
+/**
+ * BUKMARK_EXTENSION_IDS: the Chrome extension IDs and Firefox redirect hashes
+ * the consent page knows. null when unset, which keeps the built-in default.
+ */
+export function parseExtensionIds(value: string | undefined): string[] | null {
+  const ids = (value ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  return ids.length > 0 ? ids : null;
+}
+
 export const config = {
   databaseUrl:
     process.env.DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark',
@@ -23,4 +32,5 @@ export const config = {
     .map((s) => s.trim())
     .filter(Boolean),
   trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
+  extensionIds: parseExtensionIds(process.env.BUKMARK_EXTENSION_IDS),
 };

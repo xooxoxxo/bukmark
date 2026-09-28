@@ -1,28 +1,36 @@
 import crypto from 'node:crypto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { Writable } from 'node:stream';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
 import { runMigrations } from '../db/migrate.js';
 import { authCodes, sessions } from '../db/schema.js';
 import {
-  REDIRECT_URI, SAME_ORIGIN, TEST_PASSWORD, authCookie, authorizeParams, csrfFrom, exchange, mintCode,
-  pkcePair, postAuthorize, setupOwner,
+  FIREFOX_REDIRECT_URI, REDIRECT_URI, SAME_ORIGIN, TAB_REDIRECT_URI, TEST_PASSWORD, authCookie, authorizeParams, csrfFrom,
+  exchange, mintCode, pkcePair, postAuthorize, setupOwner,
 } from '../test/auth.js';
-import { sha256hex } from './crypto.js';
+import { randomToken, sha256hex } from './crypto.js';
+import { FIREFOX_ADDON_ID, firefoxRedirectHash } from './authorizePage.js';
 
 const TEST_URL =
   process.env.TEST_DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark_test';
 
-const CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self' https://*.chromiumapp.org; frame-ancestors 'none'; base-uri 'none'";
+const CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self' https://*.chromiumapp.org https://*.extensions.allizom.org; frame-ancestors 'none'; base-uri 'none'";
 const EXTENSION_ID = 'abcdefghijklmnopabcdefghijklmnop';
 
-function getAuthorize(app: FastifyInstance, params: Record<string, string>, cookie?: string) {
+function getAuthorize(app: FastifyInstance, params: Record<string, string>, cookie?: string, headers: Record<string, string> = {}) {
   return app.inject({
     method: 'GET',
     url: `/authorize?${new URLSearchParams(params)}`,
+    headers,
     cookies: cookie ? { bukmark_session: cookie } : {},
   });
+}
+
+function logCollector(): { lines: string[]; logStream: Writable } {
+  const lines: string[] = [];
+  return { lines, logStream: new Writable({ write(chunk, _enc, done) { lines.push(String(chunk)); done(); } }) };
 }
 
 function expectSecurityHeaders(res: { headers: Record<string, unknown> }) {
@@ -45,7 +53,7 @@ describe('/authorize', () => {
   });
 
   beforeEach(async () => {
-    app = await buildApp({ databaseUrl: TEST_URL });
+    app = await buildApp({ databaseUrl: TEST_URL, extensionIds: null });
     await app.db.execute(dsql`TRUNCATE owner, sessions, api_tokens, auth_codes`);
     return async () => { await app.close(); };
   });
@@ -403,5 +411,279 @@ describe('/authorize', () => {
     // Signed in now, so the next extension login skips the password.
     const again = await getAuthorize(app, authorizeParams(pkcePair().challenge), cookie);
     expect(again.body).toContain('value="allow"');
+  });
+
+  describe('redirect kinds', () => {
+    const HASH = firefoxRedirectHash(FIREFOX_ADDON_ID);
+    const HOST = { host: SAME_ORIGIN.host };
+
+    it('derives the Firefox redirect host as Firefox does: the hex SHA-1 of the add-on ID', () => {
+      // Checked against toolkit/components/extensions/child/ext-identity.js (computeHash, getRedirectURL).
+      expect(HASH).toBe('79d9f60576061d67a8a6a23ee099801cbdd1ceef');
+      expect(FIREFOX_REDIRECT_URI).toBe('https://79d9f60576061d67a8a6a23ee099801cbdd1ceef.extensions.allizom.org/bukmark');
+    });
+
+    it.each([
+      ['a Chrome/Edge extension by its ID', REDIRECT_URI, `a Chrome/Edge extension (ID <code>${EXTENSION_ID}</code>)`],
+      ['a Firefox add-on by the first 12 hex of its hash', FIREFOX_REDIRECT_URI, 'a Firefox add-on (<code>79d9f6057606…</code>)'],
+      ['the tab login with a caution', TAB_REDIRECT_URI, 'the bukmark extension in this browser — allow only if you just clicked Log in'],
+    ])('names %s, signed out and signed in', async (_name, redirectUri, words) => {
+      await setupOwner(app.db);
+      const params = authorizeParams(pkcePair().challenge, { redirect_uri: redirectUri });
+      const signedOut = await getAuthorize(app, params, undefined, HOST);
+      expect(signedOut.statusCode).toBe(200);
+      expect(signedOut.body).toContain('type="password"');
+      expect(signedOut.body).toContain(`Requested by ${words}.`);
+
+      const { cookie } = await authCookie(app.db);
+      const signedIn = await getAuthorize(app, params, cookie, HOST);
+      expect(signedIn.statusCode).toBe(200);
+      expectSecurityHeaders(signedIn);
+      expect(signedIn.body).toContain('value="allow"');
+      expect(signedIn.body).toContain(`Requested by ${words}.`);
+      expect(signedIn.body).not.toContain('Unrecognised extension');
+    });
+
+    it.each([
+      ['Firefox: 39 hex characters', FIREFOX_REDIRECT_URI.replace(HASH, HASH.slice(1))],
+      ['Firefox: 41 hex characters', FIREFOX_REDIRECT_URI.replace(HASH, `${HASH}0`)],
+      ['Firefox: uppercase hex', FIREFOX_REDIRECT_URI.replace(HASH, HASH.toUpperCase())],
+      ['Firefox: over http', FIREFOX_REDIRECT_URI.replace('https:', 'http:')],
+      ['Firefox: with a query', `${FIREFOX_REDIRECT_URI}?x=1`],
+      ['Firefox: with a fragment', `${FIREFOX_REDIRECT_URI}#x`],
+      ['Firefox: under another domain', FIREFOX_REDIRECT_URI.replace('allizom.org', 'allizom.org.evil.example')],
+      ["Firefox's loopback redirect", `http://127.0.0.1/mozoauth2/${HASH}`],
+      ['a moz-extension:// page', 'moz-extension://0123abcd-0123-4123-8123-0123456789ab/done.html'],
+      ['a safari-web-extension:// page', 'safari-web-extension://0123abcd-0123-4123-8123-0123456789ab/done.html'],
+      ['tab: another host', 'http://evil.example/authorize/done'],
+      ['tab: this hostname on another port', 'http://localhost:3001/authorize/done'],
+      ['tab: this hostname without its port', 'http://localhost/authorize/done'],
+      ['tab: with a query', `${TAB_REDIRECT_URI}?x=1`],
+      ['tab: with an empty query', `${TAB_REDIRECT_URI}?`],
+      ['tab: with a fragment', `${TAB_REDIRECT_URI}#x`],
+      ['tab: with an empty fragment', `${TAB_REDIRECT_URI}#`],
+      ['tab: with userinfo', 'http://user:pass@localhost:3000/authorize/done'],
+      ['tab: with an empty userinfo', 'http://@localhost:3000/authorize/done'],
+      ['tab: with this host as userinfo', 'http://localhost:3000@evil.example/authorize/done'],
+      ['tab: a longer path', `${TAB_REDIRECT_URI}/x`],
+      ['tab: a trailing slash', `${TAB_REDIRECT_URI}/`],
+      ['tab: another path on this host', 'http://localhost:3000/authorize'],
+      ['tab: the path under a prefix', 'http://localhost:3000/x/authorize/done'],
+      ['tab: a dot segment', 'http://localhost:3000/authorize/./done'],
+      ['tab: a backslash in the path', 'http://localhost:3000/authorize\\done'],
+      // Each of these parses to this host with another path, whose URL would be logged.
+      ['tab: a backslash ending the host', 'http://localhost:3000\\x/authorize/done'],
+      ['tab: a query ending the host', 'http://localhost:3000?/authorize/done'],
+      ['tab: a fragment ending the host', 'http://localhost:3000#/authorize/done'],
+      ['tab: a tab character the parser drops', 'http://local\thost:3000/authorize/done'],
+      ['tab: a percent-encoded path', 'http://localhost:3000/authorize/%64one'],
+      ['tab: another scheme', 'ftp://localhost:3000/authorize/done'],
+    ])('rejects %s with a 400 page and no redirect, even signed in', async (_name, redirectUri) => {
+      const { cookie } = await authCookie(app.db);
+      const res = await getAuthorize(app, authorizeParams(pkcePair().challenge, { redirect_uri: redirectUri }), cookie, HOST);
+      expect(res.statusCode).toBe(400);
+      expect(res.headers.location).toBeUndefined();
+      expect(res.body).toContain('redirect_uri is not a redirect URL this server accepts.');
+      expect(res.body).not.toContain('<form');
+      expectSecurityHeaders(res);
+    });
+
+    it.each([
+      ['over plain http behind a TLS proxy', 'https://bukmark.example/authorize/done', 'bukmark.example'],
+      ['when a proxy wrote the default port into Host', 'https://bukmark.example/authorize/done', 'bukmark.example:443'],
+      ['that spells out the default port', 'https://bukmark.example:443/authorize/done', 'bukmark.example'],
+      ['in another letter case', 'http://LocalHost:3000/authorize/done', 'localhost:3000'],
+    ])('accepts a tab redirect %s: hosts compare as the Origin check compares them', async (_name, redirectUri, host) => {
+      await setupOwner(app.db);
+      const res = await getAuthorize(app, authorizeParams(pkcePair().challenge, { redirect_uri: redirectUri }), undefined, { host });
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toContain('Requested by the bukmark extension in this browser');
+    });
+
+    it('requires an https tab redirect when the request came over https', async () => {
+      await setupOwner(app.db);
+      const proxied = await buildApp({ databaseUrl: TEST_URL, trustProxy: 1, extensionIds: null });
+      try {
+        const headers = { host: 'bukmark.example', 'x-forwarded-proto': 'https' };
+        const get = (redirect_uri: string) =>
+          getAuthorize(proxied, authorizeParams(pkcePair().challenge, { redirect_uri }), undefined, headers);
+        expect((await get('http://bukmark.example/authorize/done')).statusCode).toBe(400);
+        expect((await get('https://bukmark.example/authorize/done')).statusCode).toBe(200);
+      } finally {
+        await proxied.close();
+      }
+    });
+
+    it('re-checks a tab redirect against the Host of the POST, so Allow cannot be moved to another host', async () => {
+      const { cookie } = await authCookie(app.db);
+      const params = authorizeParams(pkcePair().challenge, { redirect_uri: TAB_REDIRECT_URI });
+      const csrf = csrfFrom((await getAuthorize(app, params, cookie, HOST)).body)!;
+      const res = await postAuthorize(app, { ...params, action: 'allow', csrf }, {
+        cookie, headers: { host: 'localhost:3001', origin: 'http://localhost:3001' },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.headers.location).toBeUndefined();
+      expect(await app.db.select().from(authCodes)).toHaveLength(0);
+    });
+
+    it('sends a denied tab login back to /authorize/done with the error and state', async () => {
+      await setupOwner(app.db);
+      const params = authorizeParams(pkcePair().challenge, { redirect_uri: TAB_REDIRECT_URI });
+      const res = await postAuthorize(app, { ...params, action: 'deny' });
+      expect(res.statusCode).toBe(303);
+      expect(res.headers.location).toBe(`${TAB_REDIRECT_URI}?error=access_denied&state=${params.state}`);
+    });
+  });
+
+  describe('unrecognised extensions', () => {
+    const FORK_HASH = firefoxRedirectHash('fork@example.org');
+    const FORK_FIREFOX = `https://${FORK_HASH}.extensions.allizom.org/bukmark`;
+    const OTHER_CHROMIUM = 'https://bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.chromiumapp.org/bukmark';
+    const WARNING = 'Unrecognised extension — allow only if you built it yourself.';
+
+    async function allowPage(configured: FastifyInstance, redirectUri: string) {
+      const { cookie } = await authCookie(configured.db);
+      return getAuthorize(configured, authorizeParams(pkcePair().challenge, { redirect_uri: redirectUri }), cookie, {
+        host: SAME_ORIGIN.host,
+      });
+    }
+
+    it.each([
+      ['unset: the official Firefox add-on', false, null, FIREFOX_REDIRECT_URI],
+      ['unset: another Firefox add-on', true, null, FORK_FIREFOX],
+      ['unset: any Chrome/Edge extension', false, null, OTHER_CHROMIUM],
+      ['unset: the tab login', false, null, TAB_REDIRECT_URI],
+      ['set: a listed Chrome/Edge extension', false, [EXTENSION_ID], REDIRECT_URI],
+      ['set: an unlisted Chrome/Edge extension', true, [EXTENSION_ID], OTHER_CHROMIUM],
+      ['set: the official Firefox add-on left off the list', true, [EXTENSION_ID], FIREFOX_REDIRECT_URI],
+      ['set: a listed Firefox add-on', false, [EXTENSION_ID, FORK_HASH], FORK_FIREFOX],
+      ['set: the tab login', false, [EXTENSION_ID], TAB_REDIRECT_URI],
+    ])('%s: warns %s, and still offers Allow', async (_name, warns, extensionIds, redirectUri) => {
+      const configured = await buildApp({ databaseUrl: TEST_URL, extensionIds });
+      try {
+        const res = await allowPage(configured, redirectUri);
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toContain('value="allow"');
+        expect(res.body.includes(WARNING)).toBe(warns);
+      } finally {
+        await configured.close();
+      }
+    });
+
+    it('warns on the sign-in page too, before a password is typed', async () => {
+      await setupOwner(app.db);
+      const res = await getAuthorize(app, authorizeParams(pkcePair().challenge, { redirect_uri: FORK_FIREFOX }));
+      expect(res.body).toContain('type="password"');
+      expect(res.body).toContain(WARNING);
+    });
+
+    it('reads BUKMARK_EXTENSION_IDS when buildApp is given no list', async () => {
+      vi.stubEnv('BUKMARK_EXTENSION_IDS', ` ${EXTENSION_ID.toUpperCase()} `);
+      vi.resetModules();
+      const { buildApp: buildFromEnv } = await import('../app.js');
+      const configured = await buildFromEnv({ databaseUrl: TEST_URL });
+      try {
+        expect((await allowPage(configured, REDIRECT_URI)).body).not.toContain(WARNING);
+        expect((await allowPage(configured, OTHER_CHROMIUM)).body).toContain(WARNING);
+      } finally {
+        await configured.close();
+        vi.unstubAllEnvs();
+        vi.resetModules();
+      }
+    });
+  });
+
+  describe('GET /authorize/done', () => {
+    const DONE_CSP = "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'";
+
+    function expectDoneHeaders(res: { statusCode: number; headers: Record<string, unknown> }) {
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['content-type']).toBe('text/html; charset=utf-8');
+      expect(res.headers['cache-control']).toBe('no-store');
+      expect(res.headers['referrer-policy']).toBe('no-referrer');
+      expect(res.headers['content-security-policy']).toBe(DONE_CSP);
+      expect(res.headers['x-frame-options']).toBe('DENY');
+    }
+
+    it('says signed in under strict headers, and never echoes the code or state', async () => {
+      const code = randomToken(32);
+      const state = randomToken(32);
+      const res = await app.inject({ method: 'GET', url: `/authorize/done?code=${code}&state=${state}` });
+      expectDoneHeaders(res);
+      expect(res.body).toContain('Signed in — you can close this tab');
+      expect(res.body).not.toContain(code);
+      expect(res.body).not.toContain(state);
+      // Static: nothing to run, nothing to fetch.
+      expect(res.body).not.toMatch(/<(script|img|link|iframe|object|embed|form)\b|\b(src|href)=|url\(|@import/i);
+    });
+
+    it('says access denied for error=access_denied', async () => {
+      const res = await app.inject({ method: 'GET', url: `/authorize/done?error=access_denied&state=${randomToken(32)}` });
+      expectDoneHeaders(res);
+      expect(res.body).toContain('Access denied — you can close this tab');
+      expect(res.body).not.toContain('Signed in');
+    });
+
+    it('answers HEAD with the same headers', async () => {
+      const res = await app.inject({ method: 'HEAD', url: `/authorize/done?code=${randomToken(32)}` });
+      expectDoneHeaders(res);
+      expect(res.body).toBe('');
+    });
+
+    it('logs requests to it by path alone, never the query', async () => {
+      const { lines, logStream } = logCollector();
+      const logged = await buildApp({ databaseUrl: TEST_URL, logStream });
+      const code = randomToken(32);
+      const state = randomToken(32);
+      try {
+        for (const [method, url] of [
+          ['GET', `/authorize/done?code=${code}&state=${state}`],
+          ['HEAD', `/authorize/done?code=${code}&state=${state}`],
+          // The router decodes this to the same route.
+          ['GET', `/authorize/%64one?code=${code}&state=${state}`],
+        ] as const) {
+          expect((await logged.inject({ method, url })).statusCode, `${method} ${url}`).toBe(200);
+        }
+        await logged.inject({ method: 'GET', url: '/healthz?probe=kept' });
+      } finally {
+        await logged.close();
+      }
+      const out = lines.join('');
+      expect(out).not.toContain(code);
+      expect(out).not.toContain(state);
+      const incoming = lines.map((l) => JSON.parse(l) as { msg: string; req?: Record<string, unknown> })
+        .filter((l) => l.msg === 'incoming request');
+      expect(incoming.filter((l) => l.req?.url === '/authorize/done').map((l) => l.req?.method)).toEqual(['GET', 'HEAD', 'GET']);
+      expect(incoming[0]?.req).toMatchObject({ host: 'localhost:80', remoteAddress: '127.0.0.1' });
+      // Every other route keeps Fastify's own request line, query included.
+      expect(out).toContain('"url":"/healthz?probe=kept"');
+    });
+  });
+
+  it('a tab login: Allow lands on /authorize/done, which neither shows nor logs the code, and the code redeems', async () => {
+    const { lines, logStream } = logCollector();
+    const logged = await buildApp({ databaseUrl: TEST_URL, logStream, extensionIds: null });
+    let code = '';
+    try {
+      const minted = await mintCode(logged, { redirect_uri: TAB_REDIRECT_URI });
+      code = minted.code;
+      const landing = new URL(minted.location);
+      expect(`${landing.origin}${landing.pathname}`).toBe(TAB_REDIRECT_URI);
+      expect(landing.searchParams.get('state')).toBe(minted.params.state);
+
+      const done = await logged.inject({ method: 'GET', url: `${landing.pathname}${landing.search}`, headers: { host: SAME_ORIGIN.host } });
+      expect(done.statusCode).toBe(200);
+      expect(done.body).toContain('Signed in');
+      expect(done.body).not.toContain(code);
+
+      const ex = await exchange(logged, {
+        grant_type: 'authorization_code', code, code_verifier: minted.verifier, redirect_uri: TAB_REDIRECT_URI,
+      });
+      expect(ex.statusCode).toBe(200);
+    } finally {
+      await logged.close();
+    }
+    expect(code).not.toBe('');
+    expect(lines.join('')).not.toContain(code);
   });
 });

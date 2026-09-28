@@ -7,6 +7,7 @@ import { SESSION_COOKIE, resolveSession, startSession } from './sessions.js';
 import { createAccessToken, deleteStaleAuthCodes, findToken } from './tokens.js';
 import { bearerToken, checkOrigin } from './plugin.js';
 import { attemptLogin, isAcceptablePassword, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from './login.js';
+import { REDIRECT_KINDS } from './authorizePage.js';
 
 const CROSS_SITE = { error: 'Cross-site request refused', code: 'bad_origin' } as const;
 const INVALID_GRANT = { error: 'Invalid or expired authorization code', code: 'invalid_grant' } as const;
@@ -29,6 +30,7 @@ export async function publicAuthRoutes(app: FastifyInstance): Promise<void> {
         200: Type.Object({
           setupComplete: Type.Boolean(),
           authenticated: Type.Boolean(),
+          redirectKinds: Type.Array(Type.String()),
         }),
       },
     },
@@ -45,7 +47,7 @@ export async function publicAuthRoutes(app: FastifyInstance): Promise<void> {
       authenticated = !!cookie && (await resolveSession(db, cookie)) !== null;
     }
 
-    return { setupComplete, authenticated };
+    return { setupComplete, authenticated, redirectKinds: REDIRECT_KINDS };
   });
 
   app.post('/setup', {

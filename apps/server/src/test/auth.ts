@@ -4,11 +4,16 @@ import { owner } from '../db/schema.js';
 import { hashPassword, pkceS256, randomToken } from '../auth/crypto.js';
 import { createAccessToken } from '../auth/tokens.js';
 import { createSession } from '../auth/sessions.js';
+import { FIREFOX_ADDON_ID, firefoxRedirectHash } from '../auth/authorizePage.js';
 
 export const TEST_PASSWORD = 'test-password-123';
 /** Origin and Host of a same-origin browser request; inject's default Host is localhost:80. */
 export const SAME_ORIGIN = { origin: 'http://localhost:3000', host: 'localhost:3000' };
 export const REDIRECT_URI = 'https://abcdefghijklmnopabcdefghijklmnop.chromiumapp.org/bukmark';
+/** Firefox's identity.getRedirectURL('bukmark') for the official add-on. */
+export const FIREFOX_REDIRECT_URI = `https://${firefoxRedirectHash(FIREFOX_ADDON_ID)}.extensions.allizom.org/bukmark`;
+/** The tab login's redirect: this server's own page, on the Host SAME_ORIGIN requests carry. */
+export const TAB_REDIRECT_URI = `http://${SAME_ORIGIN.host}/authorize/done`;
 
 export async function setupOwner(db: Db, password: string = TEST_PASSWORD): Promise<void> {
   const hash = await hashPassword(password);
@@ -74,21 +79,23 @@ export function csrfFrom(html: string): string | undefined {
 export async function mintCode(
   app: FastifyInstance,
   overrides: Record<string, string> = {},
-): Promise<{ code: string; verifier: string; params: Record<string, string> }> {
+): Promise<{ code: string; verifier: string; params: Record<string, string>; location: string }> {
   const { cookie } = await authCookie(app.db);
   const { verifier, challenge } = pkcePair();
   const params = authorizeParams(challenge, overrides);
   const page = await app.inject({
     method: 'GET',
     url: `/authorize?${new URLSearchParams(params)}`,
+    headers: { host: SAME_ORIGIN.host },
     cookies: { bukmark_session: cookie },
   });
   const csrf = csrfFrom(page.body);
   if (!csrf) throw new Error(`no Allow form: ${page.statusCode} ${page.body.slice(0, 200)}`);
   const res = await postAuthorize(app, { ...params, action: 'allow', csrf }, { cookie });
-  const code = new URL(res.headers.location as string).searchParams.get('code');
+  const location = res.headers.location as string;
+  const code = new URL(location).searchParams.get('code');
   if (res.statusCode !== 303 || !code) throw new Error(`allow failed: ${res.statusCode}`);
-  return { code, verifier, params };
+  return { code, verifier, params, location };
 }
 
 export function exchange(app: FastifyInstance, body: Record<string, unknown>) {

@@ -27,17 +27,21 @@ export function bearerToken(req: FastifyRequest): string | null {
   return m ? (m[1] ?? '').trim() : null;
 }
 
-/** Origin host (port included) must equal the Host header; scheme is ignored since proxies terminate TLS. */
-export function checkOrigin(req: FastifyRequest): boolean {
-  const { origin, host } = req.headers;
-  if (!origin || !host) return false;
+/** `url`'s host (port included) must equal the Host header; scheme is ignored since proxies terminate TLS. */
+export function isRequestHost(url: URL, req: FastifyRequest): boolean {
+  const { host } = req.headers;
+  if (!host) return false;
   try {
-    const o = new URL(origin);
-    // Parsing Host with the Origin's scheme drops a default port a proxy may write out.
-    return new URL(`${o.protocol}//${host}`).host === o.host;
+    // Parsing Host with the URL's scheme drops a default port a proxy may write out.
+    return new URL(`${url.protocol}//${host}`).host === url.host;
   } catch {
     return false;
   }
+}
+
+export function checkOrigin(req: FastifyRequest): boolean {
+  const origin = req.headers.origin ? URL.parse(req.headers.origin) : null;
+  return origin !== null && isRequestHost(origin, req);
 }
 
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
