@@ -164,8 +164,9 @@ same way first.
   links aren't duplicated and anything you deleted here stays deleted. You must be
   logged in. The extension asks for access to your bookmarks only now, when you
   click Import, not at install; Firefox asks in the same prompt whether it may
-  share them with your server. Not in Safari, which lets extensions read no
-  bookmarks.
+  share them with your server. Not in Safari or Firefox for Android, which give
+  extensions no bookmarks: there, export them to a file and use the web app's
+  import.
 
 ### Keyboard shortcut
 

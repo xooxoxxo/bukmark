@@ -172,12 +172,18 @@ describe('allowBookmarkImport', () => {
 });
 
 describe('canImportBookmarks', () => {
-  it('is true where the manifest lists bookmarks, at install or optional, and false in Safari', () => {
+  it('is true where the manifest lists bookmarks, at install or optional, and false in Safari', async () => {
     arrange();
-    expect(canImportBookmarks()).toBe(true);
+    await expect(canImportBookmarks()).resolves.toBe(true);
     arrange({ browser: 'firefox' });
-    expect(canImportBookmarks()).toBe(true);
+    await expect(canImportBookmarks()).resolves.toBe(true);
     arrange({ browser: 'safari', without: ['bookmarks'] });
-    expect(canImportBookmarks()).toBe(false);
+    await expect(canImportBookmarks()).resolves.toBe(false);
+  });
+
+  it('is false on Firefox for Android, which runs the Firefox build but has no bookmarks API', async () => {
+    const chrome = arrange({ browser: 'firefox', without: ['bookmarks'] });
+    chrome.runtime.getPlatformInfo.mockResolvedValue({ os: 'android', arch: 'arm' });
+    await expect(canImportBookmarks()).resolves.toBe(false);
   });
 });

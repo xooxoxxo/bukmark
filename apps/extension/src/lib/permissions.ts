@@ -84,10 +84,16 @@ export function allowBookmarkImport(): Promise<boolean> {
   return chrome.permissions.request(request as chrome.permissions.Permissions).catch(() => false);
 }
 
-/** Whether this build can import bookmarks at all: Safari gives extensions no bookmarks API. */
-export function canImportBookmarks(): boolean {
+/**
+ * Whether Import can work here: the build asks for bookmarks (Safari's gives
+ * extensions no bookmarks API) and the platform has them (Firefox for Android,
+ * which runs the Firefox build, has none).
+ */
+export async function canImportBookmarks(): Promise<boolean> {
   const manifest = chrome.runtime.getManifest() as unknown as Manifest;
-  return [...manifest.permissions, ...(manifest.optional_permissions ?? [])].includes('bookmarks');
+  if (![...manifest.permissions, ...(manifest.optional_permissions ?? [])].includes('bookmarks')) return false;
+  const platform = await chrome.runtime.getPlatformInfo().catch(() => null);
+  return platform?.os !== 'android';
 }
 
 /** The Safari build: the only manifest with Safari settings. */

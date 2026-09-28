@@ -88,9 +88,11 @@ async function render(): Promise<void> {
   showTokenEl.hidden = !!auth || !tokenFormEl.hidden;
   importEl.disabled = !auth || importing;
   importHintEl.hidden = !!auth;
-  // Safari has no bookmarks API; the web app imports an exported file instead.
-  importSectionEl.hidden = !canImportBookmarks();
-  importElsewhereEl.hidden = canImportBookmarks();
+  // Safari and Firefox for Android have no bookmarks API; the web app imports
+  // an exported file instead.
+  const importable = await canImportBookmarks();
+  importSectionEl.hidden = !importable;
+  importElsewhereEl.hidden = importable;
   webAppEl.href = `${auth?.server ?? baseUrl}/`;
   welcomeEl.hidden = !welcome;
   stepLoginEl.classList.toggle('done', !!auth);

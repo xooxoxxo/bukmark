@@ -101,6 +101,16 @@ describe('options: what leaves the browser, and store-neutral wording', () => {
   });
 });
 
+describe('options on Firefox for Android', () => {
+  it('points to the web app’s file import instead of an Import button that cannot work', async () => {
+    arrange({ sync: { baseUrl: S1 }, browser: 'firefox', without: ['bookmarks'] });
+    chrome.runtime.getPlatformInfo.mockResolvedValue({ os: 'android', arch: 'arm' });
+    const page = await openOptions();
+    expect(page.el('importSection').hidden).toBe(true);
+    expect(page.el('importElsewhere').hidden).toBe(false);
+  });
+});
+
 describe('options, logged out', () => {
   beforeEach(() => arrange({ sync: { baseUrl: S1 } }));
 
