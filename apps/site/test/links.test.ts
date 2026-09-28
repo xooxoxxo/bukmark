@@ -60,8 +60,8 @@ describe('internal documentation links resolve', () => {
     expect(broken).toEqual([]);
   });
 
-  it('has the docs index plus all eight documentation pages', () => {
-    for (const s of ['index', 'install', 'extension', 'phone', 'sorting', 'export', 'cli', 'development', 'api']) {
+  it('has the docs index plus all nine documentation pages', () => {
+    for (const s of ['index', 'install', 'extension', 'phone', 'sorting', 'export', 'cli', 'development', 'api', 'privacy']) {
       expect(slugs.has(s), `missing ${s}.md`).toBe(true);
     }
   });

@@ -64,16 +64,20 @@ bukmark; `false` by default. See [Behind a reverse proxy](#behind-a-reverse-prox
 
 **BUKMARK_EXTENSION_IDS** — The browser-extension builds the login page
 recognises, comma-separated: Chrome extension IDs and Firefox ID hashes. Empty
-(the default) knows only the official Firefox add-on. Any other client still
-gets **Allow**, with an "Unrecognised extension" warning. See
+(the default) knows the official Firefox add-on and warns about any other
+Firefox add-on; Chrome and Edge extensions get no warning until you set a list.
+A client the list doesn't name still gets **Allow**, with an "Unrecognised
+extension" warning. See
 [Unrecognised extension](/docs/extension/#unrecognised-extension).
 
 **BUKMARK_CHECK_PAGES** — `true` (the default) lets the server fetch each saved
 page in the background, about 20 a minute, re-checking every 30 days. It keeps
 the page's text, so search finds words from inside the page and you keep a copy
 if the page later disappears, and it marks pages that are gone as broken. Only
-public addresses are fetched. `false` stops all of it; links are then fetched
-only once, for their preview image, when they are saved.
+public addresses are fetched. `false` stops the background checks. The server
+then fetches a page only when asked: once when it is saved, for its preview
+image; after an import from the extension, for preview images; and when you
+start a check yourself (`POST /api/links/check`).
 
 ## First-run setup
 

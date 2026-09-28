@@ -36,3 +36,4 @@ the background reading off ([Install](/docs/install/#environment-variables)).
 - **[API reference](/docs/api)** — Every REST endpoint bukmark serves, with parameters and response schemas
 - **[CLI](/docs/cli)** — Batch-triage exports from OneTab, Chrome, or Safari using the v0 CLI tool
 - **[Development](/docs/development)** — Set up a local development environment and understand the monorepo
+- **[Privacy](/docs/privacy)** — What the extension sends and when, what your server keeps, and what this site loads

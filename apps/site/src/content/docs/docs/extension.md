@@ -5,6 +5,10 @@ sidebar:
   order: 2
 ---
 
+The extension sends what you save to your own server and nowhere else.
+[Privacy](/docs/privacy/) lists what it sends and when, what it keeps in your
+browser, and what each permission is for.
+
 ## Build
 
 ```bash
@@ -158,8 +162,10 @@ same way first.
   bookmarks. Everything arrives unsorted; the folder each came from is kept as a
   *hint* for sorting later, never applied automatically. Safe to re-run: existing
   links aren't duplicated and anything you deleted here stays deleted. You must be
-  logged in. Firefox first asks whether the extension may share your bookmarks
-  with your server. Not in Safari, which lets extensions read no bookmarks.
+  logged in. The extension asks for access to your bookmarks only now, when you
+  click Import, not at install; Firefox asks in the same prompt whether it may
+  share them with your server. Not in Safari, which lets extensions read no
+  bookmarks.
 
 ### Keyboard shortcut
 
