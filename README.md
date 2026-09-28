@@ -7,8 +7,11 @@ at 1am with sixty tabs open.
 
 - **Web UI** — virtualized list and grid over tens of thousands of links, full-text
   search, hubs (categories), bulk actions.
-- **Browser extension** — Chrome/Brave. Toolbar popup, a keyboard shortcut for
-  silent saves, and one-shot import of your existing browser bookmarks.
+- **Browser extension** — Chrome, Edge, Brave, Opera, Firefox and Safari. Toolbar
+  popup, a keyboard shortcut for silent saves, and one-shot import of your
+  existing browser bookmarks.
+- **Phone capture** — install the web app to save from Android's Share sheet, or
+  use an iOS Shortcut or a bookmarklet. Installing the web app needs HTTPS.
 - **MCP server** — lets any MCP client read your unsorted pile and file it, with your
   approval, from any MCP-compatible tool or session.
 - **CLI** — batch-triage OneTab/Chrome/Safari exports into ranked markdown.

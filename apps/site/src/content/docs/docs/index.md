@@ -13,7 +13,8 @@ make at 1am with sixty tabs open.
 ## Getting Started
 
 - **[Install](/docs/install)** — Run bukmark with Docker Compose in four commands
-- **[Browser Extension](/docs/extension)** — Chrome and Brave extension for quick capturing and bookmark import
+- **[Browser Extension](/docs/extension)** — The capture extension for Chrome, Edge, Firefox and Safari, with bookmark import
+- **[Capture from your phone](/docs/phone)** — Android's Share sheet, an iOS Shortcut, or a bookmarklet
 - **[Sorting with MCP](/docs/sorting)** — Use any MCP client to intelligently sort your bookmarks
 - **[Import & Export](/docs/export)** — Bring bookmarks in from your browser; take your data out as HTML, JSON, or CSV
 - **[API reference](/docs/api)** — Every REST endpoint bukmark serves, with parameters and response schemas

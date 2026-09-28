@@ -2,7 +2,7 @@
 title: Development
 description: Set up a local development environment and understand the bukmark monorepo.
 sidebar:
-  order: 7
+  order: 8
 ---
 
 ## Development Commands

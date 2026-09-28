@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { sections } from './source';
+import { read, sections, sourceFiles } from './source';
 
 const docsDir = join(import.meta.dirname, '../src/content/docs/docs');
 
@@ -41,8 +41,27 @@ describe('internal documentation links resolve', () => {
     expect(broken).toEqual([]);
   });
 
-  it('has the docs index plus all seven documentation pages', () => {
-    for (const s of ['index', 'install', 'extension', 'sorting', 'export', 'cli', 'development', 'api']) {
+  it('every docs link in the web app points at a page and heading that exist', () => {
+    // The web app links out as `${DOCS_URL}<page>/#<heading>`.
+    const slug = (title: string) => title.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/ /g, '-');
+    const links: string[] = [];
+    const broken: string[] = [];
+    for (const file of sourceFiles('apps/web/src', ['.ts', '.tsx'])) {
+      for (const m of read(file).matchAll(/\$\{DOCS_URL\}([a-z0-9-]*)\/?(?:#([^`'"\s]+))?/g)) {
+        const page = m[1] || 'index';
+        links.push(`${page}#${m[2] ?? ''}`);
+        if (!slugs.has(page)) broken.push(`${file} -> ${page}`);
+        else if (m[2] && !sections(readFileSync(join(docsDir, `${page}.md`), 'utf8')).some((h) => slug(h.title) === m[2])) {
+          broken.push(`${file} -> ${page}#${m[2]}`);
+        }
+      }
+    }
+    expect(links).toContain('phone#ios-shortcut');
+    expect(broken).toEqual([]);
+  });
+
+  it('has the docs index plus all eight documentation pages', () => {
+    for (const s of ['index', 'install', 'extension', 'phone', 'sorting', 'export', 'cli', 'development', 'api']) {
       expect(slugs.has(s), `missing ${s}.md`).toBe(true);
     }
   });

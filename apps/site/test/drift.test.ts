@@ -28,7 +28,6 @@ describe('install docs do not drift from real config', () => {
   it('documents only environment variables that exist in .env.example', () => {
     const declared = declaredEnvVars(envExample);
     const documented = documentedEnvVars(install);
-    // CORS_ORIGINS is shown as a chrome-extension example; it must still exist.
     const unknown = [...documented].filter((n) => !declared.has(n));
     expect(unknown).toEqual([]);
   });

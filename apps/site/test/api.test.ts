@@ -21,11 +21,20 @@ interface Route {
   handler: string;
 }
 
+/** A route's path: a string literal, or a constant the same file declares. */
+function routePath(src: string, literal: string | undefined, constant: string | undefined): string {
+  if (literal !== undefined) return literal;
+  const declared = new RegExp(`\\bconst ${constant}\\s*=\\s*'([^']+)'`).exec(src)?.[1];
+  if (declared === undefined) throw new Error(`route path ${constant} is not a string constant`);
+  return declared;
+}
+
 function routesIn({ file, prefix, isPublic }: (typeof ROUTE_FILES)[number]): Route[] {
   const src = read(file);
-  const calls = [...src.matchAll(/\bapp\.(get|post|put|patch|delete)\(\s*'([^']+)'/g)];
+  // `app.get<{ Querystring: … }>(PATH, …)` registers a route as surely as `app.get('/x', …)`.
+  const calls = [...src.matchAll(/\bapp\.(get|post|put|patch|delete)(?:<[^(]*>)?\(\s*(?:'([^']+)'|([A-Z][A-Z0-9_]*)\b)/g)];
   return calls.map((m, i) => ({
-    key: `${m[1]!.toUpperCase()} ${prefix}${m[2]}`,
+    key: `${m[1]!.toUpperCase()} ${prefix}${routePath(src, m[2], m[3])}`,
     isPublic,
     handler: src.slice(m.index, calls[i + 1]?.index ?? src.length),
   }));
@@ -49,7 +58,7 @@ const quickReference = section(api, 'Quick Reference')
 describe('API reference covers the routes the server registers', () => {
   it('knows where every file that registers routes is mounted', () => {
     const known = new Set(ROUTE_FILES.map((f) => f.file));
-    const registering = serverFiles.filter((f) => /\b(app|api)\.(get|post|put|patch|delete|route)\(/.test(read(f)));
+    const registering = serverFiles.filter((f) => /\b(app|api)\.(get|post|put|patch|delete|route)(<[^(]*>)?\(/.test(read(f)));
     expect(registering.filter((f) => !known.has(f))).toEqual([]);
     for (const f of ROUTE_FILES) expect(routesIn(f).length, f.file).toBeGreaterThan(0);
   });

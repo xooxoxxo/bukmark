@@ -39,6 +39,7 @@ POSTGRES_PORT=
 PORT=
 CORS_ORIGINS=
 TRUST_PROXY=
+BUKMARK_EXTENSION_IDS=
 ```
 
 **POSTGRES_PASSWORD** — Postgres password. Compose publishes the database on
@@ -51,13 +52,20 @@ avoid conflict. The app always reaches it at `db:5432` over the compose network.
 
 **PORT** — Port the API and web UI are served on, on the host.
 
-**CORS_ORIGINS** — Browser-extension origins allowed to call the API, comma-separated.
-Empty (the default) registers no CORS at all, which is correct until you
-actually load the extension. Then put its origin here:
-`CORS_ORIGINS=chrome-extension://your-extension-id-here`
+**CORS_ORIGINS** — Other web origins allowed to read API responses from a
+browser, comma-separated, for example `CORS_ORIGINS=http://localhost:5173`.
+Empty (the default) registers no CORS at all, which is what bukmark itself
+needs: the web app is served from the same origin, and the browser extension
+reaches the server through the host access you grant it, not through CORS.
 
 **TRUST_PROXY** — `true` only when a reverse proxy is the sole way to reach
 bukmark; `false` by default. See [Behind a reverse proxy](#behind-a-reverse-proxy).
+
+**BUKMARK_EXTENSION_IDS** — The browser-extension builds the login page
+recognises, comma-separated: Chrome extension IDs and Firefox ID hashes. Empty
+(the default) knows only the official Firefox add-on. Any other client still
+gets **Allow**, with an "Unrecognised extension" warning. See
+[Unrecognised extension](/docs/extension/#unrecognised-extension).
 
 ## First-run setup
 
@@ -85,7 +93,8 @@ under *New token*, and click **Create token**. Copy it straight away — the pag
 shows it only once. Revoke tokens you no longer use on the same page.
 
 The browser extension creates its own token when you log in; it appears in the
-list as "bukmark capture".
+list as "bukmark capture". An [iOS Shortcut](/docs/phone/#ios-shortcut) needs a
+token of its own.
 
 ## Forgotten password
 
@@ -105,9 +114,26 @@ request is refused with `setup_required` — including access tokens. Tokens you
 kept start working again once the new password is set. To delete them as well,
 add `--revoke-tokens` to either command.
 
+## HTTPS
+
+bukmark works over plain `http://` on a LAN or tailnet address: the web app,
+the browser extension and the API all run in the browser as they are. Some
+things need HTTPS, though:
+
+- **Installing the web app.** Browsers install a web app — and so show it in
+  Android's Share sheet — only from an `https://` address (or `localhost`).
+  Over plain HTTP it keeps working in a browser tab but cannot be installed.
+  See [Capture from your phone](/docs/phone/).
+- **A `Secure` session cookie.** The server marks the cookie `Secure` only when
+  the request arrived over HTTPS; over plain HTTP it travels unprotected.
+- **Access tokens sent over a network**, such as an iOS Shortcut's, which anyone
+  on the path can read over plain HTTP.
+
+To serve HTTPS, put bukmark behind a reverse proxy.
+
 ## Behind a reverse proxy
 
-To serve bukmark over HTTPS, put it behind nginx, Caddy or Traefik. Three
+To serve bukmark over HTTPS, put it behind nginx, Caddy or Traefik. Four
 things matter.
 
 **Forward the original `Host` header.** The server refuses a browser request
@@ -140,10 +166,36 @@ proxy runs on the same machine, publish the app on loopback only: in
 `"127.0.0.1:${PORT:-3000}:3000"`. The proxy must also set `X-Forwarded-For` to
 the client's address rather than append to whatever the client sent.
 
-A minimal nginx `location` block with those headers:
+**Keep the login code out of the proxy's log.** In browsers without an
+extension login window, such as Safari and Firefox for Android, the extension's
+login ends on `/authorize/done?code=…&state=…` (see
+[Which window opens](/docs/extension/#which-window-opens)). The code works
+once, for two minutes, and only with a secret held by whoever started the
+login; your own extension redeems it at once. The danger is a login someone
+else started: if they trick you into allowing it and can read your proxy's
+log, the log hands them the code, and the code gets them an access token.
+bukmark keeps the query out of its own log; the proxy has to as well.
+
+- **nginx** logs every request line in full by default. The second block below
+  turns its log off for that one path, and repeats the proxy lines because one
+  `location` doesn't inherit another's.
+- **Caddy** and **Traefik** keep no access log unless you turn one on. If you
+  have, skip that path: in Caddy, `log_skip /authorize/done` (`skip_log` before
+  Caddy 2.8); in Traefik 3.3 or later, a router of its own for that path with
+  `observability.accessLogs: false`.
+
+A minimal nginx configuration with all of that:
 
 ```nginx
 location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $remote_addr;
+}
+
+location = /authorize/done {
+    access_log off;
     proxy_pass http://127.0.0.1:3000;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
@@ -165,8 +217,10 @@ location / {
    outside the web app needs credentials, so the old extension, the MCP server
    and your scripts stop working until you finish the steps below.
 3. Rebuild the extension (`pnpm install && pnpm --filter @bukmark/extension build`),
-   reload it in `chrome://extensions`, then open it and click **Log in** — see
-   [Logging in](/docs/extension/#logging-in).
+   remove the old copy from your browser's extensions page, and load the new
+   one from your browser's folder under `apps/extension/dist` — see
+   [Load Into Your Browser](/docs/extension/#load-into-your-browser). Then open
+   it and click **Log in** — see [Logging in](/docs/extension/#logging-in).
 4. If you use the MCP server, create a token under **Settings → Access tokens**
    and set `BUKMARK_API_TOKEN` in your MCP client config.
 5. Give scripts that call the API a token too:

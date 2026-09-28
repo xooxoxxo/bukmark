@@ -2,7 +2,7 @@
 title: CLI
 description: Batch-triage exports from OneTab, Chrome, or Safari using the v0 CLI tool.
 sidebar:
-  order: 6
+  order: 7
 ---
 
 > **Note:** The CLI is the v0 tool and operates on `data/store.json`, not the Postgres

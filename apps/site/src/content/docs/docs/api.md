@@ -2,7 +2,7 @@
 title: API reference
 description: Every REST endpoint bukmark serves, including the export endpoint.
 sidebar:
-  order: 5
+  order: 6
 ---
 
 ## Authentication
@@ -23,6 +23,7 @@ These need no credentials:
 - `GET /authorize`, `POST /authorize` — the sign-in and Allow page the extension
   opens in a window (authorization code flow with PKCE, `S256` only); an HTML
   page for people, not a JSON API
+- `GET /authorize/done` — where a login in a browser tab lands; a static HTML page
 
 Setup, login and `POST /authorize` also require a same-host `Origin` header
 ([403](#403-cross-site-request-refused)), and they are rate-limited along with
@@ -146,6 +147,7 @@ unless `TRUST_PROXY=true`, so all clients share one count.
 | POST | `/api/auth/token` | Exchange an authorization code for an access token |
 | GET | `/authorize` | Extension sign-in and Allow page (HTML) |
 | POST | `/authorize` | Sign-in, Allow and Deny form posts (HTML) |
+| GET | `/authorize/done` | Landing page for a login in a browser tab (HTML) |
 | POST | `/api/auth/logout` | Log out and clear session/token |
 | GET | `/api/auth/tokens` | List all access tokens |
 | POST | `/api/auth/tokens` | Create a new access token |
@@ -658,12 +660,19 @@ Check whether the server has a configured owner and whether the current request 
 ```json
 {
   "setupComplete": true,
-  "authenticated": true
+  "authenticated": true,
+  "redirectKinds": ["chromium", "firefox", "tab"]
 }
 ```
 
 - `setupComplete` (boolean) — Whether the owner password has been set
-- `authenticated` (boolean) — Whether the request has valid credentials
+- `authenticated` (boolean) — Whether the request has valid credentials. With
+  an `Authorization: Bearer` header, whether that token is valid — the
+  extension checks a pasted token this way.
+- `redirectKinds` (string array) — the kinds of `redirect_uri`
+  [`/authorize`](#get-authorize-post-authorize) accepts. The extension calls
+  this endpoint before it opens a login window, and asks you to update the
+  server when the kind it needs is missing.
 
 ### POST /api/auth/setup
 
@@ -779,6 +788,9 @@ need it to write another client.
 }
 ```
 
+The same exchange serves every [redirect kind](#get-authorize-post-authorize):
+a login in a tab sends `"redirect_uri": "<server>/authorize/done"`.
+
 - `grant_type` (string, required) — `authorization_code`
 - `code` (string, required) — the `code` that `/authorize` redirected back with;
   valid once, for 2 minutes
@@ -826,20 +838,49 @@ server-rendered HTML with no JavaScript, not a JSON API.
 GET /authorize?response_type=code&redirect_uri=…&state=…&code_challenge=…&code_challenge_method=S256&client_name=…
 ```
 
-- `redirect_uri` — a Chrome extension redirect URL,
-  `https://<32-letter extension id>.chromiumapp.org/<path>`, with no query or fragment
+- `redirect_uri` — where the code goes, with no query or fragment. One of:
+  - `chromium` — a Chromium extension's redirect URL,
+    `https://<32-letter extension id>.chromiumapp.org/<path>`
+  - `firefox` — a Firefox add-on's redirect URL,
+    `https://<40 lowercase hex>.extensions.allizom.org/<path>`, where the hex is
+    the SHA-1 of the add-on ID
+  - `tab` — this server's own [`/authorize/done`](#get-authorizedone), exactly
+    `<scheme>://<host>/authorize/done` with the host (and port) this request
+    was sent to; `https` when the request came over HTTPS
 - `code_challenge` — 43 base64url characters; `code_challenge_method` must be `S256`
 - `state` — 16–256 characters of `A–Z a–z 0–9 - . _ ~`, returned unchanged
 - `client_name` — 1–60 characters, shown as the name of what is asking
 
 An invalid request gets an error page with status `400` and is never
 redirected. Otherwise the page asks for the owner password if this browser has
-no session, then shows the extension ID with **Allow** and **Deny** buttons.
+no session, then says who is asking — the extension ID, the start of the
+Firefox hash, or "the bukmark extension in this browser" for a `tab` redirect —
+with **Allow** and **Deny** buttons. When the server has
+`BUKMARK_EXTENSION_IDS` set (Chrome IDs and Firefox hashes, comma-separated)
+and the client is not in it, or by default for a Firefox add-on other than the
+official one, both pages add a warning; nothing is blocked.
 `POST /authorize` receives those forms. It needs a same-host `Origin` (the
 browser sends it), and its password attempts share the login rate limit
 (beyond it, the page comes back with status `429`). Allow redirects with `303`
 to `redirect_uri?code=…&state=…`, and Deny to
 `redirect_uri?error=access_denied&state=…`.
+
+### GET /authorize/done
+
+Where Allow and Deny send a login whose `redirect_uri` is of the `tab` kind:
+browsers without an extension login window (Safari, Firefox for Android) open
+`/authorize` in an ordinary tab, and the extension reads `code` and `state`
+from this page's URL, then exchanges the code at
+[`POST /api/auth/token`](#post-apiauthtoken).
+
+The page is static HTML with no script or subresources, and never repeats
+`code` or `state`. With `error=access_denied` it reads "Access denied — you can
+close this tab"; otherwise "Signed in — you can close this tab". It is sent
+with `Cache-Control: no-store`, `Referrer-Policy: no-referrer`,
+`X-Frame-Options: DENY` and a `default-src 'none'` Content Security Policy, and
+the server logs its path without the query. A reverse proxy in front of it logs
+the query too unless told not to — see
+[Behind a reverse proxy](/docs/install/#behind-a-reverse-proxy).
 
 ### POST /api/auth/logout
 
