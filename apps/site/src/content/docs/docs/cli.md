@@ -1,28 +1,50 @@
 ---
 title: CLI
-description: Batch-triage exports from OneTab, Chrome, or Safari using the v0 CLI tool.
+description: Batch-triage a OneTab export using the v0 CLI tool.
 sidebar:
   order: 7
 ---
 
-> **Note:** The CLI is the v0 tool and operates on `data/store.json`, not the Postgres
-> database the server uses. For current sorting, use [the MCP server](/docs/sorting).
+The v0 CLI bulk-imports a tab dump and has an AI assistant triage it in
+batches. At the end, `output/` holds the links you kept, ranked, a page per
+category.
 
-For bulk-importing a tab dump and having an AI assistant triage it in batches:
+:::note
+The CLI is the v0 tool and operates on `data/store.json`, not the Postgres
+database the server uses. For current sorting, use [the MCP server](/docs/sorting).
+:::
 
-```bash
-pnpm cli ingest path/to/onetab-export.txt   # parse, normalize, dedupe, junk-filter
-pnpm cli prepare                            # → work/batch-N.json
-# your AI assistant writes work/batch-N.result.json
-pnpm cli merge-triage
-pnpm cli render                             # → output/INDEX.md + per-category + junk report
-pnpm cli status
-```
+## Triage a tab dump
 
-## Re-ingesting
+1. Ingest the export: parse, normalize, dedupe, junk-filter.
 
-Re-ingesting the same file is a no-op. To rescue a junked link, add its URL or a
-`prefix*` to `data/allow.txt` and re-run `ingest --force`.
+   ```bash
+   pnpm cli ingest path/to/onetab-export.txt
+   ```
+
+2. Prepare batches: `work/batch-N.json`.
+
+   ```bash
+   pnpm cli prepare
+   ```
+
+3. Have your AI assistant write `work/batch-N.result.json` for each batch
+   ([result schema](#result-schema)).
+
+4. Merge the results.
+
+   ```bash
+   pnpm cli merge-triage
+   ```
+
+5. Render `output/INDEX.md`, a page per category and a junk report.
+
+   ```bash
+   pnpm cli render
+   ```
+
+`pnpm cli status` counts kept, tossed, junk and pending links at any point, and
+the result files still waiting to be merged.
 
 ## Result Schema
 
@@ -33,10 +55,17 @@ Your AI assistant writes this JSON schema for each batch:
   "relevance": 4, "explanation": "≤120 chars", "reason": "only when keep=false" } ] }
 ```
 
-## Relevance Scale
+### Relevance Scale
 
-- **5** — act now
-- **4** — useful reference
-- **3** — maybe
-- **2** — stale
-- **1** — near-junk
+| `relevance` | Means |
+| -- | -- |
+| **5** | act now |
+| **4** | useful reference |
+| **3** | maybe |
+| **2** | stale |
+| **1** | near-junk |
+
+## Re-ingesting
+
+Re-ingesting the same file is a no-op. To rescue a junked link, add its URL or a
+`prefix*` to `data/allow.txt` and re-run `ingest --force`.

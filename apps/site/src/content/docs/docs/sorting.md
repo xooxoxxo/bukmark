@@ -1,14 +1,39 @@
 ---
 title: Sorting with MCP
-description: Use any MCP client and the bukmark MCP server to intelligently sort your unsorted bookmarks.
+description: Use any MCP client and the bukmark MCP server to sort your unsorted bookmarks into hubs.
 sidebar:
   order: 4
 ---
 
-Bukmark ships with an MCP (Model Context Protocol) server that lets any MCP client read your unsorted
-bookmarks and file them into your hubs (categories), with your approval. Because the server is built on the open MCP standard, it works with any MCP client—whether that's Claude Code, Cursor, Zed, or another tool.
+Bukmark's MCP (Model Context Protocol) server lets any MCP client (Claude Code,
+Cursor, Zed or another) read your unsorted bookmarks and file them into your hubs
+(categories), with your approval. By the end, your client is connected and has
+sorted a first batch.
 
 ## Setup
+
+1. Create a token: in the web app, open **Settings → Access tokens**, enter a
+   name under *New token* (e.g. "Claude Code") and click **Create token**, then
+   **Copy**. Paste it into your MCP client config right away: the page shows it
+   only once.
+2. In Claude Code, copy `.mcp.json.example` to `.mcp.json` at the repo root and
+   fill in your token. For another client, see
+   [Other MCP clients](#other-mcp-clients).
+
+   ```bash
+   cp .mcp.json.example .mcp.json
+   ```
+
+3. Restart your MCP client so it picks up the server.
+
+## Using It
+
+1. Ask your MCP client to *"sort my unsorted bukmark links"*.
+2. Review its proposal: it lists what's unsorted along with your existing hubs,
+   then proposes assignments for each link.
+3. Approve. It applies them in one batch.
+
+## Configuration
 
 The MCP server runs this command:
 
@@ -23,22 +48,7 @@ BUKMARK_API_URL=http://localhost:3000
 BUKMARK_API_TOKEN=<your token>
 ```
 
-### Getting an API token
-
-1. Open the bukmark web app and log in.
-2. Go to **Settings → Access tokens**.
-3. Under *New token*, enter a name (e.g. "Claude Code") and click **Create token**, then **Copy**.
-4. Paste it into your MCP client config right away — the page shows it only once.
-
-Without a valid token, every tool call fails with "bukmark rejected the request (401)".
-
 ### Claude Code example
-
-Copy `.mcp.json.example` to `.mcp.json` and fill in your token:
-
-```bash
-cp .mcp.json.example .mcp.json
-```
 
 The `.mcp.json` file at the repo root is Claude Code's configuration format:
 
@@ -57,23 +67,29 @@ The `.mcp.json` file at the repo root is Claude Code's configuration format:
 }
 ```
 
-Other MCP clients take the same command, args, and environment variables in their own configuration format. Refer to your client's MCP documentation for how to set it up—the details differ per tool, but the server command stays the same. If you need help, the [Model Context Protocol docs](https://modelcontextprotocol.io) cover MCP server integration for popular clients.
+### Other MCP clients
 
-After configuring your MCP client, restart it so it picks up the server.
-
-## Using It
-
-In your MCP client, ask it to *"sort my unsorted bukmark links"*. It will:
-
-1. List what's unsorted along with your existing hubs
-2. Propose assignments for each link
-3. Apply them in one batch after you approve
+Other clients take the same command, args, and environment variables in their
+own configuration format. See your client's MCP documentation; the
+[Model Context Protocol docs](https://modelcontextprotocol.io) cover popular
+clients.
 
 ## Available Tools
 
-Your MCP client has access to these tools:
+| Tool | What your client can do with it |
+| -- | -- |
+| `add_bookmarks` | Add new links to your hubs. |
+| `list_unsorted` | See what needs sorting. For an imported link it also shows the browser folder it came from, as a hint. |
+| `list_hubs` | See your existing categories. |
+| `assign_hubs` | Assign links to one or more hubs. |
 
-- `add_bookmarks` — add new links to your hubs
-- `list_unsorted` — see what needs sorting
-- `list_hubs` — see your existing categories
-- `assign_hubs` — assign links to one or more hubs
+## Troubleshooting
+
+<details>
+<summary>Every tool call fails with a 401</summary>
+
+Without a valid token, every tool call fails with "bukmark rejected the request
+(401)". Set `BUKMARK_API_TOKEN` to a token from **Settings → Access tokens**
+and restart your client.
+
+</details>
