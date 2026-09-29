@@ -6,7 +6,7 @@ function link(over: Partial<ExportLink> = {}): ExportLink {
   return {
     url: 'https://example.com/a', title: 'Example A', note: '', status: 'active',
     relevance: null, dupeCount: 1, hubs: [], imageUrl: null, groupHint: null,
-    firstSeen: '2026-07-21T10:00:00.000Z', lastSeen: '2026-07-21T10:00:00.000Z',
+    firstSeen: '2026-07-21T10:00:00.000Z', lastSeen: '2026-07-21T10:00:00.000Z', quotes: [],
     ...over,
   };
 }

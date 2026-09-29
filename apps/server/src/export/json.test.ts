@@ -8,6 +8,7 @@ function link(over: Partial<ExportLink> = {}): ExportLink {
     relevance: 4, dupeCount: 2, hubs: ['rust'], imageUrl: 'https://cdn/og.png',
     groupHint: 'Bookmarks Bar/Dev',
     firstSeen: '2026-07-21T10:00:00.000Z', lastSeen: '2026-07-29T20:12:25.832Z',
+    quotes: [{ text: 'A passage.', note: 'why', createdAt: '2026-07-22T09:00:00.000Z' }],
     ...over,
   };
 }
@@ -35,6 +36,7 @@ describe('toBackupJson', () => {
       groupHint: 'Bookmarks Bar/Dev',
       firstSeen: '2026-07-21T10:00:00.000Z',
       lastSeen: '2026-07-29T20:12:25.832Z',
+      quotes: [{ text: 'A passage.', note: 'why', createdAt: '2026-07-22T09:00:00.000Z' }],
     });
   });
 
@@ -46,6 +48,12 @@ describe('toBackupJson', () => {
   it('carries no database id', () => {
     const out = JSON.parse(toBackupJson([link()], '2026-07-31T12:00:00.000Z'));
     expect(out.links[0]).not.toHaveProperty('id');
+  });
+
+  it('carries orphan quotes at the top level, empty by default', () => {
+    expect(JSON.parse(toBackupJson([], '2026-07-31T12:00:00.000Z')).orphanQuotes).toEqual([]);
+    const orphan = { text: 'T', note: '', sourceUrl: 'https://x.com/', sourceTitle: 'X', createdAt: '2026-07-22T09:00:00.000Z' };
+    expect(JSON.parse(toBackupJson([], '2026-07-31T12:00:00.000Z', [orphan])).orphanQuotes).toEqual([orphan]);
   });
 
   it('is valid json for an empty export', () => {

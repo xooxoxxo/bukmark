@@ -118,6 +118,66 @@ describe('parseBackupJson', () => {
     expect(items[0]?.folderPath).toBe('reading, rust');
   });
 
+  describe('quotes', () => {
+    const withQuotes = JSON.stringify({
+      version: 1,
+      links: [
+        {
+          url: 'https://a.com/1', title: 'Alpha', hubs: [],
+          quotes: [
+            { text: 'First.', note: 'n', createdAt: '2026-01-02T03:04:05.000Z' },
+            { text: 'No note.' },
+            { text: '   ' },
+            { note: 'no text' },
+            'not an object',
+          ],
+        },
+        { url: 'https://a.com/2', title: 'Beta', quotes: 'nope' },
+        { url: 'https://a.com/3' },
+      ],
+      orphanQuotes: [
+        { text: 'Lonely.', note: 'x', sourceUrl: 'https://gone.com/p', sourceTitle: 'Gone', createdAt: '2026-02-01T00:00:00.000Z' },
+        { text: 'Bare.', sourceUrl: 'https://gone.com/q' },
+        { text: 'No source.' },
+        { text: '', sourceUrl: 'https://gone.com/r' },
+      ],
+    });
+
+    it('reads each link\'s quotes and drops unusable ones', () => {
+      const { items } = parseBackupJson(withQuotes);
+      expect(items[0]?.quotes).toEqual([
+        { text: 'First.', note: 'n', createdAt: '2026-01-02T03:04:05.000Z' },
+        { text: 'No note.' },
+      ]);
+      expect(items[1]).not.toHaveProperty('quotes');
+      expect(items[2]).not.toHaveProperty('quotes');
+    });
+
+    it('reads the top-level orphanQuotes and needs a source url on each', () => {
+      const { orphanQuotes } = parseBackupJson(withQuotes);
+      expect(orphanQuotes).toEqual([
+        { text: 'Lonely.', note: 'x', sourceUrl: 'https://gone.com/p', sourceTitle: 'Gone', createdAt: '2026-02-01T00:00:00.000Z' },
+        { text: 'Bare.', sourceUrl: 'https://gone.com/q' },
+      ]);
+    });
+
+    it('skips quotes over the server limits rather than failing the whole import', () => {
+      const big = 'x'.repeat(10001);
+      const many = Array.from({ length: 250 }, (_, i) => ({ text: `q${i}` }));
+      const { items } = parseBackupJson(JSON.stringify({
+        links: [{ url: 'https://a.com/1', quotes: [{ text: big }, ...many] }],
+      }));
+      expect(items[0]?.quotes).toHaveLength(200);
+      expect(items[0]?.quotes?.[0]?.text).toBe('q0');
+    });
+
+    it('an older backup without quotes parses as before', () => {
+      const parsed = parseBackupJson(backup);
+      expect(parsed.items[0]).not.toHaveProperty('quotes');
+      expect(parsed.orphanQuotes ?? []).toEqual([]);
+    });
+  });
+
   it('rejects json that is not a backup', () => {
     expect(() => parseBackupJson('{"nope":true}')).toThrow(UnsupportedFileError);
   });

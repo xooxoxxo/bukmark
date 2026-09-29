@@ -129,20 +129,43 @@ export function useImportLinks() {
   return useMutation({
     mutationFn: async ({
       items,
+      orphanQuotes = [],
       onProgress,
     }: {
       items: api.ImportItem[];
+      /** Quotes whose page is gone, from a bukmark backup. Sent once, riding the first request(s). */
+      orphanQuotes?: api.ImportOrphanQuote[];
       onProgress?: (done: number, total: number) => void;
     }): Promise<api.ImportResult> => {
-      const total: api.ImportResult = { created: 0, updated: 0, skippedDeleted: 0, invalid: [] };
+      const total: api.ImportResult = {
+        created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 0, skipped: 0 },
+      };
+      // Each item stays whole inside its batch, so its quotes travel with it.
+      const batches: api.ImportItem[][] = [];
       for (let i = 0; i < items.length; i += api.IMPORT_BATCH_SIZE) {
-        const batch = items.slice(i, i + api.IMPORT_BATCH_SIZE);
-        const res = await api.importLinks(batch);
+        batches.push(items.slice(i, i + api.IMPORT_BATCH_SIZE));
+      }
+      const orphanChunks: api.ImportOrphanQuote[][] = [];
+      for (let i = 0; i < orphanQuotes.length; i += api.IMPORT_ORPHAN_BATCH_SIZE) {
+        orphanChunks.push(orphanQuotes.slice(i, i + api.IMPORT_ORPHAN_BATCH_SIZE));
+      }
+
+      let done = 0;
+      const requests = Math.max(batches.length, orphanChunks.length);
+      for (let n = 0; n < requests; n++) {
+        // A file with over 1000 orphans and few links needs more requests than
+        // batches. The server wants an item in each, so the last item is sent
+        // again without its quotes: importing it twice changes nothing.
+        const batch = batches[n] ?? [{ ...items[items.length - 1]!, quotes: undefined }];
+        const res = await api.importLinks(batch, orphanChunks[n]);
         total.created += res.created;
         total.updated += res.updated;
         total.skippedDeleted += res.skippedDeleted;
         total.invalid.push(...res.invalid);
-        onProgress?.(Math.min(i + batch.length, items.length), items.length);
+        total.quotes.added += res.quotes.added;
+        total.quotes.skipped += res.quotes.skipped;
+        if (batches[n]) done += batch.length;
+        onProgress?.(done, items.length);
       }
       return total;
     },

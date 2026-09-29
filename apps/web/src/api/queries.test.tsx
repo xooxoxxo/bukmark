@@ -2,7 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeWrapper } from '../test/utils';
 import * as client from './client';
-import { PAGE_SIZE, useBulkLinks, useLinksInfinite } from './queries';
+import { PAGE_SIZE, useBulkLinks, useImportLinks, useLinksInfinite } from './queries';
 import type { LinkDto } from './types';
 
 vi.mock('./client');
@@ -64,5 +64,48 @@ describe('useBulkLinks', () => {
     const out = await result.current.mutateAsync({ ids: ['a', 'b'], action: 'archive' });
     expect(out).toEqual({ affected: 2 });
     expect(client.bulkLinks).toHaveBeenCalledWith({ ids: ['a', 'b'], action: 'archive' });
+  });
+});
+
+describe('useImportLinks', () => {
+  const result = (n: number, added: number, skipped = 0) => ({
+    created: n, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added, skipped },
+  });
+
+  beforeEach(() => {
+    vi.mocked(client.importLinks).mockReset();
+  });
+
+  it('keeps each item\'s quotes with it across batches, sends orphans once with the first batch, and sums the counts', async () => {
+    vi.mocked(client.importLinks)
+      .mockResolvedValueOnce(result(200, 3, 1))
+      .mockResolvedValueOnce(result(1, 2));
+    const items = Array.from({ length: 201 }, (_, i) => ({ url: `https://a.com/${i}` }));
+    const first = { ...items[0]!, quotes: [{ text: 'one' }] };
+    const last = { ...items[200]!, quotes: [{ text: 'three' }, { text: 'four', note: 'n' }] };
+    const all = [first, ...items.slice(1, 200), last];
+    const orphans = [{ text: 'o', sourceUrl: 'https://gone.com' }];
+
+    const { result: hook } = renderHook(() => useImportLinks(), { wrapper: makeWrapper() });
+    const total = await hook.current.mutateAsync({ items: all, orphanQuotes: orphans });
+
+    const calls = vi.mocked(client.importLinks).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toEqual([all.slice(0, 200), orphans]);
+    expect(calls[1]).toEqual([[last], undefined]);
+    expect(total.quotes).toEqual({ added: 5, skipped: 1 });
+    expect(total.created).toBe(201);
+  });
+
+  it('spreads more than 1000 orphans over requests, each with at least one item', async () => {
+    vi.mocked(client.importLinks).mockResolvedValue(result(1, 0));
+    const orphans = Array.from({ length: 2500 }, (_, i) => ({ text: `o${i}`, sourceUrl: 'https://gone.com' }));
+    const { result: hook } = renderHook(() => useImportLinks(), { wrapper: makeWrapper() });
+    await hook.current.mutateAsync({ items: [{ url: 'https://a.com/1' }], orphanQuotes: orphans });
+    const calls = vi.mocked(client.importLinks).mock.calls;
+    expect(calls.map((c) => c[1]?.length)).toEqual([1000, 1000, 500]);
+    expect(calls.every((c) => c[0].length >= 1)).toBe(true);
+    // Only the first request carries the item's quotes; a re-sent item does not repeat them.
+    expect(calls[1]?.[0]).toEqual([{ url: 'https://a.com/1' }]);
   });
 });

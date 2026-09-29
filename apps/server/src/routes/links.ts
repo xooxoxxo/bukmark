@@ -5,7 +5,7 @@ import { normalizeUrl, matchKey } from '@bukmark/shared';
 import { pgCode } from '../db/client.js';
 import { deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 import { addLink } from '../links/addLink.js';
-import { importLinks } from '../links/importLinks.js';
+import { importLinks, type ImportItem, type ImportOrphanQuote } from '../links/importLinks.js';
 import { assignHubs } from '../links/assignHubs.js';
 import { changeLinkHubs, setLinkHubs } from '../links/setLinkHubs.js';
 import { backfillOg } from '../og/backfill.js';
@@ -50,6 +50,13 @@ const SORTS = {
   oldest: [asc(links.firstSeen)],
   title: [dsql`lower(nullif(${links.title}, '')) ASC NULLS LAST`, asc(links.url)],
 } as const;
+
+/** A quote in a bukmark backup. createdAt is read leniently: an unreadable one falls back to now. */
+const importQuote = Type.Object({
+  text: Type.String({ minLength: 1, maxLength: 10000 }),
+  note: Type.Optional(Type.String()),
+  createdAt: Type.Optional(Type.String()),
+});
 
 export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckPage }): Promise<void> {
   // What bukmark already holds for a page before it is saved: the page itself
@@ -337,14 +344,23 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
             url: Type.String(),
             title: Type.Optional(Type.String()),
             folderPath: Type.Optional(Type.String()),
+            quotes: Type.Optional(Type.Array(importQuote, { maxItems: 200 })),
           }),
           { minItems: 1, maxItems: 200 },
         ),
+        orphanQuotes: Type.Optional(Type.Array(
+          Type.Object({
+            ...importQuote.properties,
+            sourceUrl: Type.String({ minLength: 1 }),
+            sourceTitle: Type.Optional(Type.String()),
+          }),
+          { maxItems: 1000 },
+        )),
       }),
     },
   }, async (req) => {
-    const { items } = req.body as { items: { url: string; title?: string; folderPath?: string }[] };
-    return importLinks(req.server.db, items);
+    const { items, orphanQuotes } = req.body as { items: ImportItem[]; orphanQuotes?: ImportOrphanQuote[] };
+    return importLinks(req.server.db, items, undefined, orphanQuotes);
   });
 
   app.post('/links/og-backfill', {

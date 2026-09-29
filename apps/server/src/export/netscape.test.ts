@@ -15,6 +15,7 @@ function link(over: Partial<ExportLink> = {}): ExportLink {
     groupHint: null,
     firstSeen: '2026-07-21T10:00:00.000Z',
     lastSeen: '2026-07-21T10:00:00.000Z',
+    quotes: [],
     ...over,
   };
 }

@@ -248,4 +248,116 @@ describe('quotes api', () => {
     const none = await app.inject({ method: 'GET', url: `/api/links/${b!.id}`, headers });
     expect(none.json().quoteCount).toBe(0);
   });
+
+  describe('backup: export and import', () => {
+    const exp = async (qs = 'format=json&status=all') =>
+      JSON.parse((await app.inject({ method: 'GET', url: `/api/export?${qs}`, headers })).body);
+    const imp = async (payload: unknown) =>
+      app.inject({ method: 'POST', url: '/api/links/import', headers, payload: payload as object });
+
+    async function seedBackup() {
+      const a = (await post({ url: 'https://a.com/one', title: 'One', text: 'Older quote.', note: 'n1' })).json();
+      await post({ url: 'https://a.com/one', text: 'Newer quote.' });
+      const b = (await post({ url: 'https://b.com/two', title: 'Two', text: 'Doomed page quote.', note: 'orph' })).json();
+      await db.update(quotes).set({ createdAt: new Date('2026-01-01T10:00:00.000Z') }).where(eq(quotes.text, 'Older quote.'));
+      await db.update(quotes).set({ createdAt: new Date('2026-02-01T10:00:00.000Z') }).where(eq(quotes.text, 'Newer quote.'));
+      await db.update(quotes).set({ createdAt: new Date('2026-03-01T10:00:00.000Z') }).where(eq(quotes.text, 'Doomed page quote.'));
+      await app.inject({ method: 'POST', url: '/api/links/bulk', headers, payload: { ids: [b.link.id], action: 'delete' } });
+      return { a, b };
+    }
+
+    it('exports each link\'s quotes oldest first and orphans at the top level', async () => {
+      await seedBackup();
+      const body = await exp();
+      expect(body.version).toBe(1);
+      const link = body.links.find((l: { url: string }) => l.url === 'https://a.com/one');
+      expect(link.quotes).toEqual([
+        { text: 'Older quote.', note: 'n1', createdAt: '2026-01-01T10:00:00.000Z' },
+        { text: 'Newer quote.', note: '', createdAt: '2026-02-01T10:00:00.000Z' },
+      ]);
+      expect(body.orphanQuotes).toEqual([
+        { text: 'Doomed page quote.', note: 'orph', sourceUrl: 'https://b.com/two', sourceTitle: 'Two', createdAt: '2026-03-01T10:00:00.000Z' },
+      ]);
+    });
+
+    it('a link without quotes exports an empty list; a filtered export carries no orphans', async () => {
+      await seedBackup();
+      await app.inject({ method: 'POST', url: '/api/links', headers, payload: { url: 'https://c.com/plain', title: 'Plain' } });
+      const full = await exp('format=json');
+      expect(full.orphanQuotes).toHaveLength(1);
+      expect(full.links.find((l: { url: string }) => l.url === 'https://c.com/plain').quotes).toEqual([]);
+      for (const qs of ['format=json&q=One', 'format=json&unassigned=true', 'format=json&status=archived', 'format=json&broken=true']) {
+        expect((await exp(qs)).orphanQuotes).toEqual([]);
+      }
+      const q = await exp('format=json&q=One');
+      expect(q.links).toHaveLength(1);
+      expect(q.links[0].quotes).toHaveLength(2);
+    });
+
+    it('html and csv exports do not mention quotes', async () => {
+      await seedBackup();
+      for (const format of ['html', 'csv']) {
+        const res = await app.inject({ method: 'GET', url: `/api/export?format=${format}&status=all`, headers });
+        expect(res.body).not.toContain('Older quote');
+        expect(res.body).not.toContain('Doomed page quote');
+      }
+    });
+
+    it('round trip: export, wipe, import brings back links, quotes and orphans; twice adds nothing', async () => {
+      await seedBackup();
+      const backup = await exp();
+      await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, quotes CASCADE`);
+      expect(await db.select().from(quotes)).toHaveLength(0);
+
+      const res = await imp({ items: backup.links, orphanQuotes: backup.orphanQuotes });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().quotes).toEqual({ added: 3, skipped: 0 });
+
+      const again = await exp();
+      expect(again.links.map((l: { url: string; quotes: unknown }) => [l.url, l.quotes]))
+        .toEqual(backup.links.map((l: { url: string; quotes: unknown }) => [l.url, l.quotes]));
+      expect(again.orphanQuotes).toEqual(backup.orphanQuotes);
+
+      const twice = await imp({ items: backup.links, orphanQuotes: backup.orphanQuotes });
+      expect(twice.json().quotes).toEqual({ added: 0, skipped: 3 });
+      expect(await db.select().from(quotes)).toHaveLength(3);
+    });
+
+    it('attaches quotes to an existing link, with source copy from the link, deduping by text key', async () => {
+      const first = (await post({ url: 'https://a.com/one', title: 'One', text: 'Same text.' })).json();
+      const res = await imp({ items: [{ url: 'https://a.com/one', title: 'Other', quotes: [
+        { text: '  same   TEXT. ' }, { text: 'Fresh one.', note: 'x' }, { text: 'Fresh one.' },
+      ] }] });
+      expect(res.json().updated).toBe(1);
+      expect(res.json().quotes).toEqual({ added: 1, skipped: 2 });
+      const rows = await db.select().from(quotes).where(eq(quotes.linkId, first.link.id));
+      expect(rows).toHaveLength(2);
+      const fresh = rows.find((r) => r.text === 'Fresh one.')!;
+      expect(fresh.sourceUrl).toBe('https://a.com/one');
+      expect(fresh.sourceTitle).toBe('One');
+      expect(fresh.note).toBe('x');
+    });
+
+    it('dedupes orphans by source url and text, and validates quote input', async () => {
+      const orphan = { text: 'Lonely.', sourceUrl: 'https://gone.com/p', sourceTitle: 'Gone' };
+      const ok = await imp({ items: [{ url: 'https://a.com/1' }], orphanQuotes: [orphan, { ...orphan, text: ' LONELY. ' }, { ...orphan, sourceUrl: 'https://gone.com/other' }] });
+      expect(ok.json().quotes).toEqual({ added: 2, skipped: 1 });
+      const rows = await db.select().from(quotes);
+      expect(rows.every((r) => r.linkId === null)).toBe(true);
+      expect((await imp({ items: [{ url: 'https://a.com/1' }], orphanQuotes: [orphan] })).json().quotes).toEqual({ added: 0, skipped: 1 });
+
+      expect((await imp({ items: [{ url: 'https://a.com/2', quotes: [{ text: '' }] }] })).statusCode).toBe(400);
+      expect((await imp({ items: [{ url: 'https://a.com/2', quotes: [{ text: 'x'.repeat(10001) }] }] })).statusCode).toBe(400);
+      expect((await imp({ items: [{ url: 'https://a.com/2' }], orphanQuotes: [{ text: 'no source' }] })).statusCode).toBe(400);
+    });
+
+    it('a quote of a link the import skips as deleted is counted skipped, not restored', async () => {
+      const made = (await post({ url: 'https://a.com/one', text: 'Kept.' })).json();
+      await app.inject({ method: 'POST', url: '/api/links/bulk', headers, payload: { ids: [made.link.id], action: 'delete' } });
+      await db.delete(quotes);
+      const res = await imp({ items: [{ url: 'https://a.com/one', quotes: [{ text: 'Back?' }] }] });
+      expect(res.json().skippedDeleted).toBe(1);
+      expect(res.json().quotes).toEqual({ added: 0, skipped: 1 });
+    });
+  });
 });

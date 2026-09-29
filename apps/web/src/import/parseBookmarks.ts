@@ -1,4 +1,4 @@
-import type { ImportItem } from '../api/client';
+import type { ImportItem, ImportOrphanQuote, ImportQuote } from '../api/client';
 
 export interface ParsedFile {
   items: ImportItem[];
@@ -6,6 +6,34 @@ export interface ParsedFile {
   nonWeb: number;
   /** Same url listed more than once in the file, collapsed to one item. */
   duplicates: number;
+  /** Quotes whose page is gone, from a bukmark backup. Absent when there are none. */
+  orphanQuotes?: ImportOrphanQuote[];
+}
+
+// The server's limits: a quote over them would fail the whole batch, so such quotes are dropped here.
+const QUOTE_MAX_CHARS = 10000;
+const QUOTES_PER_LINK = 200;
+
+function readQuote(raw: unknown): ImportQuote | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const q = raw as Record<string, unknown>;
+  if (typeof q.text !== 'string' || q.text.trim() === '' || q.text.length > QUOTE_MAX_CHARS) return null;
+  return {
+    text: q.text,
+    ...(typeof q.note === 'string' && q.note !== '' ? { note: q.note } : {}),
+    ...(typeof q.createdAt === 'string' && q.createdAt !== '' ? { createdAt: q.createdAt } : {}),
+  };
+}
+
+function readOrphanQuote(raw: unknown): ImportOrphanQuote | null {
+  const quote = readQuote(raw);
+  const q = raw as Record<string, unknown>;
+  if (!quote || typeof q.sourceUrl !== 'string' || q.sourceUrl.trim() === '') return null;
+  return {
+    ...quote,
+    sourceUrl: q.sourceUrl,
+    ...(typeof q.sourceTitle === 'string' && q.sourceTitle !== '' ? { sourceTitle: q.sourceTitle } : {}),
+  };
 }
 
 export class UnsupportedFileError extends Error {
@@ -94,10 +122,14 @@ interface BackupLink {
   url?: unknown;
   title?: unknown;
   hubs?: unknown;
+  quotes?: unknown;
 }
 
 /**
  * bukmark's own backup JSON, so a file this app produced can come back in.
+ *
+ * Quotes are restored: each link's own, and the top-level orphan quotes of
+ * pages that were deleted.
  *
  * Hub membership is NOT restored — the import path deliberately creates no
  * hubs — so a restored link arrives unsorted with its old hub names carried as
@@ -134,16 +166,30 @@ export function parseBackupJson(text: string): ParsedFile {
     const hubs = Array.isArray(raw.hubs)
       ? raw.hubs.filter((h): h is string => typeof h === 'string')
       : [];
+    const quotes = Array.isArray(raw.quotes)
+      ? raw.quotes.map(readQuote).filter((q): q is ImportQuote => q !== null).slice(0, QUOTES_PER_LINK)
+      : [];
     byUrl.set(url, {
       url,
       ...(title === '' ? {} : { title }),
+      ...(quotes.length === 0 ? {} : { quotes }),
       // Hubs are parallel, not nested, so they are joined as a list rather than
       // a path: this is a hint for sorting, not a folder location.
       ...(hubs.length === 0 ? {} : { folderPath: hubs.join(', ') }),
     });
   }
 
-  return { items: [...byUrl.values()], nonWeb, duplicates };
+  const rawOrphans = (data as { orphanQuotes?: unknown }).orphanQuotes;
+  const orphanQuotes = Array.isArray(rawOrphans)
+    ? rawOrphans.map(readOrphanQuote).filter((q): q is ImportOrphanQuote => q !== null)
+    : [];
+
+  return {
+    items: [...byUrl.values()],
+    nonWeb,
+    duplicates,
+    ...(orphanQuotes.length === 0 ? {} : { orphanQuotes }),
+  };
 }
 
 /**

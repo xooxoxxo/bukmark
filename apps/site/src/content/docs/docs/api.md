@@ -506,7 +506,18 @@ send them here. Import creates no hubs.
     {
       "url": "https://example.com",
       "title": "optional title",
-      "folderPath": "optional/folder/path"
+      "folderPath": "optional/folder/path",
+      "quotes": [
+        { "text": "A saved passage.", "note": "optional", "createdAt": "2026-07-01T09:30:00.000Z" }
+      ]
+    }
+  ],
+  "orphanQuotes": [
+    {
+      "text": "A passage from a page that was deleted.",
+      "sourceUrl": "https://example.com/gone",
+      "sourceTitle": "optional",
+      "createdAt": "2026-06-01T09:30:00.000Z"
     }
   ]
 }
@@ -518,6 +529,8 @@ send them here. Import creates no hubs.
 | `items[].url` | string, required | |
 | `items[].title` | string, optional | |
 | `items[].folderPath` | string, optional | Browser bookmark folder path, kept as a sorting hint (`groupHint`); it never becomes a hub |
+| `items[].quotes` | array, optional | Up to 200 quotes to attach to that link, created or already here. Each is `text` (1–10000 characters), optional `note`, optional `createdAt` (ISO 8601, kept as the quote's saved date). The quote's source address and title are the link's. A text the link already has (same text, ignoring case and extra whitespace) is skipped, not an error |
+| `orphanQuotes` | array, optional | Up to 1000 quotes that belong to no link, from a [JSON backup](/docs/export/#quotes-in-a-backup). Each is `text`, `sourceUrl` (required), optional `sourceTitle`, `note` and `createdAt`. Skipped when the same `sourceUrl` and text are already saved as a quote with no link |
 
 **Response**
 
@@ -531,7 +544,8 @@ send them here. Import creates no hubs.
       "url": "not-a-url",
       "reason": "unparseable url"
     }
-  ]
+  ],
+  "quotes": { "added": 4, "skipped": 1 }
 }
 ```
 
@@ -542,6 +556,9 @@ send them here. Import creates no hubs.
   reimport
 - `invalid` (array) — URLs that could not be normalized, with the reason for
   each: `unparseable url` or `non-http url`
+- `quotes` (object) — `added` quotes stored; `skipped` quotes already saved, or
+  belonging to a link that stayed deleted. Both are `0` when the request had no
+  quotes
 
 ### POST /api/links/og-backfill
 
@@ -959,6 +976,13 @@ unassigned links, broken links, active links not yet checked, and quotes (all of
 
 Export links as HTML (Netscape bookmark format), JSON, or CSV, as a file
 attachment. [Import & Export](/docs/export/) covers when to use which.
+
+The JSON file is `{ "version": 1, "exportedAt", "count", "links": [...], "orphanQuotes": [...] }`.
+Each link carries `quotes`, oldest first, as `{ "text", "note", "createdAt" }`.
+`orphanQuotes` holds quotes whose link was deleted, as `{ "text", "note",
+"sourceUrl", "sourceTitle", "createdAt" }`; it is filled only for an unfiltered
+export (`status=all`, or the default with no `q`, `hub`, `unassigned` or
+`broken`) and is `[]` otherwise. HTML and CSV do not include quotes.
 
 The HTML file holds one `bukmark` folder with a folder per hub inside, plus
 `Unsorted` for links in no hub: the layout bookmark sync keeps in the browser.

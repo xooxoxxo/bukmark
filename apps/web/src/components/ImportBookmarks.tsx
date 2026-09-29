@@ -36,12 +36,16 @@ export function ImportBookmarks({ buttonClass, statusClass, errorClass }: {
       setStatus({ kind: 'importing', message: `Importing 0 of ${parsed.items.length}…` });
       const result = await importLinks.mutateAsync({
         items: parsed.items,
+        orphanQuotes: parsed.orphanQuotes,
         onProgress: (done, total) =>
           setStatus({ kind: 'importing', message: `Importing ${done} of ${total}…` }),
       });
 
       const parts = [`${result.created} added`];
       if (result.updated > 0) parts.push(`${result.updated} already here`);
+      if (result.quotes.added > 0) {
+        parts.push(`${result.quotes.added} ${result.quotes.added === 1 ? 'quote' : 'quotes'} restored`);
+      }
       if (result.skippedDeleted > 0) parts.push(`${result.skippedDeleted} stayed deleted`);
       if (parsed.duplicates > 0) parts.push(`${parsed.duplicates} duplicate`);
       if (parsed.nonWeb > 0) parts.push(`${parsed.nonWeb} not web links`);

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, bulkLinks, fetchLinks, fetchStats, patchLink } from './client';
+import { ApiError, bulkLinks, fetchLinks, fetchStats, importLinks, patchLink } from './client';
 
 function okResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -79,5 +79,15 @@ describe('api client', () => {
     const err = await fetchStats().catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).message).toBe('HTTP 500');
+  });
+
+  it('importLinks sends orphanQuotes only when there are some', async () => {
+    fetchMock.mockImplementation(async () => okResponse({ created: 0 }));
+    const items = [{ url: 'https://a.com', quotes: [{ text: 'q' }] }];
+    await importLinks(items);
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({ items });
+    const orphanQuotes = [{ text: 'o', sourceUrl: 'https://gone.com' }];
+    await importLinks(items, orphanQuotes);
+    expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toEqual({ items, orphanQuotes });
   });
 });

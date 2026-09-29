@@ -45,12 +45,21 @@ Other columns, notes and excerpts included, are not imported.
 | Same link in two folders | Imported once. | duplicate |
 | Bookmarklet, `place:` query, feed | Skipped: only `http` and `https` links are imported. | not web links |
 
-:::caution[A JSON backup restores links, not hub membership]
+:::caution[A JSON backup restores links and quotes, not hub membership]
 Because import creates no hubs, restoring a backup brings your links back
 unsorted, carrying their old hub names as a hint. Notes are not restored
-either. A backup is a safety net for the links themselves, not yet a
-full-fidelity snapshot.
+either. Quotes are: see [Quotes in a backup](#quotes-in-a-backup).
 :::
+
+### Quotes in a backup
+
+A JSON backup carries your quotes, and importing it puts them back: each quote
+returns to its link with its text, note and saved date. Quotes whose page you
+deleted are kept too, in the file's `orphanQuotes`, and come back as quotes
+with no page, still showing where they were saved from. Importing the same
+backup again adds nothing twice: a quote you already have (same text, same
+page) is skipped. The result line adds **N quotes restored** when there were
+any.
 
 <details>
 <summary>Why browser folders don't become hubs</summary>
@@ -111,10 +120,15 @@ One hub or a search:
 | Format | Use it for |
 | -- | -- |
 | `html` | Importing into Chrome, Firefox or Safari. Everything lands in one **bukmark** folder, as with [bookmark sync](/docs/extension/#sync-with-your-bookmarks): a folder per hub, and **Unsorted** for links in no hub (a hub called Unsorted gets **Unsorted (hub)**). Notes become descriptions. A link in several hubs appears in each. |
-| `json` | Backups. Versioned, carries every field, and references hubs by name rather than id. Restoring one brings back links, not hub membership (see [Import](#import)). |
+| `json` | Backups. Versioned, carries every field and your quotes, and references hubs by name rather than id. Restoring one brings back links and quotes, not hub membership (see [Import](#import)). |
 | `csv` | Spreadsheets. One row per link, hubs semicolon-separated. |
 
 ## Filters
+
+The JSON export lists each link's quotes. Quotes of deleted pages, which belong
+to no link, are in the file only when the export is unfiltered (`status=all`, or
+the default with no `q`, `hub`, `unassigned` or `broken`); a hub or a search
+exports just its own links' quotes. HTML and CSV exports do not include quotes.
 
 **Use `status=all` for a real backup**; the default is `active` only. Without
 `status=all`, your export omits archived (deleted) links, so a restore would

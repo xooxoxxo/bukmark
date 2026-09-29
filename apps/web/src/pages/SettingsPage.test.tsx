@@ -43,6 +43,7 @@ describe('SettingsPage', () => {
       updated: 0,
       skippedDeleted: 0,
       invalid: [],
+      quotes: { added: 0, skipped: 0 },
     });
   });
 
@@ -136,6 +137,33 @@ describe('SettingsPage', () => {
       { url: 'https://a.com/2', title: 'Beta', folderPath: 'reading' },
     ]);
     expect(await screen.findByRole('status')).toHaveTextContent('2 added');
+  });
+
+  it('restores quotes from a backup file and says how many', async () => {
+    vi.mocked(client.importLinks).mockResolvedValue({
+      created: 1, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 3, skipped: 0 },
+    });
+    renderSettings();
+    const backup = JSON.stringify({
+      links: [{ url: 'https://a.com/1', title: 'Alpha', quotes: [{ text: 'A passage.' }] }],
+      orphanQuotes: [{ text: 'Orphan.', sourceUrl: 'https://gone.com/p' }],
+    });
+    await userEvent.upload(
+      screen.getByTestId('import-file'),
+      new File([backup], 'bukmark.json', { type: 'application/json' }),
+    );
+    await waitFor(() => expect(client.importLinks).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(client.importLinks).mock.calls[0]).toEqual([
+      [{ url: 'https://a.com/1', title: 'Alpha', quotes: [{ text: 'A passage.' }] }],
+      [{ text: 'Orphan.', sourceUrl: 'https://gone.com/p' }],
+    ]);
+    expect(await screen.findByRole('status')).toHaveTextContent('3 quotes restored');
+  });
+
+  it('says nothing about quotes when none were restored', async () => {
+    renderSettings();
+    await userEvent.upload(screen.getByTestId('import-file'), bookmarksFile(TWO_LINKS));
+    expect(await screen.findByRole('status')).not.toHaveTextContent('quote');
   });
 
   it('sends more than one batch when the file exceeds the request cap', async () => {

@@ -1,8 +1,8 @@
-import { and, desc, eq, sql as dsql } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql as dsql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
-import { hubLinks, hubs, links } from '../db/schema.js';
+import { hubLinks, hubs, links, quotes } from '../db/schema.js';
 import { isBroken } from '../og/checkLinks.js';
-import type { ExportLink } from './types.js';
+import type { ExportLink, ExportOrphanQuote } from './types.js';
 
 export interface ExportFilters {
   q?: string;
@@ -51,6 +51,15 @@ export async function selectForExport(db: Db, filters: ExportFilters): Promise<E
         WHERE c.link_id = ${links.id} AND c.group_hint IS NOT NULL
         ORDER BY c.captured_at DESC LIMIT 1
       )`,
+      // ms-precision UTC text, so the value survives a JS Date round trip.
+      quotes: dsql<ExportLink['quotes']>`coalesce((
+        SELECT json_agg(json_build_object(
+          'text', q.text,
+          'note', q.note,
+          'createdAt', to_char(q.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+        ) ORDER BY q.created_at, q.id)
+        FROM quotes q WHERE q.link_id = ${links.id}
+      ), '[]'::json)`,
       hubs: dsql<string[]>`coalesce(array_agg(${hubs.name} ORDER BY ${hubs.name}) FILTER (WHERE ${hubs.name} IS NOT NULL), '{}')`,
     })
     .from(links)
@@ -65,4 +74,20 @@ export async function selectForExport(db: Db, filters: ExportFilters): Promise<E
     firstSeen: r.firstSeen.toISOString(),
     lastSeen: r.lastSeen.toISOString(),
   }));
+}
+
+/** Quotes whose link is gone (link_id NULL), oldest first. Only a full backup carries them. */
+export async function selectOrphanQuotes(db: Db): Promise<ExportOrphanQuote[]> {
+  const rows = await db
+    .select({
+      text: quotes.text,
+      note: quotes.note,
+      sourceUrl: quotes.sourceUrl,
+      sourceTitle: quotes.sourceTitle,
+      createdAt: quotes.createdAt,
+    })
+    .from(quotes)
+    .where(isNull(quotes.linkId))
+    .orderBy(quotes.createdAt, quotes.id);
+  return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
 }

@@ -6,7 +6,7 @@ import { toCsv } from '../export/csv.js';
 import { exportFilename } from '../export/filename.js';
 import { toBackupJson } from '../export/json.js';
 import { toNetscapeHtml } from '../export/netscape.js';
-import { selectForExport, type ExportFilters } from '../export/query.js';
+import { selectForExport, selectOrphanQuotes, type ExportFilters } from '../export/query.js';
 
 const CONTENT_TYPE = {
   html: 'text/html; charset=utf-8',
@@ -51,12 +51,16 @@ export async function exportRoutes(app: FastifyInstance): Promise<void> {
       scope = 'unsorted';
     }
 
+    // Orphan quotes belong to no link, so a filtered export (a hub, a search)
+    // has no honest place for them. Only the unfiltered export carries them.
+    const fullBackup = !q && !hub && !unassigned && !broken && status !== 'archived';
+
     const now = new Date();
     const date = now.toISOString().slice(0, 10);
     const body =
       format === 'html' ? toNetscapeHtml(rows)
       : format === 'csv' ? toCsv(rows)
-      : toBackupJson(rows, now.toISOString());
+      : toBackupJson(rows, now.toISOString(), fullBackup ? await selectOrphanQuotes(req.server.db) : []);
 
     return reply
       .header('content-type', CONTENT_TYPE[format])

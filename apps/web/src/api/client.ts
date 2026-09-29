@@ -103,10 +103,23 @@ export function bulkLinks(body: {
   return http('/links/bulk', jsonInit('POST', body));
 }
 
+export interface ImportQuote {
+  text: string;
+  note?: string;
+  createdAt?: string;
+}
+
+/** A quote whose page was deleted; it carries the address and title it was saved from. */
+export interface ImportOrphanQuote extends ImportQuote {
+  sourceUrl: string;
+  sourceTitle?: string;
+}
+
 export interface ImportItem {
   url: string;
   title?: string;
   folderPath?: string;
+  quotes?: ImportQuote[];
 }
 
 export interface ImportResult {
@@ -114,13 +127,21 @@ export interface ImportResult {
   updated: number;
   skippedDeleted: number;
   invalid: { url: string; reason: string }[];
+  quotes: { added: number; skipped: number };
 }
 
 /** The server caps one request at 200 items; callers chunk to this size. */
 export const IMPORT_BATCH_SIZE = 200;
 
-export function importLinks(items: ImportItem[]): Promise<ImportResult> {
-  return http('/links/import', jsonInit('POST', { items }));
+/** The server caps orphanQuotes at this many per request. */
+export const IMPORT_ORPHAN_BATCH_SIZE = 1000;
+
+export function importLinks(
+  items: ImportItem[],
+  orphanQuotes?: ImportOrphanQuote[],
+): Promise<ImportResult> {
+  const body = orphanQuotes && orphanQuotes.length > 0 ? { items, orphanQuotes } : { items };
+  return http('/links/import', jsonInit('POST', body));
 }
 
 export function fetchHubs(): Promise<{ items: HubDto[] }> {
