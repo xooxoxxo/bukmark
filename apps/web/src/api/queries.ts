@@ -216,8 +216,9 @@ export function useQuotes(filters: QuoteFilters = {}) {
 }
 
 export function useCreateQuote() {
-  // A quote from a page not saved yet saves the page too, unsorted.
-  const invalidate = useInvalidate('quotes', 'links', 'hubs', 'stats');
+  // A quote from a page not saved yet saves the page too, unsorted. An open
+  // link's quote count ('link') changes with it.
+  const invalidate = useInvalidate('quotes', 'links', 'link', 'hubs', 'stats');
   return useMutation({
     mutationFn: (input: api.CreateQuoteInput) => api.createQuote(input),
     onSuccess: () => {
@@ -236,7 +237,7 @@ export function useUpdateQuote() {
 
 export function useDeleteQuote() {
   // Links carry how many quotes they have; stats carry the total.
-  const invalidate = useInvalidate('quotes', 'links', 'stats');
+  const invalidate = useInvalidate('quotes', 'links', 'link', 'stats');
   return useMutation({
     mutationFn: (id: string) => api.deleteQuote(id),
     onSuccess: () => invalidate(),

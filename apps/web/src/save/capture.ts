@@ -68,25 +68,37 @@ function samePage(a: string, b: string): boolean {
   }
 }
 
-/** One pair of quote marks around the whole text, as Chrome wraps a shared selection. */
-const WRAPPED = /^(["“])([\s\S]*)(["”])$/;
+/** Quote marks around the whole text, as Chrome wraps a shared selection. */
+const WRAPPED = /^(["“«])([\s\S]*)(["”»])$/;
 
 /**
  * The passage a share carried, or '' when it carried none. Chrome on Android
- * sends a selection in `text` with the page's link at its end (a text-fragment
- * link, wrapped in quote marks, when `url` is empty); that link and the marks
- * are not part of the passage. Text that is only a link, or only the page's
- * title, is a plain link share. A passage needs a page it came from.
+ * sends a selection in `text` with the page's link at its end: with `url`
+ * empty, that link is a text-fragment link (`#:~:text=`) and the selection is
+ * wrapped in quote marks. The link and the marks are not part of the passage.
+ *
+ * With `url` given, any other text is a passage. With `url` empty, most apps
+ * share "Headline https://…" the same way, so the text counts as a passage
+ * only when one of Chrome's selection signs is there. Text that is only a
+ * link, or only the page's title, is a plain link share. A passage needs a
+ * page it came from.
  */
 export function quoteFromParams(params: URLSearchParams, capture: Capture): string {
   if (!isWebUrl(capture.url)) return '';
+  const urlGiven = Boolean(params.get('url')?.trim());
   let text = (params.get('text') ?? '').trim();
+  let fragment = false;
   const trailing = /\s*(https?:\/\/\S+)$/i.exec(text);
-  if (trailing && samePage(trimTrailing(trailing[1]!), capture.url)) {
-    text = text.slice(0, trailing.index).trim();
+  if (trailing) {
+    const link = trimTrailing(trailing[1]!);
+    if (samePage(link, capture.url)) {
+      fragment = link.includes('#:~:text=');
+      text = text.slice(0, trailing.index).trim();
+    }
   }
   const wrapped = WRAPPED.exec(text);
-  if (wrapped && !/["“”]/.test(wrapped[2]!)) text = wrapped[2]!.trim();
+  if (!urlGiven && !fragment && !wrapped) return '';
+  if (wrapped && !/["“”«»]/.test(wrapped[2]!)) text = wrapped[2]!.trim();
   if (!text || /^https?:\/\/\S+$/i.test(text) || text === capture.title) return '';
   return text;
 }

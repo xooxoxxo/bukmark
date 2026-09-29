@@ -117,6 +117,15 @@ describe('quoteFromParams', () => {
     expect(quote({ url: PAGE, text: `Visit ${PAGE} for more` })).toBe(`Visit ${PAGE} for more`);
   });
 
+  it.each([
+    ['a text-fragment link', `A passage.\n${PAGE}#:~:text=A%20passage`],
+    ['straight quote marks', `"A passage."\n${PAGE}`],
+    ['curly quote marks', `“A passage.” ${PAGE}`],
+    ['guillemets', `«A passage.» ${PAGE}`],
+  ])('with the url field empty, takes a passage only from Chrome’s selection signs: %s', (_, text) => {
+    expect(quote({ url: '', text })).toBe('A passage.');
+  });
+
   it('keeps the newlines of the selection and drops the quote marks Chrome wraps it in', () => {
     expect(quote({ text: `"First line.\nSecond line."\n${PAGE}#:~:text=First` })).toBe(
       'First line.\nSecond line.',
@@ -130,6 +139,8 @@ describe('quoteFromParams', () => {
     ['a url only, with the url field empty', { url: '', text: PAGE }],
     ['another url only', { url: PAGE, text: 'https://other.example/b' }],
     ['the title and the url', { title: 'Example page', text: `Example page ${PAGE}` }],
+    ['a headline and the url, the url field empty', { text: `Some headline ${PAGE}` }],
+    ['a comment and the url, the url field empty', { text: `Check this out ${PAGE}`, url: '' }],
     ['nothing', { url: PAGE, title: 'Example' }],
     ['blank text', { url: PAGE, text: '  \n ' }],
     ['text with no page to quote from', { text: 'just some words' }],

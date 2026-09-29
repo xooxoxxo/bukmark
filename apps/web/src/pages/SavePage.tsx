@@ -168,7 +168,7 @@ export function SavePage() {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 readOnly={pending}
-                placeholder="optional — why this passage"
+                placeholder="optional"
                 rows={3}
               />
             </div>

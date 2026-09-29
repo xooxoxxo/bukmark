@@ -359,6 +359,25 @@ describe('SavePage with shared text', () => {
     expect(form).not.toHaveTextContent('https://');
   });
 
+  it('is today’s link form, exactly, for a headline and a link with the url field empty', async () => {
+    openSave(query({ text: `Some headline ${SHARED}`, url: '' }));
+
+    expect(await screen.findByLabelText('Link')).toHaveValue(SHARED);
+    expect(screen.getByLabelText('Title')).toHaveValue('');
+    expect(screen.queryByRole('button', { name: 'Save quote' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Saved');
+    expect(server.saves().map((r) => r.body)).toEqual([{ url: SHARED }]);
+    expect(server.quoteSaves()).toEqual([]);
+  });
+
+  it('is the quote form for Chrome’s selection share, whose url field is empty', async () => {
+    openSave(query({ title: 'Example page', text: `"A passage."\n${SHARED}#:~:text=A%20passage`, url: '' }));
+
+    expect(await screen.findByRole('button', { name: 'Save quote' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Link')).not.toBeInTheDocument();
+  });
+
   it('is today’s link form when the text is only a link', async () => {
     openSave(query({ url: SHARED, title: 'Example page', text: SHARED }));
 

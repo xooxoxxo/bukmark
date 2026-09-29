@@ -218,9 +218,13 @@ function EditorForm({ link, hubs, onDone }: { link: LinkDetail; hubs: HubDto[]; 
 function LinkQuotes({ linkId, count }: { linkId: string; count: number }) {
   const quotes = useQuotes({ linkId });
   const items = quotes.data?.pages.flatMap((page) => page.items) ?? [];
+  // The link's count until the list arrives; then what is really there, which
+  // can differ when a quote was added or deleted since the link loaded.
+  const shown = quotes.isSuccess && !quotes.hasNextPage ? items.length : count;
+  if (shown === 0) return null;
   return (
     <section className={styles.quotes} aria-labelledby="edit-quotes">
-      <h3 id="edit-quotes" className={styles.label}>Quotes ({count})</h3>
+      <h3 id="edit-quotes" className={styles.label}>Quotes ({shown})</h3>
       {quotes.isPending ? <p className={styles.muted}>Loading…</p> : null}
       {quotes.isError ? (
         <p className={styles.error} role="alert">Could not load the quotes: {errorMessage(quotes.error)}</p>

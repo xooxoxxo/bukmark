@@ -206,7 +206,7 @@ describe('quote mutations', () => {
     const { result } = renderHook(() => useCreateQuote(), { wrapper: Wrapper });
     await result.current.mutateAsync({ url: 'https://example.com/a', text: 'Passage a.' });
     expect(client.createQuote).toHaveBeenCalledWith({ url: 'https://example.com/a', text: 'Passage a.' });
-    await waitFor(() => expect(keys()).toEqual(expect.arrayContaining(['quotes', 'links', 'hubs', 'stats'])));
+    await waitFor(() => expect(keys()).toEqual(expect.arrayContaining(['quotes', 'links', 'link', 'hubs', 'stats'])));
   });
 
   it('useUpdateQuote patches and refreshes the quote lists', async () => {
@@ -225,7 +225,7 @@ describe('quote mutations', () => {
     const { result } = renderHook(() => useDeleteQuote(), { wrapper: Wrapper });
     await result.current.mutateAsync('a');
     expect(client.deleteQuote).toHaveBeenCalledWith('a');
-    expect(keys()).toEqual(expect.arrayContaining(['quotes', 'links', 'stats']));
+    expect(keys()).toEqual(expect.arrayContaining(['quotes', 'links', 'link', 'stats']));
   });
 });
 

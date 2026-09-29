@@ -157,6 +157,19 @@ describe('LinkEditor quotes', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not copy/i);
   });
 
+  it('counts the quotes it loaded, and hides the list when none are left', async () => {
+    vi.mocked(client.fetchQuotes).mockResolvedValueOnce({ items: [quote({})], nextCursor: null });
+    const { unmount } = renderEditor({ quoteCount: 3 });
+    expect(await screen.findByRole('region', { name: 'Quotes (1)' })).toBeInTheDocument();
+    unmount();
+    useEditing.getState().close();
+
+    vi.mocked(client.fetchQuotes).mockResolvedValueOnce({ items: [], nextCursor: null });
+    renderEditor({ quoteCount: 1 });
+    await waitFor(() => expect(client.fetchQuotes).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole('region', { name: /Quotes/ })).not.toBeInTheDocument());
+  });
+
   it('asks for no quotes when the link has none', async () => {
     renderEditor({ quoteCount: 0 });
     await screen.findByLabelText('Title');
