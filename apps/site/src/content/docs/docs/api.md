@@ -55,11 +55,13 @@ Use your server's address in place of `http://localhost:3000`.
 | GET | `/api/links/lookup` | Whether a page is saved, and how its site is filed |
 | GET | `/api/links/changes` | Links changed or deleted since a time, for bookmark sync |
 | GET | `/api/links/:id` | One link, with its saved page text and last check |
+| GET | `/api/links/duplicates` | Find near-duplicate links (AMP, mobile variants) |
 | POST | `/api/links/check` | Check the links most in need of it now |
 | POST | `/api/links` | Create or update a link |
 | POST | `/api/links/import` | Import a batch of links |
 | POST | `/api/links/og-backfill` | Look up preview images not yet looked up |
 | POST | `/api/links/assign` | Assign links to hubs in bulk |
+| POST | `/api/links/merge` | Merge near-duplicate links into one |
 | PATCH | `/api/links/:id` | Update a single link |
 | POST | `/api/links/bulk` | Archive, activate, assign, or delete links |
 | GET | `/api/hubs` | List all hubs |
@@ -702,6 +704,113 @@ Apply one action to multiple links in a single request.
 
 **Errors:** `400` with `{ "error": "assign requires hubId" }` for `assign` or
 `unassign` without `hubId` (the message names the action).
+
+### GET /api/links/duplicates
+
+Find near-duplicate links that have escaped the URL normalizer: AMP variants,
+mobile subdomains, and similar patterns. Groups similar links and returns their
+minimal fields to help decide which to keep.
+
+**Response**
+
+```json
+{
+  "groups": [
+    {
+      "reason": "AMP variant",
+      "links": [
+        {
+          "id": "uuid",
+          "url": "https://example.com/article",
+          "title": "Article",
+          "hubIds": ["uuid"],
+          "status": "active",
+          "createdAt": "2024-01-15T10:30:00.000Z",
+          "dupeCount": 1
+        },
+        {
+          "id": "uuid",
+          "url": "https://example.com/article/amp/",
+          "title": "Article (AMP)",
+          "hubIds": [],
+          "status": "active",
+          "createdAt": "2024-01-16T11:45:00.000Z",
+          "dupeCount": 1
+        }
+      ]
+    }
+  ]
+}
+```
+
+- `groups` (array) — groups of near-duplicate links
+  - `reason` (string) — why they are grouped: one or more of "http and https", "AMP version", "Mobile site", "Trailing slash"
+  - `links` (array) — links in the group, sorted by creation date (oldest first)
+    - `id` (UUID) — link ID
+    - `url` (string) — the normalized URL
+    - `title` (string) — link title
+    - `hubIds` (array) — hubs this link is in
+    - `status` (string) — `active` or `archived`
+    - `createdAt` (ISO string) — when the link was created
+    - `dupeCount` (integer) — how many times this link's URL has been re-saved
+
+Empty if no duplicates are found.
+
+**Errors:** `401` `unauthenticated` ([401](#401-unauthenticated)).
+
+### POST /api/links/merge
+
+Merge multiple near-duplicate links into one, combining their hubs and metadata.
+The kept link's title is replaced with the longer one from the merged links,
+and notes are concatenated with a blank line between them. The merged links are
+deleted (they appear in the sync feed as deletions).
+
+**Body**
+
+```json
+{
+  "keepId": "uuid-to-keep",
+  "mergeIds": ["uuid-to-merge-1", "uuid-to-merge-2"]
+}
+```
+
+| Name | Meaning |
+| -- | -- |
+| `keepId` | UUID of the link to keep (required) |
+| `mergeIds` | UUIDs of links to merge into the kept one, 1–50 (required) |
+
+`keepId` must not be in `mergeIds`.
+
+**Response**
+
+```json
+{
+  "id": "uuid",
+  "url": "https://example.com/article",
+  "title": "Article",
+  "note": "Combined notes from both links",
+  "dupeCount": 3,
+  "hubIds": ["uuid1", "uuid2"]
+}
+```
+
+| Name | Meaning |
+| -- | -- |
+| `id`, `url`, `title`, `note` | The kept link's final values |
+| `dupeCount` | Sum of all `dupeCount` values from kept and merged links |
+| `hubIds` | All hubs from both links (duplicates removed) |
+
+**Errors**
+
+| Status | Body | When |
+| -- | -- | -- |
+| `400` | `{ "error": "keepId cannot be in mergeIds" }` | `keepId` is in `mergeIds` |
+| `400` | `{ "error": "mergeIds contains duplicates" }` | Same ID appears twice in `mergeIds` |
+| `400` | `{ "error": "keep link must be active" }` | Keep link is archived |
+| `400` | `{ "error": "all merge links must be active" }` | One or more merge links are archived |
+| `404` | `{ "error": "keep link not found" }` | Keep link ID does not exist |
+| `404` | `{ "error": "some merge links not found" }` | One or more merge link IDs do not exist |
+| `401` | `{ "error": "unauthenticated" }` | No valid credentials ([401](#401-unauthenticated)) |
 
 ### GET /api/hubs
 

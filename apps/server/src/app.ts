@@ -8,6 +8,7 @@ import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { config } from './config.js';
 import { getDb, type Db } from './db/client.js';
 import { linkRoutes } from './routes/links.js';
+import { duplicateRoutes } from './routes/duplicates.js';
 import { hubRoutes } from './routes/hubs.js';
 import { exportRoutes } from './routes/export.js';
 import { fetchOgImage as defaultFetchOgImage } from './og/fetchOgImage.js';
@@ -99,6 +100,7 @@ export async function buildApp(
     api.addHook('onRequest', requireAuth);
     await api.register(protectedAuthRoutes, { prefix: '/auth' });
     await api.register(linkRoutes, { checkPage });
+    await api.register(duplicateRoutes);
     await api.register(hubRoutes);
     await api.register(exportRoutes);
   }, { prefix: '/api' });
