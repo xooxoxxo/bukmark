@@ -6,6 +6,7 @@ import { Layout } from './components/Layout';
 import { HubPage } from './pages/HubPage';
 import { LinksPage } from './pages/LinksPage';
 import { SavePage } from './pages/SavePage';
+import { SettingsPage } from './pages/SettingsPage';
 import { TokensPage } from './pages/TokensPage';
 
 const queryClient = createQueryClient();
@@ -17,6 +18,7 @@ export function AppRoutes() {
       <Route element={<Layout />}>
         <Route index element={<LinksPage />} />
         <Route path="hubs/:hubId" element={<HubPage />} />
+        <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/tokens" element={<TokensPage />} />
       </Route>
     </Routes>

@@ -30,7 +30,6 @@ export function LinkCard({ link }: { link: LinkDto }) {
           onCheckedChange={() => toggle(link.id)}
           aria-label={`Select ${link.title || link.url}`}
         />
-        <span className={styles.badge}>{link.relevance ?? '–'}</span>
       </div>
       <div className={styles.body}>
         <a href={link.url} target="_blank" rel="noreferrer" className={styles.title}>

@@ -1,6 +1,6 @@
 .row {
   display: grid;
-  grid-template-columns: auto auto 3rem minmax(0, 1fr) auto;
+  grid-template-columns: auto 3rem minmax(0, 1fr) auto;
   gap: var(--bk-space-md);
   align-items: start;
   min-height: 76px;
@@ -14,23 +14,8 @@
   margin-top: 0.25rem;
 }
 
-.badge {
-  grid-column: 2;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border: 1px solid var(--bk-rule);
-  background: var(--bk-paper-2);
-  color: var(--bk-muted);
-  font-family: var(--bk-font-mono);
-  font-size: 0.8125rem;
-  font-weight: 700;
-}
-
 .thumb {
-  grid-column: 3;
+  grid-column: 2;
   display: block;
   width: 3rem;
   height: 3rem;
@@ -38,8 +23,17 @@
   background: var(--bk-paper-2);
 }
 
+/* No image: the same square, empty, so every title starts in one column. */
+.thumbEmpty {
+  grid-column: 2;
+  display: block;
+  width: 3rem;
+  height: 3rem;
+  background: var(--bk-paper-2);
+}
+
 .body {
-  grid-column: 4;
+  grid-column: 3;
   min-width: 0;
 }
 
@@ -86,7 +80,7 @@
 }
 
 .chips {
-  grid-column: 5;
+  grid-column: 4;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -156,20 +150,21 @@
 
 @media (max-width: 52rem) {
   .row {
-    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
     gap: var(--bk-space-sm);
   }
 
-  .thumb {
+  .thumb,
+  .thumbEmpty {
     display: none;
   }
 
   .body {
-    grid-column: 3;
+    grid-column: 2;
   }
 
   .chips {
-    grid-column: 3;
+    grid-column: 2;
     justify-content: flex-start;
     max-width: none;
   }

@@ -89,6 +89,13 @@
   }
 }
 
+/* A custom accent (Settings > Appearance, theme.ts) sets --bk-accent inline on
+   <html>; its soft tint is mixed from it and the current paper, so it follows
+   light and dark like the brand one does. */
+:root[data-accent] {
+  --accent-soft: color-mix(in oklch, var(--bk-accent) 22%, var(--bk-paper));
+}
+
 * {
   box-sizing: border-box;
   scrollbar-color: var(--bk-accent) transparent;

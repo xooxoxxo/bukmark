@@ -10,12 +10,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <script>
-      // Stamp the stored theme before first paint. Without this the app renders
+      // Stamp the stored theme and accent before first paint. Without this the app renders
       // one frame of cream before React mounts, which is a visible flash for
       // anyone who chose dark.
       try {
         var t = localStorage.getItem('bukmark-theme');
         if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+        var a = localStorage.getItem('bukmark-accent');
+        if (a && /^#[0-9a-f]{6}$/i.test(a)) {
+          document.documentElement.style.setProperty('--bk-accent', a);
+          document.documentElement.dataset.accent = 'custom';
+        }
       } catch (e) {}
     </script>
   </head>

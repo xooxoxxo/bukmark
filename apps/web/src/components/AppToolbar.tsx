@@ -16,6 +16,7 @@ const FORMATS: [ExportFormat, string][] = [
 export function AppToolbar() {
   const { hubId } = useParams<{ hubId: string }>();
   const onTokens = useMatch('/settings/tokens') !== null;
+  const onSettings = useMatch('/settings') !== null;
   const { data: hubs } = useHubs();
   const hub = hubs?.items.find((item) => item.id === hubId);
   const q = useFilters((state) => state.q);
@@ -66,11 +67,11 @@ export function AppToolbar() {
     }
   }
 
-  if (onTokens) {
+  if (onTokens || onSettings) {
     return (
       <header className={styles.bar} aria-label="Application toolbar">
         <div className={styles.identity}>
-          <h2 className={styles.title}>Access tokens</h2>
+          <h2 className={styles.title}>{onTokens ? 'Access tokens' : 'Settings'}</h2>
         </div>
       </header>
     );

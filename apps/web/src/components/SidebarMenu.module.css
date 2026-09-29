@@ -2,20 +2,9 @@
   margin-top: var(--bk-space-md);
 }
 
-/* Kept in the layout but out of sight: the menu item drives it. */
-.file {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 .trigger {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
   min-height: 2.75rem;
   padding: var(--bk-space-xs) var(--bk-space-md);
@@ -25,6 +14,7 @@
   font-family: var(--bk-font-display);
   font-size: var(--bk-text-sm);
   font-weight: 700;
+  text-decoration: none;
   white-space: nowrap;
   transition: background var(--bk-dur-micro) var(--bk-ease-out),
     border-color var(--bk-dur-micro) var(--bk-ease-out),
@@ -32,119 +22,8 @@
 }
 
 .trigger:hover,
-.trigger[data-state='open'] {
+.trigger[aria-current='page'] {
   border-color: var(--bk-accent);
   background: var(--bk-accent);
-  color: var(--bk-paper);
-}
-
-.menu {
-  z-index: 70;
-  min-width: 14rem;
-  max-width: calc(100vw - 1.5rem);
-  padding: var(--bk-space-2xs);
-  border: 2px solid var(--bk-ink);
-  background: var(--bk-paper);
-  color: var(--bk-ink);
-}
-
-.menuItem {
-  display: flex;
-  align-items: center;
-  min-height: 2.75rem;
-  padding: var(--bk-space-xs) var(--bk-space-sm);
-  color: var(--bk-ink);
-  font-family: var(--bk-font-body);
-  font-size: var(--bk-text-sm);
-  font-weight: 600;
-  line-height: 1.2;
-  text-decoration: none;
-  white-space: nowrap;
-  outline: none;
-  cursor: default;
-  user-select: none;
-}
-
-.menuItem[data-highlighted] {
-  background: var(--bk-ink);
-  color: var(--bk-paper);
-}
-
-.menuItem[data-disabled] {
-  opacity: 0.45;
-}
-
-.separator {
-  height: 1px;
-  margin: var(--bk-space-2xs) 0;
-  background: var(--bk-rule);
-}
-
-.note {
-  max-width: 22ch;
-  margin: var(--bk-space-xs) var(--bk-space-sm);
-  color: var(--bk-neutral);
-  font-size: 0.8125rem;
-  line-height: 1.4;
-}
-
-.note a {
-  color: var(--bk-accent);
-}
-
-.status,
-.statusError {
-  margin: var(--bk-space-sm) 0 0;
-  font-size: 0.8125rem;
-  line-height: 1.4;
-}
-
-.status {
-  color: var(--bk-neutral);
-}
-
-.statusError {
-  color: var(--danger);
-}
-
-.label {
-  padding: var(--bk-space-xs) var(--bk-space-sm) var(--bk-space-2xs);
-  color: var(--bk-neutral);
-  font-family: var(--bk-font-display);
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.radioItem {
-  display: flex;
-  align-items: center;
-  gap: var(--bk-space-xs);
-  min-height: 2.5rem;
-  padding: var(--bk-space-2xs) var(--bk-space-sm);
-  color: var(--bk-ink);
-  font-family: var(--bk-font-body);
-  font-size: var(--bk-text-sm);
-  font-weight: 600;
-  outline: none;
-  cursor: default;
-  user-select: none;
-}
-
-.radioItem[data-highlighted] {
-  background: var(--bk-ink);
-  color: var(--bk-paper);
-}
-
-/* Fixed-width so the labels stay on one baseline whether ticked or not. */
-.radioMark {
-  display: inline-flex;
-  justify-content: center;
-  width: 1rem;
-  color: var(--bk-accent);
-}
-
-.radioItem[data-highlighted] .radioMark {
   color: var(--bk-paper);
 }

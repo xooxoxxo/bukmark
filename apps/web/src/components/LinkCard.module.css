@@ -39,23 +39,6 @@
   left: var(--bk-space-sm);
 }
 
-.badge {
-  position: absolute;
-  top: var(--bk-space-sm);
-  right: var(--bk-space-sm);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border: 1px solid var(--bk-rule);
-  background: var(--bk-paper);
-  color: var(--bk-muted);
-  font-family: var(--bk-font-mono);
-  font-size: 0.8125rem;
-  font-weight: 700;
-}
-
 .body {
   display: flex;
   flex: 1;

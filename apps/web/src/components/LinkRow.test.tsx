@@ -37,22 +37,22 @@ describe('LinkRow', () => {
     useSelection.getState().clear();
   });
 
-  it('renders title link, relevance badge, note, dupe count and hub chips', async () => {
+  it('renders title link, note, dupe count and hub chips, and no relevance number', async () => {
     renderRow(base);
     const anchor = screen.getByRole('link', { name: 'Example post' });
     expect(anchor).toHaveAttribute('href', 'https://example.com/post');
     expect(anchor).toHaveAttribute('target', '_blank');
-    expect(screen.getByText('4')).toBeInTheDocument();
+    expect(screen.queryByText('4')).not.toBeInTheDocument();
     expect(screen.getByText('why kept')).toBeInTheDocument();
     expect(screen.getByText('×3')).toBeInTheDocument();
     expect(await screen.findByText('AI')).toBeInTheDocument();
     expect(screen.getByText('Rust')).toBeInTheDocument();
   });
 
-  it('hides dupe marker when dupeCount is 1 and shows dash for null relevance', () => {
+  it('hides dupe marker when dupeCount is 1', () => {
     renderRow({ ...base, dupeCount: 1, relevance: null, note: '', hubIds: [] });
     expect(screen.queryByText(/×/)).not.toBeInTheDocument();
-    expect(screen.getByText('–')).toBeInTheDocument();
+    expect(screen.queryByText('–')).not.toBeInTheDocument();
   });
 
   it('falls back to url as link text when title is empty', () => {

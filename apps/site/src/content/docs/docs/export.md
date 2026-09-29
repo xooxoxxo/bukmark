@@ -49,6 +49,12 @@ a decision you make. The MCP server reads those hints.
 
 ### From the web app
 
+Everything at once: open **Settings** in the sidebar. It has **Export HTML**,
+**Export JSON** and **Export CSV** for every active link, and **Full backup**:
+JSON, archived links included.
+
+One hub or a search:
+
 1. Open the view you want: the export takes exactly what you are looking at.
 2. Open the **•••** menu next to the view's title and choose a format:
    **Export HTML**, **Export JSON**, **Export CSV**.

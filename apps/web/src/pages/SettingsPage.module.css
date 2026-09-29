@@ -1,0 +1,237 @@
+/* Layout's shell hides overflow on desktop, so this page is its own scroller,
+   as TokensPage is. */
+.page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: var(--bk-space-md) 0 var(--bk-space-2xl);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bk-space-lg);
+  max-width: 44rem;
+  padding: var(--bk-space-lg) 0;
+  border-top: 2px solid var(--bk-ink);
+}
+
+.section:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.heading {
+  margin: 0;
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-lg);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bk-space-xs);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.label {
+  margin: 0 0 var(--bk-space-2xs);
+  padding: 0;
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-sm);
+  font-weight: 700;
+}
+
+.hint {
+  margin: 0;
+  color: var(--bk-neutral);
+  font-size: var(--bk-text-sm);
+  max-width: 60ch;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--bk-space-md);
+}
+
+/* ---- Theme: one bordered strip of three choices ---- */
+.segmented {
+  display: inline-flex;
+  width: fit-content;
+  border: 2px solid var(--bk-ink);
+}
+
+.segment {
+  position: relative;
+  display: flex;
+}
+
+.segment + .segment {
+  border-left: 2px solid var(--bk-ink);
+}
+
+.segment input,
+.swatch input[type='radio'] {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segment span {
+  display: flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0 var(--bk-space-md);
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-sm);
+  font-weight: 700;
+}
+
+.segment input:checked + span {
+  background: var(--bk-ink);
+  color: var(--bk-paper);
+}
+
+.segment input:focus-visible + span,
+.swatch input:focus-visible + .chip {
+  outline: 2px solid var(--bk-accent);
+  outline-offset: 2px;
+}
+
+/* ---- Accent: swatches, then a native colour picker ---- */
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--bk-space-sm);
+}
+
+.swatch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--bk-space-xs);
+}
+
+.chip {
+  display: block;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid var(--bk-ink);
+}
+
+.swatch input:checked + .chip {
+  outline: 3px solid var(--bk-ink);
+  outline-offset: 3px;
+}
+
+.custom input {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 2px solid var(--bk-ink);
+  background: var(--bk-paper);
+  cursor: pointer;
+}
+
+.customOn {
+  outline: 3px solid var(--bk-ink);
+  outline-offset: 3px;
+}
+
+.customLabel {
+  font-size: var(--bk-text-sm);
+}
+
+.warning {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--bk-text-sm);
+}
+
+/* ---- Buttons and links ---- */
+.button {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 2.5rem;
+  padding: 0 var(--bk-space-md);
+  border: 2px solid var(--bk-ink);
+  background: transparent;
+  color: var(--bk-ink);
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-sm);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--bk-dur-micro) var(--bk-ease-out),
+    border-color var(--bk-dur-micro) var(--bk-ease-out),
+    color var(--bk-dur-micro) var(--bk-ease-out);
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--bk-accent);
+  background: var(--bk-accent);
+  color: var(--bk-paper);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.linkButton {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--bk-accent);
+  font: inherit;
+  font-size: var(--bk-text-sm);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.exports {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bk-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.exports li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--bk-space-md);
+}
+
+.exports .button {
+  min-width: 9.5rem;
+}
+
+.status {
+  margin: var(--bk-space-xs) 0 0;
+  font-size: var(--bk-text-sm);
+}
+
+.error {
+  margin: var(--bk-space-xs) 0 0;
+  color: var(--danger);
+  font-size: var(--bk-text-sm);
+}

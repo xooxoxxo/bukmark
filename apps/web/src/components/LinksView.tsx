@@ -55,7 +55,6 @@ export function LinksView({ hubId }: { hubId?: string }) {
               }
               aria-label="Select all loaded"
             />
-            Select all loaded
           </label>
           <BulkBar selectedLinks={selectedLinks} />
         </div>

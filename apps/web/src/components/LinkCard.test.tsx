@@ -34,11 +34,11 @@ describe('LinkCard', () => {
     useSelection.getState().clear();
   });
 
-  it('renders image, title link, badge and hub chips', async () => {
+  it('renders image, title link and hub chips, and no relevance number', async () => {
     renderCard(base);
     expect(screen.getByRole('presentation')).toHaveAttribute('src', 'https://cdn.example.com/card.png');
     expect(screen.getByRole('link', { name: 'Card link' })).toHaveAttribute('href', 'https://example.com/card');
-    expect(screen.getByText('4')).toBeInTheDocument();
+    expect(screen.queryByText('4')).not.toBeInTheDocument();
     expect(await screen.findByText('AI')).toBeInTheDocument();
   });
 

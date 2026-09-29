@@ -188,7 +188,7 @@ describe('AuthGate', () => {
     expect(client.fetchLinks).toHaveBeenCalledTimes(1);
   });
 
-  describe('logging out from the Settings menu', () => {
+  describe('logging out from Settings', () => {
     beforeEach(() => {
       vi.mocked(client.fetchHubs).mockResolvedValue({ items: [] });
       vi.mocked(client.fetchStats).mockResolvedValue({
@@ -205,8 +205,8 @@ describe('AuthGate', () => {
       renderGate(<AppRoutes />);
       expect(await screen.findByText('0 results')).toBeInTheDocument();
       expect(cachedKeys()).toContainEqual(['hubs']);
-      await userEvent.click(screen.getByRole('button', { name: 'Settings' }));
-      await userEvent.click(await screen.findByRole('menuitem', { name: 'Log out' }));
+      await userEvent.click(screen.getByRole('link', { name: 'Settings' }));
+      await userEvent.click(await screen.findByRole('button', { name: 'Log out' }));
     }
 
     it('returns to the login screen and keeps nothing the session loaded', async () => {
@@ -238,7 +238,7 @@ describe('AuthGate', () => {
       await logOut();
 
       expect(await screen.findByRole('alert')).toHaveTextContent('Failed to fetch');
-      expect(screen.getByRole('heading', { name: 'All links' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     });
   });
 });

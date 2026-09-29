@@ -23,7 +23,6 @@ export function LinkRow({ link }: { link: LinkDto }) {
         onCheckedChange={() => toggle(link.id)}
         aria-label={`Select ${link.title}`}
       />
-      <span className={styles.badge}>{link.relevance ?? '–'}</span>
       {link.imageUrl && !thumbBroken ? (
         <img
           className={styles.thumb}
@@ -33,7 +32,9 @@ export function LinkRow({ link }: { link: LinkDto }) {
           referrerPolicy="no-referrer"
           onError={() => setThumbBroken(true)}
         />
-      ) : null}
+      ) : (
+        <span className={styles.thumbEmpty} aria-hidden="true" />
+      )}
       <div className={styles.body}>
         <div className={styles.titleLine}>
           <a href={link.url} target="_blank" rel="noreferrer">
