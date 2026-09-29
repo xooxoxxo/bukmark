@@ -152,8 +152,9 @@ describe('quotes api', () => {
     expect(res.json().items.map((q: { text: string }) => q.text).sort()).toEqual(['JavaScript tips.', 'Python guide.']);
   });
 
+  const b64 = (v: string) => Buffer.from(v).toString('base64url');
   it('GET validates limit and cursor', async () => {
-    for (const url of ['/api/quotes?limit=0', '/api/quotes?limit=101', '/api/quotes?cursor=garbage', '/api/quotes?linkId=nope']) {
+    for (const url of ['/api/quotes?limit=0', '/api/quotes?limit=101', '/api/quotes?cursor=garbage', `/api/quotes?cursor=${b64('2026-99-99T00:00:00.000000Z|00000000-0000-4000-8000-000000000000')}`, `/api/quotes?cursor=${b64('2026-02-31T00:00:00.000000Z|00000000-0000-4000-8000-000000000000')}`, `/api/quotes?cursor=${b64('2026-01-01T00:00:00.000000Z|zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz')}`, '/api/quotes?linkId=nope']) {
       expect((await app.inject({ method: 'GET', url, headers })).statusCode, url).toBe(400);
     }
   });

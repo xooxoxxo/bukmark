@@ -1,5 +1,5 @@
 import { Type } from '@sinclair/typebox';
-import { and, desc, eq, getTableColumns, ne, sql as dsql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, ne, sql as dsql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { pgCode } from '../db/client.js';
 import { quotes } from '../db/schema.js';
@@ -30,13 +30,17 @@ const IdParams = Type.Object({ id: Type.String({ format: 'uuid' }) });
 const cursorTime = (value: unknown) =>
   dsql<string>`to_char(${value} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
 
-const CURSOR = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z)\|([0-9a-f-]{36})$/i;
+const CURSOR = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z)\|([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 /** Opaque to clients: base64url of "<created_at>|<id>". */
 const encodeCursor = (at: string, id: string) => Buffer.from(`${at}|${id}`).toString('base64url');
 function decodeCursor(raw: string): { at: string; id: string } | null {
   const m = CURSOR.exec(Buffer.from(raw, 'base64url').toString('utf8'));
-  return m ? { at: m[1]!, id: m[2]! } : null;
+  if (!m) return null;
+  // Impossible dates (month 99, Feb 31) must not reach the Postgres cast.
+  const ms = new Date(m[1]!.replace(/\d{3}Z$/, 'Z'));
+  if (Number.isNaN(ms.getTime()) || ms.toISOString().slice(0, 19) !== m[1]!.slice(0, 19)) return null;
+  return { at: m[1]!, id: m[2]! };
 }
 
 export async function quoteRoutes(app: FastifyInstance): Promise<void> {
@@ -90,7 +94,12 @@ export async function quoteRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const rows = await req.server.db
-      .select({ ...getTableColumns(quotes), at: cursorTime(quotes.createdAt) })
+      .select({
+        id: quotes.id, linkId: quotes.linkId, text: quotes.text, note: quotes.note,
+        sourceUrl: quotes.sourceUrl, sourceTitle: quotes.sourceTitle,
+        createdAt: quotes.createdAt, updatedAt: quotes.updatedAt,
+        at: cursorTime(quotes.createdAt),
+      })
       .from(quotes)
       .where(and(...conds))
       .orderBy(desc(quotes.createdAt), desc(quotes.id))
@@ -99,7 +108,9 @@ export async function quoteRoutes(app: FastifyInstance): Promise<void> {
     const page = rows.slice(0, limit);
     const last = page.at(-1);
     return {
-      items: page.map(toQuoteDTO),
+      items: page.map(({ at: _at, ...row }) => ({
+        ...row, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(),
+      })),
       nextCursor: rows.length > limit && last ? encodeCursor(last.at, last.id) : null,
     };
   });
