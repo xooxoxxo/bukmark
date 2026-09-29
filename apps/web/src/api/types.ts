@@ -49,6 +49,7 @@ export interface Stats {
   unassigned: number;
   broken: number;
   unchecked: number;
+  quotes: number;
 }
 
 export interface LinksQuery {
@@ -75,4 +76,29 @@ export interface HubPatch {
   name?: string;
   description?: string;
   status?: 'active' | 'dormant' | 'archived';
+}
+
+/** A passage saved from a page. The source is copied at save time, so it outlives the link. */
+export interface QuoteDto {
+  id: string;
+  /** Null once the page's link is deleted; the quote keeps its source. */
+  linkId: string | null;
+  text: string;
+  note: string;
+  sourceUrl: string;
+  sourceTitle: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface QuotesQuery {
+  q?: string;
+  linkId?: string;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface QuotePatch {
+  text?: string;
+  note?: string;
 }

@@ -6,6 +6,9 @@ import type {
   LinkDto,
   LinkPatch,
   LinksQuery,
+  QuoteDto,
+  QuotePatch,
+  QuotesQuery,
   Stats,
 } from './types';
 
@@ -35,6 +38,8 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new ApiError(message, res.status, code);
   }
+  // 204 No Content (a quote's DELETE) has no body to parse.
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
@@ -161,6 +166,48 @@ export function patchHub(id: string, body: HubPatch): Promise<{ id: string }> {
 
 export function deleteHub(id: string): Promise<{ ok: boolean }> {
   return http(`/hubs/${id}`, { method: 'DELETE' });
+}
+
+export interface CreateQuoteInput {
+  url: string;
+  title?: string;
+  text: string;
+  note?: string;
+}
+
+export interface CreateQuoteResult {
+  quote: QuoteDto;
+  /** The page's link; `created` when the quote saved the page too. */
+  link: { id: string; created: boolean };
+}
+
+export function createQuote(input: CreateQuoteInput): Promise<CreateQuoteResult> {
+  return http('/quotes', jsonInit('POST', input));
+}
+
+export interface QuotesPage {
+  items: QuoteDto[];
+  /** Pass back as `cursor` for the next (older) page; null on the last one. */
+  nextCursor: string | null;
+}
+
+export function fetchQuotes(query: QuotesQuery = {}): Promise<QuotesPage> {
+  const params = new URLSearchParams();
+  if (query.q) params.set('q', query.q);
+  if (query.linkId) params.set('linkId', query.linkId);
+  if (query.cursor) params.set('cursor', query.cursor);
+  if (query.limit !== undefined) params.set('limit', String(query.limit));
+  const qs = params.toString();
+  return http(qs ? `/quotes?${qs}` : '/quotes');
+}
+
+export async function patchQuote(id: string, body: QuotePatch): Promise<QuoteDto> {
+  const { quote } = await http<{ quote: QuoteDto }>(`/quotes/${id}`, jsonInit('PATCH', body));
+  return quote;
+}
+
+export function deleteQuote(id: string): Promise<void> {
+  return http(`/quotes/${id}`, { method: 'DELETE' });
 }
 
 export function fetchStats(): Promise<Stats> {

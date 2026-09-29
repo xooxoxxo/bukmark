@@ -19,7 +19,7 @@ describe('App shell', () => {
       active: 1,
       archived: 0,
       hubs: 0,
-      unassigned: 1, broken: 0, unchecked: 0,
+      unassigned: 1, broken: 0, unchecked: 0, quotes: 0,
     });
     vi.mocked(client.fetchLinks).mockResolvedValue({ items: [], total: 0 });
     const Wrapper = makeWrapper();
@@ -37,5 +37,25 @@ describe('App shell', () => {
     expect(await screen.findByRole('button', { name: 'Unassigned 1' })).toBeInTheDocument();
     expect(screen.queryByText('1 links')).not.toBeInTheDocument();
     expect(await screen.findByText('0 results')).toBeInTheDocument();
+  });
+
+  it('opens the Quotes view at /quotes', async () => {
+    vi.mocked(client.fetchAuthStatus).mockResolvedValue({ setupComplete: true, authenticated: true });
+    vi.mocked(client.fetchHubs).mockResolvedValue({ items: [] });
+    vi.mocked(client.fetchStats).mockResolvedValue({
+      links: 0, active: 0, archived: 0, hubs: 0, unassigned: 0, broken: 0, unchecked: 0, quotes: 0,
+    });
+    vi.mocked(client.fetchQuotes).mockResolvedValue({ items: [], nextCursor: null });
+    const Wrapper = makeWrapper();
+    render(
+      <Wrapper>
+        <MemoryRouter initialEntries={['/quotes']}>
+          <AppRoutes />
+        </MemoryRouter>
+      </Wrapper>,
+    );
+    expect(screen.getByRole('heading', { name: 'Quotes' })).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Search quotes' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'No quotes yet' })).toBeInTheDocument();
   });
 });

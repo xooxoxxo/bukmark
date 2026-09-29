@@ -1,9 +1,21 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeWrapper } from '../test/utils';
 import * as client from './client';
-import { PAGE_SIZE, useBulkLinks, useImportLinks, useLinksInfinite } from './queries';
-import type { LinkDto } from './types';
+import {
+  PAGE_SIZE,
+  QUOTES_PAGE_SIZE,
+  useBulkLinks,
+  useCreateQuote,
+  useDeleteQuote,
+  useImportLinks,
+  useLinksInfinite,
+  useQuotes,
+  useUpdateQuote,
+} from './queries';
+import type { LinkDto, QuoteDto } from './types';
 
 vi.mock('./client');
 
@@ -131,5 +143,87 @@ describe('useImportLinks', () => {
       expect(c[0].length).toBeLessThanOrEqual(200);
       expect(new TextEncoder().encode(JSON.stringify({ items: c[0] })).length).toBeLessThan(800_000 + 60_000);
     }
+  });
+});
+
+function quote(id: string): QuoteDto {
+  return {
+    id,
+    linkId: 'l1',
+    text: `Passage ${id}.`,
+    note: '',
+    sourceUrl: 'https://example.com/a',
+    sourceTitle: 'Example',
+    createdAt: '2026-09-29T00:00:00.000Z',
+    updatedAt: '2026-09-29T00:00:00.000Z',
+  };
+}
+
+/** A wrapper whose client the test can watch for invalidations. */
+function spiedWrapper() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  function Wrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  }
+  const keys = () => invalidate.mock.calls.map((c) => (c[0] as { queryKey: string[] }).queryKey[0]);
+  return { Wrapper, keys };
+}
+
+describe('useQuotes', () => {
+  beforeEach(() => {
+    vi.mocked(client.fetchQuotes).mockReset();
+  });
+
+  it('asks for the first page with no cursor, then follows nextCursor until it is null', async () => {
+    vi.mocked(client.fetchQuotes)
+      .mockResolvedValueOnce({ items: [quote('a')], nextCursor: 'c1' })
+      .mockResolvedValueOnce({ items: [quote('b')], nextCursor: null });
+    const { result } = renderHook(() => useQuotes({ q: 'rust' }), { wrapper: makeWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(client.fetchQuotes).toHaveBeenCalledWith({ q: 'rust', limit: QUOTES_PAGE_SIZE });
+    expect(result.current.hasNextPage).toBe(true);
+
+    await result.current.fetchNextPage();
+    await waitFor(() => expect(result.current.data?.pages.length).toBe(2));
+    expect(client.fetchQuotes).toHaveBeenLastCalledWith({ q: 'rust', limit: QUOTES_PAGE_SIZE, cursor: 'c1' });
+    expect(result.current.hasNextPage).toBe(false);
+  });
+
+  it('lists one link\'s quotes', async () => {
+    vi.mocked(client.fetchQuotes).mockResolvedValue({ items: [], nextCursor: null });
+    const { result } = renderHook(() => useQuotes({ linkId: 'l1' }), { wrapper: makeWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(client.fetchQuotes).toHaveBeenCalledWith({ linkId: 'l1', limit: QUOTES_PAGE_SIZE });
+  });
+});
+
+describe('quote mutations', () => {
+  it('useCreateQuote refreshes quotes, links, hubs and stats: a quote can save its page', async () => {
+    vi.mocked(client.createQuote).mockResolvedValue({ quote: quote('a'), link: { id: 'l1', created: true } });
+    const { Wrapper, keys } = spiedWrapper();
+    const { result } = renderHook(() => useCreateQuote(), { wrapper: Wrapper });
+    await result.current.mutateAsync({ url: 'https://example.com/a', text: 'Passage a.' });
+    expect(client.createQuote).toHaveBeenCalledWith({ url: 'https://example.com/a', text: 'Passage a.' });
+    await waitFor(() => expect(keys()).toEqual(expect.arrayContaining(['quotes', 'links', 'hubs', 'stats'])));
+  });
+
+  it('useUpdateQuote patches and refreshes the quote lists', async () => {
+    vi.mocked(client.patchQuote).mockResolvedValue({ ...quote('a'), note: 'n' });
+    const { Wrapper, keys } = spiedWrapper();
+    const { result } = renderHook(() => useUpdateQuote(), { wrapper: Wrapper });
+    const out = await result.current.mutateAsync({ id: 'a', body: { note: 'n' } });
+    expect(out.note).toBe('n');
+    expect(client.patchQuote).toHaveBeenCalledWith('a', { note: 'n' });
+    expect(keys()).toContain('quotes');
+  });
+
+  it('useDeleteQuote deletes and refreshes quotes, links and stats', async () => {
+    vi.mocked(client.deleteQuote).mockResolvedValue(undefined);
+    const { Wrapper, keys } = spiedWrapper();
+    const { result } = renderHook(() => useDeleteQuote(), { wrapper: Wrapper });
+    await result.current.mutateAsync('a');
+    expect(client.deleteQuote).toHaveBeenCalledWith('a');
+    expect(keys()).toEqual(expect.arrayContaining(['quotes', 'links', 'stats']));
   });
 });

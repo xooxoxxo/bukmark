@@ -196,7 +196,7 @@ describe('AuthGate', () => {
         active: 0,
         archived: 0,
         hubs: 0,
-        unassigned: 0, broken: 0, unchecked: 0,
+        unassigned: 0, broken: 0, unchecked: 0, quotes: 0,
       });
       vi.mocked(client.fetchLinks).mockResolvedValue({ items: [], total: 0 });
     });

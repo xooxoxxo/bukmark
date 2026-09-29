@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-query';
 import * as api from './client';
 import { chunkBySize } from './importSize';
-import type { BulkAction, HubPatch, LinkPatch, LinkSort } from './types';
+import type { BulkAction, HubPatch, LinkPatch, LinkSort, QuotePatch } from './types';
 
 export const PAGE_SIZE = 200;
 
@@ -188,6 +188,57 @@ export function useDeleteHub() {
   const invalidate = useInvalidate('hubs', 'links', 'stats');
   return useMutation({
     mutationFn: (id: string) => api.deleteHub(id),
+    onSuccess: () => invalidate(),
+  });
+}
+
+/** The server's default page of quotes (it allows up to 100). */
+export const QUOTES_PAGE_SIZE = 50;
+
+export interface QuoteFilters {
+  q?: string;
+  linkId?: string;
+}
+
+/** Quotes newest first, a page at a time: each page's nextCursor asks for the next, older one. */
+export function useQuotes(filters: QuoteFilters = {}) {
+  return useInfiniteQuery({
+    queryKey: ['quotes', filters],
+    queryFn: ({ pageParam }) =>
+      api.fetchQuotes({
+        ...filters,
+        limit: QUOTES_PAGE_SIZE,
+        ...(pageParam === undefined ? {} : { cursor: pageParam }),
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
+}
+
+export function useCreateQuote() {
+  // A quote from a page not saved yet saves the page too, unsorted.
+  const invalidate = useInvalidate('quotes', 'links', 'hubs', 'stats');
+  return useMutation({
+    mutationFn: (input: api.CreateQuoteInput) => api.createQuote(input),
+    onSuccess: () => {
+      void invalidate();
+    },
+  });
+}
+
+export function useUpdateQuote() {
+  const invalidate = useInvalidate('quotes');
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: QuotePatch }) => api.patchQuote(id, body),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useDeleteQuote() {
+  // Links carry how many quotes they have; stats carry the total.
+  const invalidate = useInvalidate('quotes', 'links', 'stats');
+  return useMutation({
+    mutationFn: (id: string) => api.deleteQuote(id),
     onSuccess: () => invalidate(),
   });
 }

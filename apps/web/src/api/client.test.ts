@@ -1,5 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, bulkLinks, fetchLinks, fetchStats, importLinks, patchLink } from './client';
+import {
+  ApiError,
+  bulkLinks,
+  createQuote,
+  deleteQuote,
+  fetchLinks,
+  fetchQuotes,
+  fetchStats,
+  importLinks,
+  patchLink,
+  patchQuote,
+} from './client';
 
 function okResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -89,5 +100,53 @@ describe('api client', () => {
     const orphanQuotes = [{ text: 'o', sourceUrl: 'https://gone.com' }];
     await importLinks(items, orphanQuotes);
     expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toEqual({ items, orphanQuotes });
+  });
+
+  it('createQuote posts the page and the text', async () => {
+    fetchMock.mockResolvedValue(okResponse({ quote: { id: 'q1' }, link: { id: 'l1', created: true } }));
+    const out = await createQuote({ url: 'https://a.com', title: 'A', text: 'Passage.' });
+    expect(out.link).toEqual({ id: 'l1', created: true });
+    expect(fetchMock).toHaveBeenCalledWith('/api/quotes', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url: 'https://a.com', title: 'A', text: 'Passage.' }),
+    });
+  });
+
+  it('fetchQuotes sends only the params it has', async () => {
+    fetchMock.mockImplementation(async () => okResponse({ items: [], nextCursor: null }));
+    await fetchQuotes();
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/quotes', undefined);
+    await fetchQuotes({ q: 'rust async', linkId: 'l1', cursor: 'abc', limit: 50 });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/quotes?q=rust+async&linkId=l1&cursor=abc&limit=50',
+      undefined,
+    );
+  });
+
+  it('patchQuote sends the changed fields and returns the quote', async () => {
+    fetchMock.mockResolvedValue(okResponse({ quote: { id: 'q1', text: 'New.' } }));
+    const out = await patchQuote('q1', { note: 'n' });
+    expect(out).toEqual({ id: 'q1', text: 'New.' });
+    expect(fetchMock).toHaveBeenCalledWith('/api/quotes/q1', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ note: 'n' }),
+    });
+  });
+
+  it('patchQuote keeps the 409 status for a same-page collision', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: 'this page already has a quote with that text' }), { status: 409 }),
+    );
+    const err = await patchQuote('q1', { text: 'Dup.' }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(409);
+  });
+
+  it('deleteQuote accepts the empty 204 reply', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(deleteQuote('q1')).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith('/api/quotes/q1', { method: 'DELETE' });
   });
 });
