@@ -4,10 +4,26 @@
    and ink are exact samples from the logo artwork, kept as hex so they never
    drift from it; public/logo-mark.svg is drawn in the accent by
    apps/web/scripts/icons.ts. */
-/* Bricolage's optical-size axis runs 12..96. A range beyond it (12..120 was here)
-   makes Google drop the family from the stylesheet without an error, and every
-   heading silently falls back to a system face. */
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Geist:wght@400;500;600;700&display=swap');
+/* Fonts are served from this site, not Google: one fewer host sees a visit,
+   and the files are preloaded (astro.config.mjs, pages/index.astro), so a
+   docs page opens in its own faces instead of swapping them in after the
+   first paint. Latin cuts of the variable fonts, both SIL Open Font License
+   1.1; Bricolage keeps its optical-size axis (12..96). */
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/bricolage-grotesque-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/geist-latin.woff2') format('woff2');
+}
 
 /* One header height for the landing page and the docs, so moving between
    them never shifts the page: the landing header uses it directly, Starlight
@@ -37,6 +53,9 @@
 
   /* Typography */
   --bk-font-display: 'Bricolage Grotesque', sans-serif;
+  /* The landing page's face since launch, and the wordmark's on every page,
+     so the header reads the same moving from the landing page to the docs. */
+  --bk-font-brand: Helvetica, Arial, sans-serif;
   --bk-font-body: 'Geist', system-ui, sans-serif;
   --bk-font-mono: 'Menlo', 'Courier New', monospace;
 
@@ -160,7 +179,7 @@ header.header {
 .site-title {
   gap: var(--bk-space-xs);
   color: var(--bk-ink) !important;
-  font-family: var(--bk-font-display);
+  font-family: var(--bk-font-brand);
   font-size: var(--bk-text-lg);
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -217,6 +236,26 @@ header.header {
   max-width: 90rem;
 }
 
+/* The page title. Starlight stacks a 1rem margin on two panels' 1.5rem
+   padding and a loose line height, which left more air around the title than
+   between sections. */
+.content-panel:has(#_top) {
+  padding-bottom: 0;
+}
+
+.content-panel:has(#_top) + .content-panel {
+  padding-top: var(--bk-space-md);
+}
+
+#_top {
+  margin-top: 0;
+  color: var(--bk-ink);
+  font-family: var(--bk-font-display);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1;
+}
+
 /* Docs typography. Four clear levels instead of one grey wall: a lead
    paragraph, numbered sections with an orange index, steps as orange numbered
    blocks, and running text a step softer than the headings. Notes and
@@ -259,7 +298,7 @@ header.header {
    carries the section's number. */
 .sl-markdown-content .sl-heading-wrapper.level-h2 {
   counter-increment: bk-section;
-  margin-top: var(--bk-space-2xl);
+  margin-top: var(--bk-space-xl);
   padding-top: var(--bk-space-md);
   border-top: 2px solid var(--bk-ink);
 }
@@ -327,10 +366,12 @@ header.header {
   margin-top: var(--bk-space-sm);
 }
 
+/* As tall as one line of text and level with it, so the number sits centred
+   on the step's first line. */
 .sl-markdown-content ol > li::before {
   content: counter(bk-step);
   position: absolute;
-  top: 0.15em;
+  top: 0;
   left: 0;
   display: grid;
   place-items: center;
@@ -536,52 +577,4 @@ site-search #starlight__search input:focus {
    would draw a second outline 3px outside it. */
 site-search #starlight__search .pagefind-ui__search-input:focus-visible {
   outline: none;
-}
-
-/* Page-to-page navigation. Native cross-document view transitions rather than
-   a client-side router: Starlight's sidebar, search and theme toggle assume a
-   full page load, and a router breaks them in quiet ways. Browsers without
-   support simply navigate as before. Paired with prefetch in astro.config, the
-   next page is usually already in cache, so the transition is all you see.
-
-   The header and sidebar are named so they hold still across pages; only the
-   content fades out and rises in, which is what makes it read as one app. */
-@view-transition {
-  navigation: auto;
-}
-
-header.header {
-  view-transition-name: bk-header;
-}
-
-.sidebar-pane {
-  view-transition-name: bk-sidebar;
-}
-
-.main-frame {
-  view-transition-name: bk-main;
-}
-
-::view-transition-old(bk-main) {
-  animation: bk-vt-out var(--bk-dur-short) var(--bk-ease-out) both;
-}
-
-::view-transition-new(bk-main) {
-  animation: bk-vt-in var(--bk-dur-long) var(--bk-ease-out) both;
-}
-
-@keyframes bk-vt-out {
-  to { opacity: 0; }
-}
-
-@keyframes bk-vt-in {
-  from { opacity: 0; transform: translateY(8px); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation: none !important;
-  }
 }

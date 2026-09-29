@@ -6,9 +6,11 @@ import { packagingFiles } from './src/packaging.mjs';
 export default defineConfig({
   site: 'https://bukmark.it',
   // Fetch a page as soon as its link scrolls into view. The docs are a handful
-  // of small static pages, so this is cheap, and it means a click lands on a
-  // page that is already in cache -- the view transition in custom.css is the
-  // only thing the reader waits for.
+  // of small static pages, so this is cheap, and a click lands on a page that
+  // is already in cache. No view transition on top: cross-fading the old page
+  // into the new one showed both at once, which read as a flicker. The browser
+  // keeps the old page up until the new one paints, and the header and
+  // sidebar paint the same, so only the content changes.
   prefetch: { prefetchAll: true, defaultStrategy: 'viewport' },
   integrations: [
     starlight({
@@ -21,6 +23,12 @@ export default defineConfig({
         { icon: 'github', label: 'GitHub', href: 'https://github.com/xooxoxxo/bukmark' },
       ],
       customCss: ['./src/styles/custom.css'],
+      // Fetched with the page rather than found later inside the stylesheet,
+      // so the first paint already has them (see the @font-face rules).
+      head: ['bricolage-grotesque-latin', 'geist-latin'].map((font) => ({
+        tag: 'link',
+        attrs: { rel: 'preload', href: `/fonts/${font}.woff2`, as: 'font', type: 'font/woff2', crossorigin: '' },
+      })),
       // Share images and titles for every docs page (src/og/, src/pages/og/).
       routeMiddleware: './src/routeData.ts',
       expressiveCode: {

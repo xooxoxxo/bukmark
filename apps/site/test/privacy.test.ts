@@ -320,11 +320,13 @@ describe('the privacy page names every outside service the site and the web app 
       ...sourceFiles('apps/site/src', ['.css', '.astro', '.mjs', '.ts']),
       'apps/site/astro.config.mjs',
     ]);
-    expect(hosts.size).toBeGreaterThan(0);
     const website = section(privacy, 'This website');
     for (const host of hosts) expect(website).toContain(`\`${host}\``);
     expect(read('apps/site/package.json')).toContain('wrangler pages deploy');
     expect(website).toContain('**Cloudflare Pages** hosts it');
+    // Today it loads from no other host, fonts included, and says so.
+    expect([...hosts]).toEqual([]);
+    expect(website).toContain('no font service sees your visit');
   });
 
   it('names each host the web app loads from', () => {

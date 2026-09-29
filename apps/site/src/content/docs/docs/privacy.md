@@ -9,7 +9,7 @@ bukmark is software you run yourself: there is no bukmark company server and no
 bukmark account. This page lists what the browser extension sends and when, what
 your own server keeps, and what this website loads.
 
-Effective 28 September 2026.
+Effective 29 September 2026.
 
 The browser extension sends your data only to the bukmark server you run, which
 keeps it in your own database. Whoever runs that server, usually you, is in
@@ -212,12 +212,12 @@ whoever runs the AI model behind it.
 ## This website
 
 bukmark.it is a static site. It has no accounts, no cookies and no analytics.
-Two services see your visit:
+One service sees your visit:
 
 - **Cloudflare Pages** hosts it and, like any web host, receives your IP address
   and the pages you request.
-- **Google Fonts** serves its fonts from `fonts.googleapis.com` and
-  `fonts.gstatic.com`, so your browser also asks Google for those files.
+
+Its fonts come from bukmark.it too, so no font service sees your visit.
 
 The docs remember whether you chose the light or dark theme in your browser's
 local storage. That choice is not sent anywhere.
