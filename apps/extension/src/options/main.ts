@@ -12,7 +12,7 @@ import {
 } from '../lib/login';
 import { allowBookmarkImport, canImportBookmarks, ensureHostPermission, isSafari, originPatternFor } from '../lib/permissions';
 import { changesSettings, loadSettings, normalizeBaseUrl, saveSettings } from '../lib/settings';
-import { assignedShortcut, canOpenShortcutSettings, openShortcutSettings } from '../lib/shortcut';
+import { SAVE_QUOTE_COMMAND, assignedShortcut, canOpenShortcutSettings, openShortcutSettings } from '../lib/shortcut';
 import {
   SYNC_KEY,
   loadSyncState,
@@ -59,6 +59,9 @@ const shortcutUnsetEl = $<HTMLParagraphElement>('shortcutUnset');
 const changeShortcutEl = $<HTMLButtonElement>('changeShortcut');
 const shortcutStatusEl = $<HTMLParagraphElement>('shortcutStatus');
 const shortcutWhereEl = $<HTMLParagraphElement>('shortcutWhere');
+const quoteShortcutSetEl = $<HTMLParagraphElement>('quoteShortcutSet');
+const quoteShortcutKeyEl = $<HTMLElement>('quoteShortcutKey');
+const quoteShortcutUnsetEl = $<HTMLParagraphElement>('quoteShortcutUnset');
 const welcomeEl = $<HTMLElement>('welcome');
 const stepLoginEl = $<HTMLLIElement>('stepLogin');
 const welcomeDoneEl = $<HTMLParagraphElement>('welcomeDone');
@@ -181,16 +184,20 @@ async function takeServerToGrant(): Promise<void> {
   setStatus(authStatusEl, `Log in here to let Firefox reach ${new URL(server).host}, or use an access token.`);
 }
 
-/** The key the browser assigned; the section is hidden where there are no shortcuts. */
+/** The keys the browser assigned, for links and quotes; the section is hidden where there are no shortcuts. */
 async function showShortcut(): Promise<void> {
   const key = await assignedShortcut();
   shortcutSectionEl.hidden = key === null;
   shortcutKeyEl.textContent = key ?? '';
   shortcutSetEl.hidden = !key;
   shortcutUnsetEl.hidden = key !== '';
+  const quoteKey = await assignedShortcut(SAVE_QUOTE_COMMAND);
+  quoteShortcutKeyEl.textContent = quoteKey ?? '';
+  quoteShortcutSetEl.hidden = !quoteKey;
+  quoteShortcutUnsetEl.hidden = quoteKey !== '';
   changeShortcutEl.hidden = !canOpenShortcutSettings();
   // Named only in Safari: stores reject a listing that points at another browser.
-  if (isSafari()) shortcutWhereEl.textContent = 'Change it in Safari under Settings › Extensions.';
+  if (isSafari()) shortcutWhereEl.textContent = 'Change them in Safari under Settings › Extensions.';
   welcomeShortcutEl.hidden = !key;
   welcomeKeyEl.textContent = key ?? '';
 }

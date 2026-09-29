@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Auth } from '../lib/auth';
 import { SAVE_QUOTE_COMMAND } from '../lib/shortcut';
 import {
-  fakeChrome, settle, startBackground, stopBackground, stubFetch,
+  fakeChrome, installed, runCommand, settle, startBackground, stopBackground, stubFetch,
   type FakeChrome, type FakeEventTab, type FakeMenuClick, type FakeRequest, type FakeSeed,
 } from '../test/chrome';
 
@@ -40,7 +40,7 @@ async function clickMenu(info: Partial<FakeMenuClick> = {}, tab: FakeEventTab | 
 }
 
 async function pressShortcut(tab: FakeEventTab | undefined = PAGE): Promise<void> {
-  for (const listener of chrome.commands.onCommand.listeners) listener(SAVE_QUOTE_COMMAND, tab);
+  runCommand(chrome, SAVE_QUOTE_COMMAND, tab);
   await settle();
 }
 
@@ -70,8 +70,7 @@ describe('the quote menu item', () => {
     vi.stubGlobal('chrome', chrome);
     // The browser installs: the script starts, then onInstalled fires at once.
     await startBackground(chrome);
-    const [onInstalled] = chrome.runtime.onInstalled.addListener.mock.calls[0]!;
-    onInstalled({ reason: 'install' });
+    installed(chrome);
     await settle();
     expect(chrome.contextMenus.create).toHaveBeenCalledTimes(2);
     expect([...chrome.contextMenus.data.keys()]).toEqual([MENU_ID]);
@@ -88,6 +87,32 @@ describe('the quote menu item', () => {
     expect(chrome.contextMenus.errors).toEqual([]);
   });
 
+  it('warns, without failing the start, when the browser refuses the menu', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    chrome = fakeChrome(LOGGED_IN);
+    vi.stubGlobal('chrome', chrome);
+    chrome.contextMenus.removeAll.mockRejectedValueOnce(new Error('menus unavailable'));
+    await startBackground(chrome);
+    await settle();
+    expect(warn).toHaveBeenCalledWith('bukmark: could not make the quote menu item', expect.any(Error));
+    // The next registration still runs.
+    installed(chrome);
+    await settle();
+    expect([...chrome.contextMenus.data.keys()]).toEqual([MENU_ID]);
+    warn.mockRestore();
+  });
+
+  it('warns when create reports an error through runtime.lastError', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await start();
+    // The browser kept an item that removeAll did not clear.
+    chrome.contextMenus.removeAll.mockResolvedValueOnce(undefined);
+    installed(chrome);
+    await settle();
+    expect(warn).toHaveBeenCalledWith('bukmark: could not make the quote menu item', `Cannot create item with duplicate id ${MENU_ID}`);
+    warn.mockRestore();
+  });
+
   it('is left out where the browser has no menus (Firefox for Android, Safari on iOS), and the rest still starts', async () => {
     await start({ ...LOGGED_IN, without: ['contextMenus'] });
     expect(chrome.commands.onCommand.listeners).toHaveLength(1);
@@ -102,7 +127,7 @@ describe('saving a quote from the menu', () => {
     await start();
     select('First line.\nSecond line.');
     await clickMenu({ selectionText: 'First line. Second line.' });
-    expect(chrome.scripting.executeScript).toHaveBeenCalledWith({ target: { tabId: PAGE.id }, func: expect.any(Function) });
+    expect(chrome.scripting.executeScript).toHaveBeenCalledWith({ target: { tabId: PAGE.id, frameIds: [0] }, func: expect.any(Function) });
     expect(quoteRequests()).toHaveLength(1);
     expect(quoteRequests()[0]).toMatchObject({
       method: 'POST',
@@ -110,6 +135,29 @@ describe('saving a quote from the menu', () => {
       body: { url: PAGE.url, title: PAGE.title, text: 'First line.\nSecond line.' },
     });
     expect(quoteRequests()[0]!.headers.get('authorization')).toBe('Bearer bkm_live');
+  });
+
+  it('reads the selection in the frame that was right-clicked', async () => {
+    await start();
+    select('Inside the frame.\nSecond line.');
+    await clickMenu({ frameId: 3, selectionText: 'Inside the frame. Second line.' });
+    expect(chrome.scripting.executeScript).toHaveBeenCalledWith({ target: { tabId: PAGE.id, frameIds: [3] }, func: expect.any(Function) });
+    expect(quoteRequests().map((r) => (r.body as { text: string }).text)).toEqual(['Inside the frame.\nSecond line.']);
+  });
+
+  it('saves the menu’s text, not a stale selection the page returns that differs from it', async () => {
+    await start();
+    // A selection left in another document than the one right-clicked.
+    select('An old selection\nin the top page.');
+    await clickMenu({ selectionText: 'iframe text' });
+    expect(quoteRequests().map((r) => (r.body as { text: string }).text)).toEqual(['iframe text']);
+  });
+
+  it('keeps the page’s text when the menu’s is a shortened copy of it', async () => {
+    await start();
+    select('A long passage,\nwith more after it.');
+    await clickMenu({ selectionText: 'A long passage, with' });
+    expect(quoteRequests().map((r) => (r.body as { text: string }).text)).toEqual(['A long passage,\nwith more after it.']);
   });
 
   it('injects a function that returns the page’s selection as text', async () => {
@@ -216,7 +264,7 @@ describe('saving a quote with the shortcut', () => {
   it('leaves the link shortcut saving links', async () => {
     await start();
     chrome.tabs.query.mockResolvedValue([PAGE]);
-    for (const listener of chrome.commands.onCommand.listeners) listener('save-current-tab', PAGE);
+    runCommand(chrome, 'save-current-tab', PAGE);
     await settle();
     expect(requests.map((r) => r.url)).toEqual([`${SERVER}/api/links`]);
     expect(chrome.scripting.executeScript).not.toHaveBeenCalled();

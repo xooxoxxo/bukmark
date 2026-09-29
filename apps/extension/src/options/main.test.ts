@@ -102,7 +102,7 @@ describe('options: what leaves the browser, and store-neutral wording', () => {
     arrange({ sync: { baseUrl: S1 } });
     expect((await openOptions()).el('shortcutWhere').textContent).not.toContain('Safari');
     arrange({ sync: { baseUrl: S1 }, browser: 'safari', without: ['bookmarks', 'identity'] });
-    expect((await openOptions()).el('shortcutWhere').textContent).toBe('Change it in Safari under Settings › Extensions.');
+    expect((await openOptions()).el('shortcutWhere').textContent).toBe('Change them in Safari under Settings › Extensions.');
   });
 });
 
@@ -504,6 +504,9 @@ describe('options, keyboard shortcut', () => {
     expect(page.el('shortcutKey').textContent).toBe('Alt+Shift+K');
     expect(page.el('shortcutSet').hidden).toBe(false);
     expect(page.el('shortcutUnset').hidden).toBe(true);
+    expect(page.el('quoteShortcutKey').textContent).toBe('Alt+Shift+Q');
+    expect(page.el('quoteShortcutSet').hidden).toBe(false);
+    expect(page.el('quoteShortcutUnset').hidden).toBe(true);
 
     page.el('changeShortcut').click();
     await settle();
@@ -516,6 +519,31 @@ describe('options, keyboard shortcut', () => {
     const page = await openOptions();
     expect(page.el('shortcutSet').hidden).toBe(true);
     expect(page.el('shortcutUnset').hidden).toBe(false);
+    // The quote command is missing from getAll here: unset too.
+    expect(page.el('quoteShortcutSet').hidden).toBe(true);
+    expect(page.el('quoteShortcutUnset').hidden).toBe(false);
+  });
+
+  it('says when only the quote key is unassigned, keeping the link key', async () => {
+    arrange({ sync: { baseUrl: S1 } });
+    chrome.commands.getAll.mockResolvedValue([
+      { name: 'save-current-tab', description: '', shortcut: 'Alt+Shift+K' },
+      { name: 'save-quote', description: '', shortcut: '' },
+    ]);
+    const page = await openOptions();
+    expect(page.el('shortcutSet').hidden).toBe(false);
+    expect(page.el('quoteShortcutSet').hidden).toBe(true);
+    expect(page.el('quoteShortcutUnset').hidden).toBe(false);
+  });
+
+  it('shows the Mac quote key with Control, as Firefox and Safari spell it MacCtrl', async () => {
+    arrange({ sync: { baseUrl: S1 } });
+    chrome.commands.getAll.mockResolvedValue([
+      { name: 'save-current-tab', description: '', shortcut: 'MacCtrl+Shift+K' },
+      { name: 'save-quote', description: '', shortcut: 'MacCtrl+Shift+Q' },
+    ]);
+    const page = await openOptions();
+    expect(page.el('quoteShortcutKey').textContent).toBe('Ctrl+Shift+Q');
   });
 
   it('uses Firefox’s own shortcut settings there', async () => {

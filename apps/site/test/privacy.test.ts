@@ -70,7 +70,9 @@ describe('the privacy page matches what the extension asks for and does', () => 
     // One scripting call, injecting one function that reads the selection.
     expect([...extensionCode.matchAll(/chrome\.scripting\.(\w+)\(/g)].map((m) => m[1])).toEqual(['executeScript']);
     const saveQuote = read('apps/extension/src/background/saveQuote.ts');
-    expect(saveQuote).toContain('chrome.scripting.executeScript({ target: { tabId }, func: readSelection })');
+    expect(saveQuote).toContain('chrome.scripting.executeScript({ target, func: readSelection })');
+    // The target is the tab the click or shortcut was in, or one frame of it.
+    expect(saveQuote).toContain('const target = frameId === undefined ? { tabId } : { tabId, frameIds: [frameId] };');
     expect(saveQuote).toContain("const readSelection = (): string => getSelection()?.toString() ?? '';");
     // No host access to web pages: scripting reaches only the activeTab tab.
     for (const m of manifests) expect(m.host_permissions).toEqual(['http://localhost/*']);

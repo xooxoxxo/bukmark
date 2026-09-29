@@ -160,9 +160,9 @@ login's: bound to that server, and revoked when you log out.
 ### Keyboard shortcut
 
 The popup shows the key your browser actually assigned, and
-**Options → Keyboard shortcut** shows it too — or says none is set, which
-happens when something else already uses the suggested key. The quote
-shortcut is changed in the same place. To change either:
+**Options → Keyboard shortcut** shows it too, and the quote shortcut's key
+below it — or says a key is not set, which happens when something else
+already uses the suggested one. Both are changed in the same place:
 
 | Browser | Where |
 | --- | --- |

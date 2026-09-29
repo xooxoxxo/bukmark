@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { vi } from 'vitest';
-import { SAVE_COMMAND } from '../lib/shortcut';
+import { SAVE_COMMAND, SAVE_QUOTE_COMMAND } from '../lib/shortcut';
 import { manifestFor, type Target } from '../manifest';
 import { BookmarkTree, bookmarksApi } from './bookmarks';
 
@@ -107,6 +107,7 @@ export interface FakeEventTab {
 
 type MenuClickListener = (info: FakeMenuClick, tab?: FakeEventTab) => void;
 type CommandListener = (command: string, tab?: FakeEventTab) => void;
+type InstalledListener = (details: { reason: string; previousVersion?: string }) => void;
 
 export interface FakeAlarm {
   name: string;
@@ -161,6 +162,7 @@ export function fakeChrome(seed: FakeSeed = {}) {
   const menuItems = new Map<string, FakeMenuItem>();
   const onMenuClicked: MenuClickListener[] = [];
   const onCommand: CommandListener[] = [];
+  const onInstalled: InstalledListener[] = [];
   /** runtime.lastError, set only while a callback runs, as the browser sets it. */
   let lastError: { message: string } | undefined;
   const openTab = (url: string, windowId: number): FakeTab => {
@@ -192,9 +194,7 @@ export function fakeChrome(seed: FakeSeed = {}) {
       onMessage: {
         addListener: vi.fn((_listener: (message: unknown, sender: unknown, sendResponse: (r: unknown) => void) => unknown) => {}),
       },
-      onInstalled: {
-        addListener: vi.fn((_listener: (details: { reason: string; previousVersion?: string }) => void) => {}),
-      },
+      onInstalled: { listeners: onInstalled, addListener: vi.fn((listener: InstalledListener) => { onInstalled.push(listener); }) },
       onStartup: { listeners: onStartup, addListener: vi.fn((listener: () => void) => { onStartup.push(listener); }) },
     },
     alarms: {
@@ -287,6 +287,7 @@ export function fakeChrome(seed: FakeSeed = {}) {
       onCommand: { listeners: onCommand, addListener: vi.fn((listener: CommandListener) => { onCommand.push(listener); }) },
       getAll: vi.fn(async () => [
         { name: SAVE_COMMAND, description: 'Save the current tab', shortcut: 'Alt+Shift+K' },
+        { name: SAVE_QUOTE_COMMAND, description: 'Save the selected text as a quote', shortcut: 'Alt+Shift+Q' },
       ]),
       /** Firefox only. */
       openShortcutSettings: vi.fn(async () => {}),
@@ -350,6 +351,7 @@ export function stopBackground(chrome: FakeChrome): void {
   chrome.tabs.onUpdated.listeners.length = 0;
   chrome.tabs.onRemoved.listeners.length = 0;
   chrome.runtime.onStartup.listeners.length = 0;
+  chrome.runtime.onInstalled.listeners.length = 0;
   const { contextMenus, commands } = chrome as Partial<FakeChrome>;
   if (contextMenus) contextMenus.onClicked.listeners.length = 0;
   if (commands) commands.onCommand.listeners.length = 0;
@@ -367,6 +369,16 @@ export function fireAlarm(chrome: FakeChrome, name: string): void {
   const alarm = chrome.alarms.data.get(name);
   if (!alarm) throw new Error(`No alarm named ${name}.`);
   for (const listener of chrome.alarms.onAlarm.listeners) listener({ ...alarm });
+}
+
+/** The extension is installed or updated: runtime.onInstalled, to every listener in turn. */
+export function installed(chrome: FakeChrome, reason = 'install'): void {
+  for (const listener of chrome.runtime.onInstalled.listeners) listener({ reason });
+}
+
+/** The person presses a command's key: commands.onCommand, to every listener, with the tab it was pressed in. */
+export function runCommand(chrome: FakeChrome, command: string, tab?: FakeEventTab): void {
+  for (const listener of chrome.commands.onCommand.listeners) listener(command, tab);
 }
 
 /** The browser starts with the extension already installed: runtime.onStartup. */

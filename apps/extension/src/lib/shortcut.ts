@@ -4,18 +4,22 @@ export const SAVE_COMMAND = 'save-current-tab';
 /** The command that saves the selected text as a quote (background/saveQuote.ts). */
 export const SAVE_QUOTE_COMMAND = 'save-quote';
 
-/** chrome.storage.session key: why the last keyboard save failed, for the next popup to show. */
+/**
+ * chrome.storage.session key: why the last save without the popup failed (the
+ * keyboard shortcut, or a quote from the menu or its shortcut), for the next popup to show.
+ */
 export const LAST_SAVE_ERROR = 'lastSaveError';
 
 /**
- * The key the browser actually assigned to saving without the popup: '' when
+ * The key the browser actually assigned to a command, by default saving
+ * without the popup: '' when
  * none is (the suggested key was taken, or the person cleared it), null when
  * the browser has no extension shortcuts at all (Firefox for Android).
  */
-export async function assignedShortcut(): Promise<string | null> {
+export async function assignedShortcut(command: string = SAVE_COMMAND): Promise<string | null> {
   if (!chrome.commands) return null;
   const commands = await chrome.commands.getAll().catch(() => []);
-  const shortcut = commands.find((c) => c.name === SAVE_COMMAND)?.shortcut ?? '';
+  const shortcut = commands.find((c) => c.name === command)?.shortcut ?? '';
   // Firefox and Safari report the manifest's spelling of the Control key.
   return shortcut.replace(/MacCtrl/g, 'Ctrl');
 }

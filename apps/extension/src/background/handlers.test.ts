@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Auth } from '../lib/auth';
-import { STATUS, approve, fakeChrome, settle, stubFetch, type FakeChrome, type FakeRequest, type FakeSeed } from '../test/chrome';
+import { STATUS, approve, fakeChrome, installed, runCommand, settle, stubFetch, type FakeChrome, type FakeRequest, type FakeSeed } from '../test/chrome';
 
 const SERVER = 'http://nas.lan:3000';
 const LOGGED_OUT = { title: 'Log in to bukmark first' };
@@ -42,8 +42,7 @@ describe('first install', () => {
     arrange();
     vi.resetModules();
     await import('./index');
-    const [listener] = chrome.runtime.onInstalled.addListener.mock.calls.at(-1)!;
-    listener({ reason: 'install' });
+    installed(chrome);
     await settle();
     expect(chrome.tabs.create).toHaveBeenCalledTimes(1);
     expect(chrome.tabs.create).toHaveBeenCalledWith({ url: chrome.runtime.getURL('options.html?welcome') });
@@ -193,7 +192,7 @@ describe('background wiring', () => {
     await import('./index');
     return {
       onMessage: chrome.runtime.onMessage.addListener.mock.calls[0]![0],
-      onCommand: chrome.commands.onCommand.addListener.mock.calls[0]![0],
+      onCommand: (command: string) => runCommand(chrome, command),
     };
   }
 

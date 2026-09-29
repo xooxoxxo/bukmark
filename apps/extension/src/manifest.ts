@@ -85,8 +85,9 @@ export function isTarget(value: string): value is Target {
 // `alarms` runs bookmark sync's pull every few minutes; it warns of nothing.
 // `contextMenus` adds "Save quote to bukmark" to a selection's right-click menu,
 // and `scripting` reads that selection, line breaks kept, in the tab activeTab
-// was granted for by the click or the shortcut. Neither warns at install, and
-// with no host permission for web pages, scripting reaches no other tab.
+// was granted for by the click or the shortcut. Neither warns at install. The
+// only host access is localhost and the server the person allows, so scripting
+// reaches no other site's pages.
 const PERMISSIONS = ['activeTab', 'storage', 'identity', 'alarms', 'contextMenus', 'scripting'];
 // Asked for on the Import click or when sync is turned on (lib/permissions.ts), not at install.
 const OPTIONAL_PERMISSIONS = ['bookmarks'];
