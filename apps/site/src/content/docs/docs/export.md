@@ -11,14 +11,33 @@ file, or saved an export from the web app or with `curl`.
 
 ## Import
 
-1. Get a bookmarks HTML file exported from Chrome, Firefox or Safari, or a JSON
-   backup from bukmark itself.
+1. Get a bookmarks file in one of these formats:
+   - **HTML**: Exported from Chrome, Firefox, or Safari
+   - **CSV**: Exported from Raindrop, Pocket, Instapaper, Linkwarden, or a spreadsheet
+   - **JSON**: A backup from bukmark itself
 2. In the web app's sidebar, open **Settings → Import bookmarks…** and choose
    the file.
 3. Read the result line. It counts each case [below](#duplicates-and-skips), so
    a run that skipped things says so rather than quietly dropping them.
 4. Sort: everything you import lands **unsorted**, on purpose
    ([Sorting with MCP](/docs/sorting/)).
+
+### Supported CSV exporters
+
+The CSV importer detects column headers (case-insensitive) from Raindrop, Pocket,
+Instapaper, Linkwarden, or a generic spreadsheet:
+
+| Exporter | Required columns | Optional columns |
+| -- | -- | -- |
+| Raindrop | `url` | `title`, `folder`, `tags`, `note`, `excerpt` |
+| Pocket | `url`, `title` | `tags`, `status`, `time_added` |
+| Instapaper | `url`, `title` | `folder`, `selection`, `timestamp` |
+| Linkwarden | `url` | `title`, `tags` |
+| Generic | `url` (or `link`, `href`) | `title` (or `name`), `folder`, `tags`, `note` |
+
+Folder names from the export become a hint for sorting, just as with HTML imports.
+Tags are included in the hint if present. Notes are not carried over, as the
+import schema supports only URL, title, and folder hint.
 
 ### Duplicates and skips
 

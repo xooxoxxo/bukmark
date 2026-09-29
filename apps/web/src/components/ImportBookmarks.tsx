@@ -59,7 +59,7 @@ export function ImportBookmarks({ buttonClass, statusClass, errorClass }: {
       <input
         ref={fileInput}
         type="file"
-        accept=".html,.htm,.json,text/html,application/json"
+        accept=".html,.htm,.json,.csv,text/html,application/json,text/csv"
         hidden
         onChange={onFileChosen}
         data-testid="import-file"

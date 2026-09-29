@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   UnsupportedFileError,
   parseBackupJson,
+  parseCSV,
   parseImportFile,
   parseNetscapeHtml,
 } from './parseBookmarks';
@@ -126,13 +127,168 @@ describe('parseBackupJson', () => {
   });
 });
 
+describe('parseCSV', () => {
+  const POCKET_CSV = `title,url,time_added,tags,status
+Article One,https://example.com/one,1700000000,"reading,tech",unread
+Article Two,https://example.com/two,1700000001,"",archive`;
+
+  const RAINDROP_CSV = `id,title,note,excerpt,url,folder,tags,created,cover,highlights,favorite
+1,Rust Book,Keep this,From the official,https://rust.example.com/book,Learning/Rust,"rust,lang",1700000000,,false
+2,Simple Link,,,https://simple.example.com,Reading,,,false`;
+
+  const INSTAPAPER_CSV = `URL,Title,Selection,Folder,Timestamp
+https://instapaper.example.com/one,Instapaper Article,Some excerpt,Articles,1700000000
+https://instapaper.example.com/two,Another Article,,,1700000001`;
+
+  const GENERIC_CSV = `url,name,note,folder
+https://generic.example.com/one,First Link,My note,Tech
+https://generic.example.com/two,Second Link,,`;
+
+  it('parses Pocket CSV format', () => {
+    const { items } = parseCSV(POCKET_CSV);
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({
+      url: 'https://example.com/one',
+      title: 'Article One',
+      folderPath: 'tags: reading,tech',
+    });
+    expect(items[1]).toMatchObject({ url: 'https://example.com/two', title: 'Article Two' });
+  });
+
+  it('parses Raindrop CSV format with folder and tags', () => {
+    const { items } = parseCSV(RAINDROP_CSV);
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({
+      url: 'https://rust.example.com/book',
+      title: 'Rust Book',
+      folderPath: 'Learning/Rust / tags: rust,lang',
+    });
+  });
+
+  it('parses Instapaper CSV format', () => {
+    const { items } = parseCSV(INSTAPAPER_CSV);
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({
+      url: 'https://instapaper.example.com/one',
+      title: 'Instapaper Article',
+      folderPath: 'Articles',
+    });
+  });
+
+  it('handles case-insensitive headers', () => {
+    const mixed = `URL,Title,Folder
+https://case.example.com,Ignored Case,MY FOLDER`;
+    const { items } = parseCSV(mixed);
+    expect(items[0]).toMatchObject({
+      url: 'https://case.example.com',
+      title: 'Ignored Case',
+      folderPath: 'MY FOLDER',
+    });
+  });
+
+  it('handles quoted fields with embedded commas and newlines', () => {
+    const quoted = `url,title,note
+https://quoted.example.com,"Title, with comma","Note with
+embedded newline"`;
+    const { items } = parseCSV(quoted);
+    expect(items[0]).toMatchObject({
+      url: 'https://quoted.example.com',
+      title: 'Title, with comma',
+    });
+  });
+
+  it('handles doubled quotes in quoted fields', () => {
+    const doubled = `url,title
+https://doubled.example.com,"She said ""Hello"""`;
+    const { items } = parseCSV(doubled);
+    expect(items[0]).toMatchObject({
+      url: 'https://doubled.example.com',
+      title: 'She said "Hello"',
+    });
+  });
+
+  it('handles BOM in CSV', () => {
+    const bom = '﻿url,title\nhttps://bom.example.com,BOM File';
+    const { items } = parseCSV(bom);
+    expect(items[0]).toMatchObject({
+      url: 'https://bom.example.com',
+      title: 'BOM File',
+    });
+  });
+
+  it('handles CRLF line endings', () => {
+    const crlf = `url,title\r\nhttps://crlf.example.com,CRLF File`;
+    const { items } = parseCSV(crlf);
+    expect(items[0]).toMatchObject({
+      url: 'https://crlf.example.com',
+      title: 'CRLF File',
+    });
+  });
+
+  it('counts non-web rows', () => {
+    const mixed = `url,title
+https://ok.example.com,OK
+javascript:void(0),Bookmarklet
+https://ok2.example.com,OK2`;
+    const { items, nonWeb } = parseCSV(mixed);
+    expect(items).toHaveLength(2);
+    expect(nonWeb).toBe(1);
+  });
+
+  it('collapses duplicate URLs', () => {
+    const dups = `url,title,folder
+https://dup.example.com,First,A
+https://dup.example.com,Second,B`;
+    const { items, duplicates } = parseCSV(dups);
+    expect(items).toHaveLength(1);
+    expect(duplicates).toBe(1);
+  });
+
+  it('rejects CSV with no URL column', () => {
+    const noUrl = `title,folder
+Some Title,Some Folder`;
+    expect(() => parseCSV(noUrl)).toThrow(UnsupportedFileError);
+  });
+
+  it('recognizes link and href as URL column aliases', () => {
+    const link = `link,title\nhttps://alias.example.com,Link Alias`;
+    const href = `href,title\nhttps://alias.example.com,Href Alias`;
+    expect(parseCSV(link).items[0]?.url).toBe('https://alias.example.com');
+    expect(parseCSV(href).items[0]?.url).toBe('https://alias.example.com');
+  });
+
+  it('handles empty CSV rows gracefully', () => {
+    const sparse = `url,title
+https://sparse.example.com,Sparse
+
+
+`;
+    const { items } = parseCSV(sparse);
+    expect(items).toHaveLength(1);
+  });
+
+  it('ignores notes since the import schema does not accept them', () => {
+    const notes = `url,title,note
+https://note.example.com,Has Note,This note is dropped`;
+    const { items } = parseCSV(notes);
+    // The note field is detected but not added to folderPath unless there's also a folder or tags
+    expect(items[0]).toMatchObject({
+      url: 'https://note.example.com',
+      title: 'Has Note',
+    });
+  });
+});
+
 describe('parseImportFile', () => {
   it('picks the parser from the file extension', () => {
     expect(parseImportFile('bookmarks_1_1_26.html', CHROME_EXPORT).items).toHaveLength(3);
     expect(parseImportFile('backup.json', '{"links":[]}').items).toHaveLength(0);
+    expect(
+      parseImportFile('export.csv', 'url,title\nhttps://csv.example.com,CSV').items,
+    ).toHaveLength(1);
   });
 
   it('rejects a format it cannot read', () => {
-    expect(() => parseImportFile('links.csv', 'url,title')).toThrow(UnsupportedFileError);
+    expect(() => parseImportFile('links.txt', 'url,title')).toThrow(UnsupportedFileError);
   });
 });
