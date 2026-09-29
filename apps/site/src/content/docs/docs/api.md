@@ -63,6 +63,10 @@ Use your server's address in place of `http://localhost:3000`.
 | POST | `/api/links/assign` | Assign links to hubs in bulk |
 | PATCH | `/api/links/:id` | Update a single link |
 | POST | `/api/links/bulk` | Archive, activate, assign, or delete links |
+| POST | `/api/quotes` | Save a passage from a page, saving the page too if needed |
+| GET | `/api/quotes` | List quotes, newest first, with search and paging |
+| PATCH | `/api/quotes/:id` | Edit a quote's text or note |
+| DELETE | `/api/quotes/:id` | Delete a quote |
 | GET | `/api/hubs` | List all hubs |
 | POST | `/api/hubs` | Create a hub |
 | PATCH | `/api/hubs/:id` | Update a hub |
@@ -744,6 +748,82 @@ Apply one action to multiple links in a single request.
 
 **Errors:** `400` with `{ "error": "assign requires hubId" }` for `assign` or
 `unassign` without `hubId` (the message names the action).
+
+### POST /api/quotes
+
+Save a passage from a page. If the page is not saved yet it is saved too,
+unsorted. The same passage (ignoring case and extra whitespace) from the same
+page is one quote: saving it again returns the existing one.
+
+**Body**
+
+```json
+{
+  "url": "https://example.com/article",
+  "title": "optional page title",
+  "text": "The quoted passage.",
+  "note": "optional note"
+}
+```
+
+`text` is trimmed and must be 1 to 10000 characters.
+
+**Response:** `201` when the quote was created, `200` when it already existed.
+
+```json
+{
+  "quote": {
+    "id": "uuid",
+    "linkId": "uuid",
+    "text": "The quoted passage.",
+    "note": "",
+    "sourceUrl": "https://example.com/article",
+    "sourceTitle": "Page title",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  },
+  "link": { "id": "uuid", "created": true }
+}
+```
+
+**Errors:** `400` with `{ "error": "unparseable url" }`, `{ "error": "non-http url" }`,
+`{ "error": "quote text is empty" }` or a message that the text is over 10000
+characters.
+
+### GET /api/quotes
+
+List quotes, newest first.
+
+| Name | Type | Meaning |
+| -- | -- | -- |
+| `q` | string, optional | Search the quote text and note |
+| `linkId` | uuid, optional | Only quotes saved from this link |
+| `cursor` | string, optional | The `nextCursor` of the previous page |
+| `limit` | integer, optional | 1 to 100, default 50 |
+
+**Response**
+
+```json
+{ "items": [ { "id": "uuid", "text": "The quoted passage." } ], "nextCursor": null }
+```
+
+Each item has the fields shown for `POST /api/quotes`. `nextCursor` is an opaque
+string, or `null` on the last page.
+
+**Errors:** `400` with `{ "error": "invalid cursor" }`.
+
+### PATCH /api/quotes/:id
+
+Edit a quote. Send `text`, `note`, or both. Returns `{ "quote": { … } }`.
+
+**Errors:** `400` with `{ "error": "send text, note, or both" }` or a text
+message as for `POST /api/quotes`; `404` with `{ "error": "not found" }`;
+`409` with `{ "error": "this page already has a quote with that text" }`.
+
+### DELETE /api/quotes/:id
+
+Delete a quote. Returns `204` with no body, or `404` with
+`{ "error": "not found" }`.
 
 ### GET /api/hubs
 

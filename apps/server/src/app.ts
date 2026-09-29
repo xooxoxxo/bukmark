@@ -10,6 +10,7 @@ import { getDb, type Db } from './db/client.js';
 import { backfillMatchKey } from './db/backfillMatchKey.js';
 import { linkRoutes } from './routes/links.js';
 import { hubRoutes } from './routes/hubs.js';
+import { quoteRoutes } from './routes/quotes.js';
 import { exportRoutes } from './routes/export.js';
 import { fetchOgImage as defaultFetchOgImage } from './og/fetchOgImage.js';
 import { checkPage as defaultCheckPage, startPageChecks, type CheckPage } from './og/checkLinks.js';
@@ -108,6 +109,7 @@ export async function buildApp(
     await api.register(protectedAuthRoutes, { prefix: '/auth' });
     await api.register(linkRoutes, { checkPage });
       await api.register(hubRoutes);
+    await api.register(quoteRoutes);
     await api.register(exportRoutes);
   }, { prefix: '/api' });
 
