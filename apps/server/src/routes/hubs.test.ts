@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
 import { type Db } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
-import { hubLinks, hubs, links } from '../db/schema.js';
+import { hubLinks, hubs, links, quotes } from '../db/schema.js';
 import { authHeaders } from '../test/auth.js';
 
 const TEST_URL =
@@ -59,7 +59,17 @@ describe('hubs api', () => {
       { url: 'https://a.com/2', urlHash: 'h2', status: 'archived' },
     ]);
     const res = await app.inject({ method: 'GET', url: '/api/stats', headers });
-    expect(res.json()).toEqual({ links: 2, active: 1, archived: 1, hubs: 0, unassigned: 1, broken: 0, unchecked: 1 });
+    expect(res.json()).toEqual({ links: 2, active: 1, archived: 1, hubs: 0, unassigned: 1, broken: 0, unchecked: 1, quotes: 0 });
+  });
+
+  it('stats counts every quote, orphans included', async () => {
+    const [l] = await db.insert(links).values({ url: 'https://a.com/1', urlHash: 'h1' }).returning();
+    await db.insert(quotes).values([
+      { linkId: l!.id, text: 'One', textKey: 'one', sourceUrl: 'https://a.com/1' },
+      { linkId: null, text: 'Orphan', textKey: 'orphan', sourceUrl: 'https://gone.com/' },
+    ]);
+    const res = await app.inject({ method: 'GET', url: '/api/stats', headers });
+    expect(res.json().quotes).toBe(2);
   });
 });
 

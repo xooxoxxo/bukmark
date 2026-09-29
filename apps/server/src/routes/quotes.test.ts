@@ -226,4 +226,26 @@ describe('quotes api', () => {
     expect((await app.inject({ method: 'DELETE', url: `/api/quotes/${quote.id}`, headers })).statusCode).toBe(404);
     expect(await db.select().from(quotes)).toHaveLength(0);
   });
+
+  it('link list and detail carry quoteCount without touching order or paging', async () => {
+    const [a, b] = await db.insert(links).values([
+      { url: 'https://a.com/a', urlHash: 'qa', title: 'A' },
+      { url: 'https://a.com/b', urlHash: 'qb', title: 'B' },
+    ]).returning();
+    await db.insert(quotes).values([
+      { linkId: a!.id, text: 'One', textKey: 'one', sourceUrl: a!.url },
+      { linkId: a!.id, text: 'Two', textKey: 'two', sourceUrl: a!.url },
+    ]);
+    const list = await app.inject({ method: 'GET', url: '/api/links?sort=relevance&limit=1', headers });
+    const all = await app.inject({ method: 'GET', url: '/api/links?sort=relevance', headers });
+    expect(list.json().total).toBe(2);
+    expect(list.json().items).toHaveLength(1);
+    expect(list.json().items[0].id).toBe(all.json().items[0].id);
+    const counts = Object.fromEntries(all.json().items.map((i: { id: string; quoteCount: number }) => [i.id, i.quoteCount]));
+    expect(counts).toEqual({ [a!.id]: 2, [b!.id]: 0 });
+    const detail = await app.inject({ method: 'GET', url: `/api/links/${a!.id}`, headers });
+    expect(detail.json().quoteCount).toBe(2);
+    const none = await app.inject({ method: 'GET', url: `/api/links/${b!.id}`, headers });
+    expect(none.json().quoteCount).toBe(0);
+  });
 });

@@ -148,6 +148,7 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
         httpStatus: links.httpStatus,
         checkError: links.checkError,
         broken: dsql<boolean>`coalesce(${isBroken}, false)`,
+        quoteCount: dsql<number>`(SELECT count(*)::int FROM quotes q WHERE q.link_id = "links"."id")`,
         snippet,
         groupHint: dsql<string | null>`(
           SELECT c.group_hint FROM captures c
@@ -273,6 +274,7 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
         imageUrl: links.imageUrl, firstSeen: links.firstSeen, lastSeen: links.lastSeen,
         contentText: links.contentText, httpStatus: links.httpStatus, checkError: links.checkError,
         checkedAt: links.checkedAt, broken: dsql<boolean>`coalesce(${isBroken}, false)`,
+        quoteCount: dsql<number>`(SELECT count(*)::int FROM quotes q WHERE q.link_id = "links"."id")`,
         hubIds: dsql<string[]>`coalesce((SELECT array_agg(hl.hub_id) FROM hub_links hl WHERE hl.link_id = ${links.id}), '{}')`,
       })
       .from(links)

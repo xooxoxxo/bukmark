@@ -71,7 +71,7 @@ Use your server's address in place of `http://localhost:3000`.
 | POST | `/api/hubs` | Create a hub |
 | PATCH | `/api/hubs/:id` | Update a hub |
 | DELETE | `/api/hubs/:id` | Delete a hub |
-| GET | `/api/stats` | Get link and hub counts |
+| GET | `/api/stats` | Get link, hub and quote counts |
 | GET | `/api/export` | Export links as HTML, JSON, or CSV |
 
 ## Authentication
@@ -244,6 +244,7 @@ List links, with optional full-text search and filters.
       "relevance": 3,
       "dupeCount": 0,
       "hubIds": ["uuid1", "uuid2"],
+      "quoteCount": 2,
       "imageUrl": "https://example.com/og-image.png",
       "httpStatus": 200,
       "checkError": null,
@@ -257,6 +258,7 @@ List links, with optional full-text search and filters.
 }
 ```
 
+- `quoteCount` is how many quotes are saved from the link.
 - `httpStatus` and `checkError` come from the page's last check (both `null`
   until the first).
 - `snippet` is set only with `q`, and only when the words matched inside the
@@ -399,6 +401,7 @@ One link, with everything bukmark holds for it.
   "checkError": null,
   "checkedAt": "2026-09-28T10:31:00.000Z",
   "broken": true,
+  "quoteCount": 2,
   "hubIds": ["uuid1"]
 }
 ```
@@ -935,7 +938,7 @@ Delete a hub. This does not delete the links in it. `id` is the hub's UUID.
 ### GET /api/stats
 
 Aggregate counts: total links, active links, archived links, hub count,
-unassigned links, broken links, and active links not yet checked.
+unassigned links, broken links, active links not yet checked, and quotes (all of them, including those whose page was deleted).
 
 **Response**
 
@@ -947,7 +950,8 @@ unassigned links, broken links, and active links not yet checked.
   "hubs": 8,
   "unassigned": 5,
   "broken": 3,
-  "unchecked": 40
+  "unchecked": 40,
+  "quotes": 12
 }
 ```
 

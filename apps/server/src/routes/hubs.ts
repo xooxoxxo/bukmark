@@ -79,7 +79,8 @@ export async function hubRoutes(app: FastifyInstance): Promise<void> {
         (SELECT count(*)::int FROM links l WHERE l.status = 'active'
            AND NOT EXISTS (SELECT 1 FROM hub_links hl WHERE hl.link_id = l.id)) AS unassigned,
         (SELECT count(*)::int FROM links WHERE status = 'active' AND ${isBroken}) AS broken,
-        (SELECT count(*)::int FROM links WHERE status = 'active' AND checked_at IS NULL) AS unchecked
+        (SELECT count(*)::int FROM links WHERE status = 'active' AND checked_at IS NULL) AS unchecked,
+        (SELECT count(*)::int FROM quotes) AS quotes
     `);
     return row;
   });
