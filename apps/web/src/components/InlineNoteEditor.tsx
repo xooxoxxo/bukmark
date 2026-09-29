@@ -4,30 +4,69 @@ import { usePatchLink } from '../api/queries';
 import type { LinkDto } from '../api/types';
 import styles from './InlineNoteEditor.module.css';
 
-/**
- * A link's note, edited where it is shown: click it (or "Add a note"), type,
- * and Enter or leaving the field saves. Shift+Enter is a new line; Escape
- * puts the note back as it was.
- */
+/** A link's note, edited in place; see NoteEditor. */
 export function InlineNoteEditor({ link, compact = false }: { link: LinkDto; compact?: boolean }) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(link.note);
   const patch = usePatchLink();
+  return (
+    <NoteEditor
+      note={link.note}
+      label={link.title || link.url}
+      compact={compact}
+      onSave={(note) => patch.mutateAsync({ id: link.id, body: { note } })}
+    />
+  );
+}
+
+/**
+ * A note, edited where it is shown: click it (or "Add a note"), type, and
+ * Enter or leaving the field saves. Shift+Enter is a new line; Escape puts the
+ * note back as it was. `label` names what the note belongs to, for the
+ * accessible names; `onSave` gets the trimmed note and rejects to keep the
+ * field open with the reason.
+ */
+export function NoteEditor({
+  note,
+  label,
+  onSave,
+  compact = false,
+  maxLength,
+}: {
+  note: string;
+  label: string;
+  onSave: (note: string) => Promise<unknown>;
+  compact?: boolean;
+  maxLength?: number;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(note);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<unknown>(null);
 
   function open() {
-    setValue(link.note);
-    patch.reset();
+    setValue(note);
+    setError(null);
     setEditing(true);
   }
 
   function save() {
-    if (patch.isPending) return;
-    const note = value.trim();
-    if (note === link.note) {
+    if (pending) return;
+    const next = value.trim();
+    if (next === note) {
       setEditing(false);
       return;
     }
-    patch.mutate({ id: link.id, body: { note } }, { onSuccess: () => setEditing(false) });
+    setPending(true);
+    setError(null);
+    onSave(next).then(
+      () => {
+        setPending(false);
+        setEditing(false);
+      },
+      (err: unknown) => {
+        setPending(false);
+        setError(err);
+      },
+    );
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -47,16 +86,17 @@ export function InlineNoteEditor({ link, compact = false }: { link: LinkDto; com
           className={styles.textarea}
           value={value}
           rows={2}
+          maxLength={maxLength}
           onChange={(event) => setValue(event.target.value)}
           onBlur={save}
           onKeyDown={onKeyDown}
           autoFocus
-          aria-label={`Note for ${link.title || link.url}`}
+          aria-label={`Note for ${label}`}
         />
-        {patch.isPending ? <p className={styles.status} role="status">Saving…</p> : null}
-        {patch.isError ? (
+        {pending ? <p className={styles.status} role="status">Saving…</p> : null}
+        {error !== null ? (
           <p className={styles.error} role="alert">
-            {errorMessage(patch.error)}
+            {errorMessage(error)}
           </p>
         ) : null}
       </div>
@@ -66,11 +106,11 @@ export function InlineNoteEditor({ link, compact = false }: { link: LinkDto; com
   return (
     <button
       type="button"
-      className={`${link.note ? styles.note : styles.add}${compact ? ` ${styles.compact}` : ''}`}
+      className={`${note ? styles.note : styles.add}${compact ? ` ${styles.compact}` : ''}`}
       onClick={open}
-      aria-label={link.note ? `Edit note: ${link.note}` : `Add a note to ${link.title || link.url}`}
+      aria-label={note ? `Edit note: ${note}` : `Add a note to ${label}`}
     >
-      {link.note || 'Add a note'}
+      {note || 'Add a note'}
     </button>
   );
 }

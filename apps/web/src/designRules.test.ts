@@ -76,3 +76,26 @@ describe('TokensPage stylesheet', () => {
     expect(rule(file, '.secondaryButton').body).toMatch(/border:\s*2px solid var\(--bk-ink\)/);
   });
 });
+
+describe('Quotes stylesheets', () => {
+  const card = './components/QuoteCard.module.css';
+
+  it('sets the passage larger than list text, keeps its line breaks, and rules it in the accent', () => {
+    const { body } = rule(card, '.text');
+    expect(body).toMatch(/white-space:\s*pre-line;/);
+    expect(body).toMatch(/border-left:\s*2px solid var\(--bk-accent\);/);
+    expect(body).toMatch(/font-size:\s*var\(--bk-text-md\);/);
+  });
+
+  it('colours card errors and the delete confirm with --danger', () => {
+    expect(rule(card, '.error').body).toMatch(/color:\s*var\(--danger\)/);
+    expect(rule(card, '.danger').body).toMatch(/background:\s*var\(--danger\)/);
+  });
+
+  it('keeps corners square', () => {
+    const rounded = rules.filter(
+      (r) => /Quote/.test(r.file) && /border-radius:\s*(?!0\b)/.test(r.body),
+    );
+    expect(rounded.map((r) => `${r.file} ${r.selector}`)).toEqual([]);
+  });
+});

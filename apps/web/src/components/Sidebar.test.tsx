@@ -28,7 +28,7 @@ describe('Sidebar', () => {
       active: 201,
       archived: 42,
       hubs: 2,
-      unassigned: 17, broken: 0, unchecked: 0,
+      unassigned: 17, broken: 0, unchecked: 0, quotes: 0,
     });
   });
 
@@ -90,7 +90,7 @@ describe('Sidebar', () => {
 
   it('filters to broken links, and All links or Unassigned leave that filter', async () => {
     vi.mocked(client.fetchStats).mockResolvedValue({
-      links: 243, active: 201, archived: 42, hubs: 2, unassigned: 17, broken: 3, unchecked: 0,
+      links: 243, active: 201, archived: 42, hubs: 2, unassigned: 17, broken: 3, unchecked: 0, quotes: 0,
     });
     vi.mocked(client.fetchHubs).mockResolvedValue({ items: [] });
     renderSidebar();
@@ -104,5 +104,14 @@ describe('Sidebar', () => {
     await userEvent.click(broken);
     await userEvent.click(screen.getByRole('link', { name: 'All links' }));
     expect(useFilters.getState()).toMatchObject({ broken: false, unassigned: false });
+  });
+
+  it('links to Quotes with the count from stats', async () => {
+    vi.mocked(client.fetchStats).mockResolvedValue({
+      links: 1, active: 1, archived: 0, hubs: 0, unassigned: 0, broken: 0, unchecked: 0, quotes: 5,
+    });
+    vi.mocked(client.fetchHubs).mockResolvedValue({ items: [] });
+    renderSidebar();
+    expect(await screen.findByRole('link', { name: 'Quotes 5' })).toHaveAttribute('href', '/quotes');
   });
 });

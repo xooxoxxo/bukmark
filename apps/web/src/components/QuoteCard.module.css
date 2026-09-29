@@ -1,0 +1,122 @@
+/* One quote: the passage leads, set larger than list text with an accent rule;
+   its note, source and actions sit quietly under it. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bk-space-sm);
+  min-width: 0;
+  padding: var(--bk-space-lg) 0;
+  border-bottom: 1px solid var(--bk-rule);
+}
+
+.text {
+  margin: 0;
+  padding: var(--bk-space-2xs) 0 var(--bk-space-2xs) var(--bk-space-md);
+  border-left: 2px solid var(--bk-accent);
+  color: var(--bk-ink);
+  font-size: var(--bk-text-md);
+  line-height: 1.55;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--bk-space-xs) var(--bk-space-md);
+  font-size: var(--bk-text-sm);
+}
+
+.source {
+  min-width: 0;
+  color: var(--bk-ink);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.source:hover {
+  color: var(--bk-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.source:focus-visible {
+  outline: 2px solid var(--bk-accent);
+  outline-offset: 2px;
+}
+
+.sourceTitle {
+  font-weight: 600;
+}
+
+.host,
+.date {
+  color: var(--bk-neutral);
+  font-family: var(--bk-font-mono);
+  font-size: 0.8125rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--bk-space-xs);
+}
+
+.confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--bk-space-xs);
+  font-size: var(--bk-text-sm);
+  font-weight: 600;
+}
+
+/* Settings' outlined button, a size smaller: a card carries three. */
+.button,
+.danger {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 var(--bk-space-sm);
+  border: 2px solid var(--bk-ink);
+  background: transparent;
+  color: var(--bk-ink);
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--bk-dur-micro) var(--bk-ease-out),
+    border-color var(--bk-dur-micro) var(--bk-ease-out),
+    color var(--bk-dur-micro) var(--bk-ease-out);
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--bk-accent);
+  background: var(--bk-accent);
+  color: var(--bk-paper);
+}
+
+.danger {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: var(--bk-paper);
+}
+
+:is(.button, .danger):disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+:is(.button, .danger):focus-visible {
+  outline: 2px solid var(--bk-accent);
+  outline-offset: 2px;
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--bk-text-sm);
+}

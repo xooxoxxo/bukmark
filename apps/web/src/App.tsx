@@ -5,6 +5,7 @@ import { AuthGate } from './components/AuthGate';
 import { Layout } from './components/Layout';
 import { HubPage } from './pages/HubPage';
 import { LinksPage } from './pages/LinksPage';
+import { QuotesPage } from './pages/QuotesPage';
 import { SavePage } from './pages/SavePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TokensPage } from './pages/TokensPage';
@@ -18,6 +19,7 @@ export function AppRoutes() {
       <Route element={<Layout />}>
         <Route index element={<LinksPage />} />
         <Route path="hubs/:hubId" element={<HubPage />} />
+        <Route path="quotes" element={<QuotesPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/tokens" element={<TokensPage />} />
       </Route>

@@ -1,0 +1,94 @@
+/* Layout's shell hides overflow on desktop: the search stays put and the list
+   under it is its own scroller. */
+.page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bar {
+  padding: var(--bk-space-lg) 0;
+  border-bottom: 2px solid var(--bk-ink);
+}
+
+.search {
+  width: 100%;
+  max-width: 44rem;
+  min-height: 3rem;
+  padding: var(--bk-space-sm) var(--bk-space-md);
+  border: 2px solid var(--bk-ink);
+  background: var(--bk-paper);
+  color: var(--bk-ink);
+  font-size: var(--bk-text-sm);
+}
+
+.search::placeholder {
+  color: var(--bk-neutral);
+}
+
+.search:focus-visible {
+  outline: 2px solid var(--bk-accent);
+  outline-offset: 2px;
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-bottom: var(--bk-space-2xl);
+}
+
+/* One column, at a reading measure. */
+.list {
+  display: flex;
+  flex-direction: column;
+  max-width: 44rem;
+}
+
+.docs {
+  color: var(--bk-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.more {
+  max-width: 44rem;
+  padding: var(--bk-space-lg) 0;
+}
+
+.moreButton {
+  min-height: 2.5rem;
+  padding: 0 var(--bk-space-md);
+  border: 2px solid var(--bk-ink);
+  background: transparent;
+  color: var(--bk-ink);
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.moreButton:hover:not(:disabled) {
+  border-color: var(--bk-accent);
+  background: var(--bk-accent);
+  color: var(--bk-paper);
+}
+
+.moreButton:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.moreButton:focus-visible {
+  outline: 2px solid var(--bk-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 56rem) {
+  .scroll {
+    overflow-y: visible;
+  }
+}

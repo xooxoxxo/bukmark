@@ -17,6 +17,7 @@ export function AppToolbar() {
   const { hubId } = useParams<{ hubId: string }>();
   const onTokens = useMatch('/settings/tokens') !== null;
   const onSettings = useMatch('/settings') !== null;
+  const onQuotes = useMatch('/quotes') !== null;
   const { data: hubs } = useHubs();
   const hub = hubs?.items.find((item) => item.id === hubId);
   const q = useFilters((state) => state.q);
@@ -67,11 +68,11 @@ export function AppToolbar() {
     }
   }
 
-  if (onTokens || onSettings) {
+  if (onTokens || onSettings || onQuotes) {
     return (
       <header className={styles.bar} aria-label="Application toolbar">
         <div className={styles.identity}>
-          <h2 className={styles.title}>{onTokens ? 'Access tokens' : 'Settings'}</h2>
+          <h2 className={styles.title}>{onTokens ? 'Access tokens' : onQuotes ? 'Quotes' : 'Settings'}</h2>
         </div>
       </header>
     );

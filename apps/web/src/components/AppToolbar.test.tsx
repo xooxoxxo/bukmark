@@ -18,6 +18,7 @@ function renderAt(path = '/') {
           <Route path="/" element={<AppToolbar />} />
           <Route path="/hubs/:hubId" element={<AppToolbar />} />
           <Route path="/settings/tokens" element={<AppToolbar />} />
+          <Route path="/quotes" element={<AppToolbar />} />
         </Routes>
       </MemoryRouter>
     </Wrapper>,
@@ -145,5 +146,11 @@ describe('AppToolbar', () => {
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: 'All links' })).toBeInTheDocument(),
     );
+  });
+
+  it('titles the Quotes view, with no link actions', async () => {
+    renderAt('/quotes');
+    expect(await screen.findByRole('heading', { name: 'Quotes' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Actions for/ })).not.toBeInTheDocument();
   });
 });
