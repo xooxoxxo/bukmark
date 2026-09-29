@@ -11,6 +11,8 @@ export interface AddLinkInput {
   note?: string;
   hub?: string;
   relevance?: number;
+  /** Capture source recorded for this save. Defaults to 'manual'. */
+  source?: string;
 }
 
 export interface AddLinkResult {
@@ -27,7 +29,7 @@ export async function addLink(
   input: AddLinkInput,
   fetchOgImage: (url: string) => Promise<string | null>,
 ): Promise<AddLinkResult> {
-  const { url, urlHash, title, note, hub, relevance } = input;
+  const { url, urlHash, title, note, hub, relevance, source = 'manual' } = input;
   const key = matchKey(url);
 
   const { outcome, id } = await db.transaction(async (tx) => {
@@ -74,7 +76,7 @@ export async function addLink(
     }
 
     await tx.insert(captures).values({
-      linkId, source: 'manual', originalUrl: url, originalTitle: title ?? '',
+      linkId, source, originalUrl: url, originalTitle: title ?? '',
     });
 
     if (hub) {

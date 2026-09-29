@@ -17,10 +17,10 @@ describe('quotes schema', () => {
     await runMigrations(TEST_URL);
   });
   beforeEach(async () => {
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, owner, sessions, api_tokens, auth_codes, quotes, quotes CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, owner, sessions, api_tokens, auth_codes, quotes CASCADE`);
   });
   afterAll(async () => {
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, owner, sessions, api_tokens, auth_codes, quotes, quotes CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, owner, sessions, api_tokens, auth_codes, quotes CASCADE`);
     await sql.end();
   });
 
