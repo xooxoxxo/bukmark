@@ -23,6 +23,7 @@ function readQuote(raw: unknown): ImportQuote | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const q = raw as Record<string, unknown>;
   if (typeof q.text !== 'string' || q.text.trim() === '' || q.text.length > QUOTE_MAX_CHARS) return null;
+  if (typeof q.note === 'string' && q.note.length > QUOTE_MAX_CHARS) return null;
   return {
     text: q.text,
     ...(typeof q.note === 'string' && q.note !== '' ? { note: q.note } : {}),
@@ -200,7 +201,12 @@ export function parseBackupJson(text: string): ParsedFile {
     const [first = [], ...rest] = chunkBySize(quotesByUrl.get(url) ?? [], QUOTES_PER_ITEM);
     items.push({ ...item, ...(first.length === 0 ? {} : { quotes: first }) });
     for (const chunk of rest) {
-      items.push({ url, ...(item.title === undefined ? {} : { title: item.title }), quotes: chunk });
+      items.push({
+        url,
+        ...(item.title === undefined ? {} : { title: item.title }),
+        ...(item.folderPath === undefined ? {} : { folderPath: item.folderPath }),
+        quotes: chunk,
+      });
     }
   }
 

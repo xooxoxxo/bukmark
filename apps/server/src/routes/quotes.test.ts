@@ -311,7 +311,7 @@ describe('quotes api', () => {
 
       const res = await imp({ items: backup.links, orphanQuotes: backup.orphanQuotes });
       expect(res.statusCode).toBe(200);
-      expect(res.json().quotes).toEqual({ added: 3, skipped: 0 });
+      expect(res.json().quotes).toEqual({ added: 3, alreadyHere: 0, invalid: 0 });
 
       const again = await exp();
       expect(again.links.map((l: { url: string; quotes: unknown }) => [l.url, l.quotes]))
@@ -319,7 +319,7 @@ describe('quotes api', () => {
       expect(again.orphanQuotes).toEqual(backup.orphanQuotes);
 
       const twice = await imp({ items: backup.links, orphanQuotes: backup.orphanQuotes });
-      expect(twice.json().quotes).toEqual({ added: 0, skipped: 3 });
+      expect(twice.json().quotes).toEqual({ added: 0, alreadyHere: 3, invalid: 0 });
       expect(await db.select().from(quotes)).toHaveLength(3);
     });
 
@@ -329,7 +329,7 @@ describe('quotes api', () => {
         { text: '  same   TEXT. ' }, { text: 'Fresh one.', note: 'x' }, { text: 'Fresh one.' },
       ] }] });
       expect(res.json().updated).toBe(1);
-      expect(res.json().quotes).toEqual({ added: 1, skipped: 2 });
+      expect(res.json().quotes).toEqual({ added: 1, alreadyHere: 2, invalid: 0 });
       const rows = await db.select().from(quotes).where(eq(quotes.linkId, first.link.id));
       expect(rows).toHaveLength(2);
       const fresh = rows.find((r) => r.text === 'Fresh one.')!;
@@ -341,10 +341,10 @@ describe('quotes api', () => {
     it('dedupes orphans by source url and text, and validates quote input', async () => {
       const orphan = { text: 'Lonely.', sourceUrl: 'https://gone.com/p', sourceTitle: 'Gone' };
       const ok = await imp({ items: [{ url: 'https://a.com/1' }], orphanQuotes: [orphan, { ...orphan, text: ' LONELY. ' }, { ...orphan, sourceUrl: 'https://gone.com/other' }] });
-      expect(ok.json().quotes).toEqual({ added: 2, skipped: 1 });
+      expect(ok.json().quotes).toEqual({ added: 2, alreadyHere: 1, invalid: 0 });
       const rows = await db.select().from(quotes);
       expect(rows.every((r) => r.linkId === null)).toBe(true);
-      expect((await imp({ items: [{ url: 'https://a.com/1' }], orphanQuotes: [orphan] })).json().quotes).toEqual({ added: 0, skipped: 1 });
+      expect((await imp({ items: [{ url: 'https://a.com/1' }], orphanQuotes: [orphan] })).json().quotes).toEqual({ added: 0, alreadyHere: 1, invalid: 0 });
 
       expect((await imp({ items: [{ url: 'https://a.com/2', quotes: [{ text: '' }] }] })).statusCode).toBe(400);
       expect((await imp({ items: [{ url: 'https://a.com/2', quotes: [{ text: 'x'.repeat(10001) }] }] })).statusCode).toBe(400);
@@ -358,18 +358,48 @@ describe('quotes api', () => {
       const item = { url: 'https://a.com/one', title: 'One', quotes: [{ text: 'Back.', note: 'n', createdAt: '2026-01-01T00:00:00.000Z' }] };
       const res = await imp({ items: [item] });
       expect(res.json().skippedDeleted).toBe(1);
-      expect(res.json().quotes).toEqual({ added: 1, skipped: 0 });
+      expect(res.json().quotes).toEqual({ added: 1, alreadyHere: 0, invalid: 0 });
       const rows = await db.select().from(quotes);
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({ linkId: null, text: 'Back.', note: 'n', sourceUrl: 'https://a.com/one', sourceTitle: 'One' });
       expect(await db.select().from(links)).toHaveLength(0);
-      expect((await imp({ items: [item] })).json().quotes).toEqual({ added: 0, skipped: 1 });
+      expect((await imp({ items: [item] })).json().quotes).toEqual({ added: 0, alreadyHere: 1, invalid: 0 });
+    });
+
+    it('counts unrestorable quotes as invalid, not as already here', async () => {
+      const res = await imp({
+        items: [{ url: 'https://a.com/1', quotes: [{ text: '   ' }, { text: 'ok' }] }, { url: 'nope', quotes: [{ text: 'lost' }] }],
+        orphanQuotes: [{ text: ' ', sourceUrl: 'https://gone.com' }],
+      });
+      expect(res.json().quotes).toEqual({ added: 1, alreadyHere: 0, invalid: 3 });
+    });
+
+    it('caps quote notes at 10000 characters on import, POST and PATCH', async () => {
+      const note = 'n'.repeat(10001);
+      expect((await imp({ items: [{ url: 'https://a.com/1', quotes: [{ text: 't', note }] }] })).statusCode).toBe(400);
+      expect((await imp({ items: [], orphanQuotes: [{ text: 't', sourceUrl: 'https://g.com', note }] })).statusCode).toBe(400);
+      expect((await post({ url: 'https://a.com/1', text: 't', note })).statusCode).toBe(400);
+      const made = (await post({ url: 'https://a.com/1', text: 't' })).json();
+      const patch = await app.inject({ method: 'PATCH', url: `/api/quotes/${made.quote.id}`, headers, payload: { note } });
+      expect(patch.statusCode).toBe(400);
+      expect((await post({ url: 'https://a.com/1', text: 't2', note: 'n'.repeat(10000) })).statusCode).toBe(201);
+    });
+
+    it('a continuation item keeps the first item\'s folder hint on the capture', async () => {
+      await imp({ items: [
+        { url: 'https://a.com/1', title: 'A', folderPath: 'reading, rust', quotes: [{ text: 'one' }] },
+        { url: 'https://a.com/1', title: 'A', quotes: [{ text: 'two' }] },
+      ] });
+      const [link] = await db.select().from(links);
+      const caps = await db.execute(dsql`SELECT group_hint FROM captures WHERE link_id = ${link!.id}`);
+      expect(caps[0]!.group_hint).toBe('reading, rust');
+      expect(await db.select().from(quotes)).toHaveLength(2);
     });
 
     it('imports orphan quotes alone, and rejects a request with nothing in it', async () => {
       const res = await imp({ items: [], orphanQuotes: [{ text: 'Only me.', sourceUrl: 'https://gone.com/p' }] });
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 1, skipped: 0 } });
+      expect(res.json()).toEqual({ created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 1, alreadyHere: 0, invalid: 0 } });
       expect(await db.select().from(links)).toHaveLength(0);
       expect((await imp({ items: [] })).statusCode).toBe(400);
       expect((await imp({ items: [], orphanQuotes: [] })).statusCode).toBe(400);

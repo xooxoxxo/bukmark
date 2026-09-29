@@ -60,8 +60,9 @@ with no page, still showing where they were saved from. Importing the same
 backup again adds nothing twice: a quote you already have (same text, same
 page) is skipped. A quote of a link you deleted on purpose is not brought
 back onto that link: it returns as a quote with no page. The result line adds
-**N quotes restored**, and **N quotes not restored** for quotes that were
-already here or could not be read.
+**N quotes restored**, **N quotes already here** for ones you had saved before
+(so importing a backup a second time reports them there, not as lost), and
+**N quotes not restored** for the few that could not be read.
 
 <details>
 <summary>Why browser folders don't become hubs</summary>

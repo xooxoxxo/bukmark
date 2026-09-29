@@ -529,7 +529,7 @@ send them here. Import creates no hubs.
 | `items[].url` | string, required | |
 | `items[].title` | string, optional | |
 | `items[].folderPath` | string, optional | Browser bookmark folder path, kept as a sorting hint (`groupHint`); it never becomes a hub |
-| `items[].quotes` | array, optional | Up to 200 quotes to attach to that link, created or already here. Each is `text` (1–10000 characters), optional `note`, optional `createdAt` (ISO 8601, kept as the quote's saved date). The quote's source address and title are the link's. A text the link already has (same text, ignoring case and extra whitespace) is skipped, not an error |
+| `items[].quotes` | array, optional | Up to 200 quotes to attach to that link, created or already here. Each is `text` (1–10000 characters), optional `note` (up to 10000 characters), optional `createdAt` (ISO 8601, kept as the quote's saved date). The quote's source address and title are the link's. A text the link already has (same text, ignoring case and extra whitespace) is skipped, not an error |
 | `orphanQuotes` | array, optional | Up to 1000 quotes that belong to no link, from a [JSON backup](/docs/export/#quotes-in-a-backup). Each is `text`, `sourceUrl` (required), optional `sourceTitle`, `note` and `createdAt`. Skipped when the same `sourceUrl` and text are already saved as a quote with no link |
 
 **Response**
@@ -545,7 +545,7 @@ send them here. Import creates no hubs.
       "reason": "unparseable url"
     }
   ],
-  "quotes": { "added": 4, "skipped": 1 }
+  "quotes": { "added": 4, "alreadyHere": 1, "invalid": 0 }
 }
 ```
 
@@ -556,10 +556,11 @@ send them here. Import creates no hubs.
   reimport
 - `invalid` (array) — URLs that could not be normalized, with the reason for
   each: `unparseable url` or `non-http url`
-- `quotes` (object) — `added` quotes stored; `skipped` quotes already saved, or
-  unusable (blank text, or on an unreadable url). Both are `0` when the request
-  had no quotes. Quotes of a link that stays deleted are not lost: they are
-  stored as quotes with no link, keeping that item's address and title
+- `quotes` (object) — `added` quotes stored; `alreadyHere` quotes that were
+  saved before (same text on the same page); `invalid` quotes that cannot be
+  stored (blank text, or on an unreadable url). All are `0` when the request had
+  no quotes. Quotes of a link that stays deleted are not lost: they are stored
+  as quotes with no link, keeping that item's address and title
 
 The request body is limited to 4 MiB.
 
@@ -789,7 +790,7 @@ page is one quote: saving it again returns the existing one.
 }
 ```
 
-`text` is trimmed and must be 1 to 10000 characters.
+`text` is trimmed and must be 1 to 10000 characters; `note` is at most 10000 characters (a longer one is a `400`, here and in `PATCH`).
 
 **Response:** `201` when the quote was created, `200` when it already existed.
 

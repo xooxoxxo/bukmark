@@ -127,7 +127,7 @@ export interface ImportResult {
   updated: number;
   skippedDeleted: number;
   invalid: { url: string; reason: string }[];
-  quotes: { added: number; skipped: number };
+  quotes: { added: number; alreadyHere: number; invalid: number };
 }
 
 /** The server caps one request at 200 items; callers chunk to this size. */

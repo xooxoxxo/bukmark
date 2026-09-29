@@ -57,7 +57,7 @@ const IMPORT_BODY_LIMIT = 4 * 1024 * 1024;
 
 const importQuote = Type.Object({
   text: Type.String({ minLength: 1, maxLength: 10000 }),
-  note: Type.Optional(Type.String()),
+  note: Type.Optional(Type.String({ maxLength: 10000 })),
   createdAt: Type.Optional(Type.String()),
 });
 

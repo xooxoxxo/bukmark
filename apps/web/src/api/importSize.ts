@@ -1,6 +1,7 @@
 /**
- * A request body is closed before it reaches this many bytes. The server takes
- * 4 MiB; Fastify's own default is 1 MiB, so this leaves room under both.
+ * The items of a request, and its orphan quotes, are each closed before they
+ * reach this many bytes. One request can carry both (about 1.6 MB), which is
+ * over Fastify's 1 MiB default and well under the import route's 4 MiB limit.
  */
 export const IMPORT_BODY_BUDGET = 800_000;
 

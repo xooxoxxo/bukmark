@@ -169,7 +169,7 @@ describe('parseBackupJson', () => {
       expect(items.map((i) => i.quotes?.length)).toEqual([200, 200, 50]);
       expect(items.every((i) => i.url === 'https://a.com/1' && i.title === 'Alpha')).toBe(true);
       expect(items[0]?.folderPath).toBe('x');
-      expect(items[1]).not.toHaveProperty('folderPath');
+      expect(items[1]?.folderPath).toBe('x');
       expect(items.flatMap((i) => i.quotes!.map((q) => q.text))).toEqual(many.map((q) => q.text));
       expect(quotesNotRestored).toBeUndefined();
     });
@@ -189,6 +189,14 @@ describe('parseBackupJson', () => {
       }));
       expect(items[0]?.quotes).toEqual([{ text: 'fine' }]);
       expect(quotesNotRestored).toBe(4);
+    });
+
+    it('counts a note over 10000 characters as not restored', () => {
+      const { items, quotesNotRestored } = parseBackupJson(JSON.stringify({
+        links: [{ url: 'https://a.com/1', quotes: [{ text: 'ok', note: 'n'.repeat(10001) }, { text: 'fine', note: 'short' }] }],
+      }));
+      expect(items[0]?.quotes).toEqual([{ text: 'fine', note: 'short' }]);
+      expect(quotesNotRestored).toBe(1);
     });
 
     it('merges the quotes of a repeated url into the first item', () => {

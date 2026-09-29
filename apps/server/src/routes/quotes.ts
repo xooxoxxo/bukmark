@@ -50,7 +50,7 @@ export async function quoteRoutes(app: FastifyInstance): Promise<void> {
         url: Type.String(),
         text: Type.String(),
         title: Type.Optional(Type.String()),
-        note: Type.Optional(Type.String()),
+        note: Type.Optional(Type.String({ maxLength: 10000 })),
       }),
       response: { 200: CreateResult, 201: CreateResult, 400: ErrorBody },
     },
@@ -118,7 +118,7 @@ export async function quoteRoutes(app: FastifyInstance): Promise<void> {
   app.patch('/quotes/:id', {
     schema: {
       params: IdParams,
-      body: Type.Object({ text: Type.Optional(Type.String()), note: Type.Optional(Type.String()) }),
+      body: Type.Object({ text: Type.Optional(Type.String()), note: Type.Optional(Type.String({ maxLength: 10000 })) }),
       response: { 200: Type.Object({ quote: QuoteDto }), 400: ErrorBody, 404: ErrorBody, 409: ErrorBody },
     },
   }, async (req, reply) => {

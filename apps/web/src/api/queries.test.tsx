@@ -68,8 +68,8 @@ describe('useBulkLinks', () => {
 });
 
 describe('useImportLinks', () => {
-  const result = (n: number, added: number, skipped = 0) => ({
-    created: n, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added, skipped },
+  const result = (n: number, added: number, alreadyHere = 0, invalid = 0) => ({
+    created: n, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added, alreadyHere, invalid },
   });
 
   beforeEach(() => {
@@ -93,7 +93,7 @@ describe('useImportLinks', () => {
     expect(calls).toHaveLength(2);
     expect(calls[0]).toEqual([all.slice(0, 200), orphans]);
     expect(calls[1]).toEqual([[last], undefined]);
-    expect(total.quotes).toEqual({ added: 5, skipped: 1 });
+    expect(total.quotes).toEqual({ added: 5, alreadyHere: 1, invalid: 0 });
     expect(total.created).toBe(201);
   });
 

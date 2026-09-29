@@ -46,7 +46,11 @@ export function ImportBookmarks({ buttonClass, statusClass, errorClass }: {
       if (result.quotes.added > 0) {
         parts.push(`${result.quotes.added} ${result.quotes.added === 1 ? 'quote' : 'quotes'} restored`);
       }
-      const notRestored = result.quotes.skipped + (parsed.quotesNotRestored ?? 0);
+      const { alreadyHere } = result.quotes;
+      if (alreadyHere > 0) {
+        parts.push(`${alreadyHere} ${alreadyHere === 1 ? 'quote' : 'quotes'} already here`);
+      }
+      const notRestored = result.quotes.invalid + (parsed.quotesNotRestored ?? 0);
       if (notRestored > 0) {
         parts.push(`${notRestored} ${notRestored === 1 ? 'quote' : 'quotes'} not restored`);
       }

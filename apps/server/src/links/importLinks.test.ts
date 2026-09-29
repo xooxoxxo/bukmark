@@ -97,6 +97,6 @@ describe('importLinks', () => {
 
   it('returns an empty result for an empty batch', async () => {
     const res = await importLinks(db, []);
-    expect(res).toEqual({ created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 0, skipped: 0 } });
+    expect(res).toEqual({ created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 0, alreadyHere: 0, invalid: 0 } });
   });
 });

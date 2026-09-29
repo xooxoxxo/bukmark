@@ -139,7 +139,7 @@ export function useImportLinks() {
       onProgress?: (done: number, total: number) => void;
     }): Promise<api.ImportResult> => {
       const total: api.ImportResult = {
-        created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 0, skipped: 0 },
+        created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 0, alreadyHere: 0, invalid: 0 },
       };
       // A batch closes at the item cap or before its body would pass the byte
       // budget, whichever comes first; an item stays whole so its quotes travel
@@ -157,7 +157,8 @@ export function useImportLinks() {
         total.skippedDeleted += res.skippedDeleted;
         total.invalid.push(...res.invalid);
         total.quotes.added += res.quotes.added;
-        total.quotes.skipped += res.quotes.skipped;
+        total.quotes.alreadyHere += res.quotes.alreadyHere;
+        total.quotes.invalid += res.quotes.invalid;
         done += batch.length;
         onProgress?.(done, items.length);
       }

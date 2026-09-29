@@ -28,8 +28,8 @@ export interface ImportLinksResult {
   updated: number;
   skippedDeleted: number;
   invalid: { url: string; reason: string }[];
-  /** Quotes restored from a bukmark backup; `skipped` are ones already here (or of a link that stayed deleted). */
-  quotes: { added: number; skipped: number };
+  /** Quotes restored from a bukmark backup; `alreadyHere` were saved before, `invalid` cannot be stored (blank text, unreadable url). */
+  quotes: { added: number; alreadyHere: number; invalid: number };
 }
 
 /** Rows per INSERT: 8 columns each keeps a statement well under Postgres's 65535 parameter cap. */
@@ -95,7 +95,7 @@ export async function importLinks(
   orphanQuotes: ImportOrphanQuote[] = [],
 ): Promise<ImportLinksResult> {
   const res: ImportLinksResult = {
-    created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 0, skipped: 0 },
+    created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 0, alreadyHere: 0, invalid: 0 },
   };
   const fromDeleted = await importItems(db, items, source, res);
   const orphans = [...orphanQuotes, ...fromDeleted];
@@ -118,12 +118,12 @@ async function restoreOrphanQuotes(db: Db, orphans: ImportOrphanQuote[], res: Im
     try {
       norm = normalizeText(o.text);
     } catch {
-      res.quotes.skipped += 1;
+      res.quotes.invalid += 1;
       continue;
     }
     const id = `${o.sourceUrl}\u0000${norm.textKey}`;
     if (seen.has(id)) {
-      res.quotes.skipped += 1;
+      res.quotes.alreadyHere += 1;
       continue;
     }
     seen.add(id);
@@ -154,7 +154,7 @@ async function importItems(
     const n = normalizeUrl(it.url);
     if (!n.ok) {
       res.invalid.push({ url: it.url, reason: `${n.reason} url` });
-      res.quotes.skipped += it.quotes?.length ?? 0;
+      res.quotes.invalid += it.quotes?.length ?? 0;
       continue;
     }
     const key = matchKey(n.url);
@@ -170,8 +170,10 @@ async function importItems(
       url: n.url,
       urlHash: n.urlHash,
       matchKey: key,
-      title: it.title ?? '',
-      folderPath: it.folderPath ?? null,
+      // A continuation item (a link's further quotes) carries no hub hint of its
+      // own, so what the first item said is kept.
+      title: prior?.title || it.title || '',
+      folderPath: prior?.folderPath ?? it.folderPath ?? null,
       quotes: [...(prior?.quotes ?? []), ...(it.quotes ?? [])],
     });
   }
@@ -288,11 +290,11 @@ async function importItems(
         try {
           norm = normalizeText(q.text);
         } catch {
-          res.quotes.skipped += 1;
+          res.quotes.invalid += 1;
           continue;
         }
         if (seen.has(norm.textKey)) {
-          res.quotes.skipped += 1;
+          res.quotes.alreadyHere += 1;
           continue;
         }
         seen.add(norm.textKey);
@@ -305,7 +307,7 @@ async function importItems(
     if (rows.length > 0) {
       const added = await insertQuotes(tx, rows);
       res.quotes.added += added;
-      res.quotes.skipped += rows.length - added;
+      res.quotes.alreadyHere += rows.length - added;
     }
   });
 
