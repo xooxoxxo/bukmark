@@ -1,0 +1,46 @@
+name: Bug report
+description: Something does not work as the docs say it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Click …
+    validations:
+      required: true
+  - type: dropdown
+    id: part
+    attributes:
+      label: Part
+      options:
+        - Server / web app
+        - Browser extension
+        - bukmark command or installer
+        - MCP server
+        - Docs or website
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The image tag (shown by `bukmark status` or `docker compose ps`) or the commit you built from, and for the extension your browser and its version.
+      placeholder: ghcr.io/xooxoxxo/bukmark:0.3.0, Firefox 156
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "`bukmark logs`, or `docker compose logs app`. Remove anything private first."
+      render: text

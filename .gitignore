@@ -27,3 +27,7 @@ docs/superpowers/
 
 # Local settings: .env.example is the committed template.
 .env
+
+# Design-tool state (Hallmark, Impeccable); the briefs live in the vault.
+.hallmark/
+.impeccable/

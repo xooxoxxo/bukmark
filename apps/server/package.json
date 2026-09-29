@@ -1,6 +1,7 @@
 {
   "name": "@bukmark/server",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "@bukmark/shared": "workspace:*",

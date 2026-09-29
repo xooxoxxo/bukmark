@@ -217,3 +217,43 @@ jobs:
       - name: Stop
         if: always()
         run: docker compose down -v
+
+  release:
+    name: GitHub release
+    # Only for a pushed tag, and only once the image has passed its smoke tests.
+    needs: [publish, smoke]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Create the release, unless it exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; left as it is."
+            exit 0
+          fi
+          version=${TAG#v}
+          prev=$(git describe --tags --abbrev=0 --match 'v*.*.*' "$TAG^" 2>/dev/null || true)
+          {
+            echo "Image: \`ghcr.io/xooxoxxo/bukmark:$version\` (linux/amd64, linux/arm64)."
+            echo "Update: \`bukmark update\`, or pull the image and restart."
+            echo
+            if [ -n "$prev" ]; then
+              echo "## Changes since $prev"
+              echo
+              git log --no-merges --format='- %s' "$prev..$TAG"
+            else
+              echo "The first public release. Install: https://bukmark.it/docs/install/"
+            fi
+          } > notes.md
+          prerelease=
+          case "$TAG" in *-*) prerelease=--prerelease ;; esac
+          gh release create "$TAG" --verify-tag --title "bukmark $version" --notes-file notes.md $prerelease

@@ -1,6 +1,7 @@
 {
   "name": "@bukmark/extension",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && vite build --mode chrome && vite build --mode firefox && vite build --mode safari",

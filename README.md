@@ -1,33 +1,44 @@
 # bukmark
 
-A self-hosted bookmark manager built around triage rather than storage. Capture
-a page in one click, and everything lands **unsorted** on purpose — sorting is a
-separate, deliberate pass you run later by asking your AI assistant, not a decision you make
-at 1am with sixty tabs open.
+[![ci](https://github.com/xooxoxxo/bukmark/actions/workflows/ci.yml/badge.svg)](https://github.com/xooxoxxo/bukmark/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/xooxoxxo/bukmark)](https://github.com/xooxoxxo/bukmark/releases)
+[![license: MIT](https://img.shields.io/badge/license-MIT-fd441d)](LICENSE)
 
-- **Web UI** — virtualized list and grid over tens of thousands of links, full-text
-  search, hubs (categories), bulk actions.
-- **Browser extension** — Chrome, Edge, Brave, Opera, Firefox and Safari. Toolbar
-  popup, a keyboard shortcut for silent saves, and one-shot import of your
-  existing browser bookmarks.
-- **Phone capture** — install the web app to save from Android's Share sheet, or
-  use an iOS Shortcut or a bookmarklet. Installing the web app needs HTTPS.
-- **MCP server** — lets any MCP client read your unsorted pile and file it, with your
-  approval, from any MCP-compatible tool or session.
-- **CLI** — batch-triage OneTab/Chrome/Safari exports into ranked markdown.
+**Bookmarks you own.** A self-hosted bookmark manager built around triage.
+Save any page in one click; everything lands **unsorted** on purpose. Sorting is
+a separate pass you run when you choose, by hand or by asking your AI assistant.
 
-## Requirements
+[Website](https://bukmark.it) · [Docs](https://bukmark.it/docs/) ·
+[Install](https://bukmark.it/docs/install/) · [Releases](https://github.com/xooxoxxo/bukmark/releases)
 
-- Docker with Compose v2, running. On macOS: Docker Desktop, OrbStack or Colima.
-- Node.js >= 22 and pnpm 10 (only to build the extension and for the v0 triage CLI)
+[![bukmark: bookmarks you own](https://bukmark.it/og/home.png)](https://bukmark.it)
+
+## What it does
+
+- **Save in one click.** A browser extension for Chrome, Edge, Brave, Opera,
+  Firefox and Safari: the toolbar button saves the page with an optional note,
+  a keyboard shortcut saves silently, and it tells you when a page is already
+  saved and where. On a phone, share to the web app, or use an iOS Shortcut.
+- **Search what you saved.** The server keeps the text of every saved page, so
+  search finds words inside pages, not only titles, and you keep a copy when a
+  page disappears. Broken links are flagged.
+- **Sort when you choose.** Hubs group links. Connect the MCP server and your
+  assistant proposes hubs for your unsorted links; you approve them in one batch.
+- **Keep your browser in step.** Import your browser's bookmarks once, or sync a
+  `bukmark` folder both ways.
+- **Leave any time.** Export HTML for any browser, JSON or CSV: everything, one
+  hub, or a search.
+
+One Docker Compose stack: the server (API and web app) and Postgres. No
+accounts, no telemetry; one password protects it.
 
 ## Install
 
-Pick one. The first two install the `bukmark` command, which runs the published
-image; the third builds the image from source.
+You need Docker with Compose v2, running. On macOS: Docker Desktop, OrbStack or
+Colima.
 
-**Install script.** Puts `bukmark` in `~/.local/bin` and sets it up. It
-installs into your home folder only and never uses sudo.
+**Install script.** Puts the `bukmark` command in `~/.local/bin` and sets it
+up, without sudo.
 
 ```bash
 curl -fsSL https://bukmark.it/install.sh | sh
@@ -40,30 +51,44 @@ brew install xooxoxxo/tap/bukmark
 bukmark setup
 ```
 
+> The script and Homebrew run the published image, which arrives with the first
+> release (v0.3.0). Until then, use Docker Compose from source.
+
 **Docker Compose from source.**
 
 ```bash
 git clone https://github.com/xooxoxxo/bukmark.git bukmark && cd bukmark
-cp .env.example .env          # optional — defaults work as-is
 docker compose up -d
 curl localhost:3000/healthz   # {"ok":true}
 ```
 
-That builds the server image, starts Postgres, applies migrations on boot, and
-serves the API and web UI on <http://localhost:3000>.
+Then open <http://localhost:3000> and set your password right away: until it is
+set, whoever reaches the port first can set it. Port 3000 or 5432 taken? Copy
+`.env.example` to `.env` and change `PORT` or `POSTGRES_PORT`. The
+[install guide](https://bukmark.it/docs/install/) covers the `bukmark` command,
+settings, HTTPS, reverse proxies and updating.
 
-> **Ports taken?** If port 5432 or 3000 is already in use, set `POSTGRES_PORT` and/or `PORT`
-> to free ports in `.env` before running `docker compose up`.
+### The browser extension
 
-Whichever you pick, open <http://localhost:3000> (or the port you chose) and set
-your password straight away. `bukmark help` lists the command's other commands: `status`, `update`,
-`stop`, `uninstall` and more. The [install guide](https://bukmark.it/docs/install/)
-has the details.
+Not in the browser stores yet. Build it with Node.js 22+ and pnpm 10, then load
+it: `pnpm install && pnpm --filter @bukmark/extension build`, and follow the
+[extension guide](https://bukmark.it/docs/extension/) for Chrome, Firefox and
+Safari.
 
 ## Documentation
 
-For setup instructions, browser extension guide, sorting, export options, CLI usage, development guide, and API documentation, see <https://bukmark.it>.
+[bukmark.it/docs](https://bukmark.it/docs/): [install](https://bukmark.it/docs/install/),
+[browser extension](https://bukmark.it/docs/extension/),
+[capture from your phone](https://bukmark.it/docs/phone/),
+[sorting with MCP](https://bukmark.it/docs/sorting/),
+[import and export](https://bukmark.it/docs/export/),
+[API](https://bukmark.it/docs/api/), [privacy](https://bukmark.it/docs/privacy/).
+
+## Contributing
+
+Bug reports and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
+Security problems: report them privately, as [SECURITY.md](SECURITY.md) says.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE).

@@ -1,6 +1,7 @@
 {
   "name": "@bukmark/cli",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "dependencies": { "@bukmark/shared": "workspace:*" },
   "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" }

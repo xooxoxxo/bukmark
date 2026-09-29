@@ -1,6 +1,7 @@
 {
   "name": "@bukmark/shared",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "exports": { ".": "./src/index.ts" },
   "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" }

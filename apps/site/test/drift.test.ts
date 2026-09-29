@@ -202,10 +202,11 @@ describe('install docs match the bukmark command, its installer and the formula'
     }
     // The installer hands the options after `sh -s --` to bukmark setup.
     expect(installer).toContain('"$target" setup "$@"');
-    // Any other bukmark.it address outside the docs is a file the site publishes.
+    // Any other bukmark.it address outside the docs and the share images
+    // (src/pages/og) is a file the site publishes.
     const served = [...(install + readme).matchAll(/https:\/\/bukmark\.it\/([^\s)`'"<>]+)/g)]
       .map((m) => m[1]!)
-      .filter((p) => !p.startsWith('docs/'));
+      .filter((p) => !p.startsWith('docs/') && !/^og\/[a-z0-9/-]+\.png$/.test(p));
     expect(served).toEqual(expect.arrayContaining(['install.sh', 'bukmark']));
     expect(served.filter((p) => !(p in PACKAGING_FILES))).toEqual([]);
   });

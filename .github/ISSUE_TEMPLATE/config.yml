@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://bukmark.it/docs/
+    about: Install, the browser extension, sorting with MCP, export, the API.
+  - name: Report a security problem
+    url: https://github.com/xooxoxxo/bukmark/security/advisories/new
+    about: Privately, please. Not as an issue.
