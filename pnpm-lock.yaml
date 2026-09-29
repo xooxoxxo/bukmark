@@ -63,8 +63,8 @@ importers:
         specifier: ^8.0.0
         version: 8.3.0
       '@fastify/type-provider-typebox':
-        specifier: ^5.0.0
-        version: 5.2.0(@sinclair/typebox@0.33.24)
+        specifier: ^6.1.0
+        version: 6.1.0(typebox@1.3.34)
       '@sinclair/typebox':
         specifier: ^0.33.0
         version: 0.33.24
@@ -1267,10 +1267,10 @@ packages:
   '@fastify/static@8.3.0':
     resolution: {integrity: sha512-yKxviR5PH1OKNnisIzZKmgZSus0r2OZb8qCSbqmw34aolT4g3UlzYfeBRym+HJ1J471CR8e2ldNub4PubD1coA==}
 
-  '@fastify/type-provider-typebox@5.2.0':
-    resolution: {integrity: sha512-RoUFTQNYlaVM/gXosFqlrUAD/JHC+OXLcj4DxNoMOag2GI7OydfCt+3vdT+6D2daJwhGAdkpxB0wLNqS7gf4CQ==}
+  '@fastify/type-provider-typebox@6.1.0':
+    resolution: {integrity: sha512-k29cOitDRcZhMXVjtRq0+caKxdWoArz7su+dQWGzGWnFG+fSKhevgiZ7nexHWuXOEEQzgJlh6cptIMu69beaTA==}
     peerDependencies:
-      '@sinclair/typebox': '>=0.26 <=0.34'
+      typebox: ^1.0.13
 
   '@floating-ui/core@1.8.0':
     resolution: {integrity: sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ==}
@@ -5523,6 +5523,9 @@ packages:
     resolution: {integrity: sha512-faYHw0anBbc/kWF3zFTEnxSFOAGUX9GFbOBthvDdLsIlEoWOFOtS0zgCiQYwIskL9iGXZL3kAXD8OoZ4GmMATA==}
     engines: {node: '>= 18'}
 
+  typebox@1.3.34:
+    resolution: {integrity: sha512-wbnzrXXDW8xEFHDZZs2jo1MkhaYlKAY4FRhpBc1+2LF1fZVBGCXGdLEhA/Z/NBbgzJMFfeM8m7elKPa/+KxaUQ==}
+
   typesafe-path@0.2.2:
     resolution: {integrity: sha512-OJabfkAg1WLZSqJAJ0Z6Sdt3utnbzr/jh+NAHoyWHJe8CMSy79Gm085094M9nvTPy22KzTVn5Zq5mbapCI/hPA==}
 
@@ -7115,9 +7118,9 @@ snapshots:
       fastq: 1.20.1
       glob: 11.1.0
 
-  '@fastify/type-provider-typebox@5.2.0(@sinclair/typebox@0.33.24)':
+  '@fastify/type-provider-typebox@6.1.0(typebox@1.3.34)':
     dependencies:
-      '@sinclair/typebox': 0.33.24
+      typebox: 1.3.34
 
   '@floating-ui/core@1.8.0':
     dependencies:
@@ -11829,6 +11832,8 @@ snapshots:
       content-type: 2.0.0
       media-typer: 1.1.1
       mime-types: 3.0.2
+
+  typebox@1.3.34: {}
 
   typesafe-path@0.2.2: {}
 
