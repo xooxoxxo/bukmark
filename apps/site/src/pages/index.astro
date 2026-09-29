@@ -9,7 +9,7 @@ const SHARE = {
 	description:
 		'A self-hosted bookmark manager. Save any page in one click, search the text of everything you saved, and sort it with AI. Open source; runs on your own server.',
 	image: 'https://bukmark.it/og/home.png',
-	alt: 'bukmark: Bookmarks you own. Save any page in one click. Search what you saved. Sort it with AI. Self-hosted, open source, for Chrome, Firefox and Safari.',
+	alt: 'bukmark: bookmarks you own. Save any page in one click. Search what you saved. Sort it with AI. Self-hosted, open source, for Chrome, Firefox and Safari.',
 };
 
 // The ways in, quickest first. All need Docker; the install guide has the rest.
@@ -67,8 +67,7 @@ const LIVE_CHANNELS = CHANNELS.filter((c) => c.live);
 		<meta name="twitter:image:alt" content={SHARE.alt} />
 		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 		<link rel="icon" href="/favicon.png" type="image/png" sizes="64x64" />
-		<link rel="preconnect" href="https://fonts.googleapis.com" />
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
 		<script is:inline>
 			// The landing page is not a Starlight page, but it shares the theme with
 			// the docs: read the key Starlight's own toggle writes so a choice made
@@ -109,7 +108,7 @@ const LIVE_CHANNELS = CHANNELS.filter((c) => c.live);
 		<main id="content">
 			<section class="hero">
 				<div class="frame reveal">
-					<h1>Bookmarks you own.</h1>
+					<h1>bookmarks you own.</h1>
 					<div class="hero__lower">
 						<div class="hero__intro">
 							<p>
@@ -172,12 +171,11 @@ const LIVE_CHANNELS = CHANNELS.filter((c) => c.live);
 			<section class="workflow reveal" id="workflow">
 				<div class="frame">
 					<header class="section-heading">
-						<h2>The three moves</h2>
-						<p>Speed up capture. Batch your sorting. Own your export.</p>
+						<h2>three moves.</h2>
 					</header>
 					<div class="workflow__list">
 						<article class="workflow__item">
-							<h3>Capture</h3>
+							<h3>capture</h3>
 							<p>
 								Install the extension in Chrome, Edge, Firefox or Safari. The toolbar button saves
 								the current page with an optional note; Alt+Shift+K (Control+Shift+K on a Mac) saves
@@ -186,7 +184,7 @@ const LIVE_CHANNELS = CHANNELS.filter((c) => c.live);
 							</p>
 						</article>
 						<article class="workflow__item">
-							<h3>Sort with AI</h3>
+							<h3>sort</h3>
 							<p>
 								Connect the MCP server and ask your assistant to sort your unsorted links. It proposes
 								assignments to your existing hubs; you approve or reassign them in one batch.
@@ -194,7 +192,7 @@ const LIVE_CHANNELS = CHANNELS.filter((c) => c.live);
 							</p>
 						</article>
 						<article class="workflow__item">
-							<h3>Export</h3>
+							<h3>export</h3>
 							<p>
 								Export HTML for any browser, JSON for backups, or CSV for spreadsheets. Export
 								all links, one hub, or the current search. Your data leaves the way you want it.
@@ -207,24 +205,15 @@ const LIVE_CHANNELS = CHANNELS.filter((c) => c.live);
 			<section class="product-view reveal">
 				<div class="frame">
 					<header class="product-view__intro">
-						<h2>Unsorted is a feature.</h2>
-						<p>
-							Everything lands in one calm workbench. Hubs stay visible, filters stay close,
-							and the unsorted queue waits until you choose to triage it.
-						</p>
+						<h2>unsorted is a feature.</h2>
 					</header>
-					<figure>
-						<DemoApp />
-						<figcaption>
-							A working demo with sample links. Filter by hub, search, or switch to the grid.
-						</figcaption>
-					</figure>
+					<DemoApp />
 				</div>
 			</section>
 
 			<section class="closing reveal">
 				<div class="frame closing__grid">
-					<h2>Capture now.<br />Sort when you choose.</h2>
+					<h2>capture now.<br />sort when you choose.</h2>
 					<div class="closing__action">
 						<p>
 							Run it on your own infrastructure. Keep the database. Export whenever you want.
@@ -320,6 +309,9 @@ const LIVE_CHANNELS = CHANNELS.filter((c) => c.live);
 			html { overflow-x: clip; scroll-behavior: smooth; }
 			* { box-sizing: border-box; }
 			body {
+				/* The landing page keeps the face it launched with; Bricolage is the
+				   docs' heading face. */
+				--bk-font-display: var(--bk-font-brand);
 				overflow-x: clip;
 				margin: 0;
 				background: var(--bk-paper);
@@ -579,15 +571,6 @@ const LIVE_CHANNELS = CHANNELS.filter((c) => c.live);
 				line-height: 0.9;
 				text-wrap: balance;
 			}
-			.section-heading > p,
-			.product-view__intro > p {
-				grid-column: 9 / -1;
-				margin: 0;
-				color: var(--bk-muted);
-				font-size: var(--bk-text-md);
-				line-height: 1.55;
-				text-wrap: pretty;
-			}
 			.workflow__list { border-top: 2px solid var(--bk-ink); }
 			.workflow__item {
 				display: grid;
@@ -619,8 +602,6 @@ const LIVE_CHANNELS = CHANNELS.filter((c) => c.live);
 			.workflow__item:nth-child(2) h3 { grid-column: 7 / -1; text-align: right; }
 			.workflow__item:nth-child(2) p { grid-column: 1 / 6; grid-row: 1; }
 			.workflow__item:last-child { border-bottom: 0; }
-			.product-view figure { margin: 0; }
-			.product-view figcaption { padding-top: var(--bk-space-sm); color: var(--bk-muted); font-size: var(--bk-text-sm); }
 			.closing__grid {
 				display: grid;
 				grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -650,11 +631,7 @@ const LIVE_CHANNELS = CHANNELS.filter((c) => c.live);
 			@media (max-width: 64rem) {
 				.hero__intro { grid-column: 1 / 7; }
 				.install-command { grid-column: 7 / -1; }
-				.section-heading h2,
-				.product-view__intro h2,
 				.closing h2 { grid-column: 1 / 8; }
-				.section-heading > p,
-				.product-view__intro > p,
 				.closing__action { grid-column: 8 / -1; }
 			}
 			@media (max-width: 48rem) {
@@ -674,9 +651,7 @@ const LIVE_CHANNELS = CHANNELS.filter((c) => c.live);
 				.hero__intro,
 				.install-command,
 				.section-heading h2,
-				.section-heading > p,
 				.product-view__intro h2,
-				.product-view__intro > p,
 				.workflow__item h3,
 				.workflow__item p,
 				.workflow__item:nth-child(2) h3,
@@ -687,7 +662,7 @@ const LIVE_CHANNELS = CHANNELS.filter((c) => c.live);
 				.hero__intro { margin-bottom: var(--bk-space-2xl); }
 				.button-row { flex-direction: column; }
 				.section-heading h2,
-				.product-view__intro h2 { margin-bottom: var(--bk-space-xl); font-size: clamp(3rem, 15vw, 5.25rem); }
+				.product-view__intro h2 { font-size: clamp(3rem, 15vw, 5.25rem); }
 				.workflow__item h3 { margin-bottom: var(--bk-space-xl); font-size: clamp(2.75rem, 13vw, 4.5rem); }
 				.closing h2 { margin-bottom: var(--bk-space-2xl); font-size: clamp(3rem, 14vw, 5rem); }
 				.site-footer__details { align-items: flex-start; margin-top: var(--bk-space-2xl); text-align: left; }

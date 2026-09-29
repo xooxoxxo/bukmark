@@ -63,7 +63,7 @@ function homeCard(): Node {
         h('div', { fontFamily: 'Geist Mono', fontSize: 26, color: ACCENT }, 'bukmark.it'),
       ]),
       h('div', { flexDirection: 'column', fontFamily: 'Bricolage', fontSize: 148, lineHeight: 0.9, letterSpacing: -7 }, [
-        h('div', {}, 'Bookmarks'),
+        h('div', {}, 'bookmarks'),
         h('div', {}, [h('span', {}, 'you own'), h('span', { color: ACCENT }, '.')]),
       ]),
       h('div', { flexDirection: 'column', gap: 22 }, [
