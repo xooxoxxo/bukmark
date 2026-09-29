@@ -15,7 +15,7 @@ describe('export api', () => {
   beforeAll(async () => {
     await runMigrations(TEST_URL);
     const tempDb = await getDb(TEST_URL);
-    await tempDb.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, owner, sessions, api_tokens, auth_codes CASCADE`);
+    await tempDb.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, owner, sessions, api_tokens, auth_codes, quotes CASCADE`);
     await tempDb.sql.end();
     app = await buildApp({ databaseUrl: TEST_URL, fetchOgImage: async () => null });
     db = app.db;
@@ -24,7 +24,7 @@ describe('export api', () => {
   });
 
   beforeEach(async () => {
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, quotes CASCADE`);
   });
 
   async function seedWithAuth() {
@@ -33,7 +33,7 @@ describe('export api', () => {
   }
 
   afterAll(async () => {
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, owner, sessions, api_tokens, auth_codes CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, owner, sessions, api_tokens, auth_codes, quotes CASCADE`);
   });
 
   async function seed(): Promise<void> {

@@ -35,13 +35,13 @@ describe('auth', () => {
 
   beforeEach(async () => {
     const app = await newApp();
-    await app.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, owner, sessions, api_tokens, auth_codes CASCADE`);
+    await app.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, owner, sessions, api_tokens, auth_codes, quotes CASCADE`);
     await app.close();
   });
 
   afterAll(async () => {
     const app = await newApp();
-    await app.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, owner, sessions, api_tokens, auth_codes CASCADE`);
+    await app.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, owner, sessions, api_tokens, auth_codes, quotes CASCADE`);
     await app.close();
   });
 

@@ -8,7 +8,7 @@ import { authHeaders } from '../test/auth.js';
 
 const TEST_URL =
   process.env.TEST_DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark_test';
-const ALL = dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, owner, sessions, api_tokens, auth_codes CASCADE`;
+const ALL = dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, owner, sessions, api_tokens, auth_codes, quotes CASCADE`;
 
 describe('one link, sorting and editing', () => {
   let app: FastifyInstance; let headers: { Authorization: string };
@@ -26,7 +26,7 @@ describe('one link, sorting and editing', () => {
     return async () => { await app.close(); };
   });
   beforeEach(async () => {
-    await app.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs CASCADE`);
+    await app.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, quotes CASCADE`);
   });
   afterAll(async () => { await app.db.execute(ALL); });
 

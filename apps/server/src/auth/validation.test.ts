@@ -9,7 +9,7 @@ import { SAME_ORIGIN, authCookie, authHeaders } from '../test/auth.js';
 const TEST_URL =
   process.env.TEST_DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark_test';
 
-const TRUNCATE = dsql`TRUNCATE links, captures, hubs, hub_links, owner, sessions, api_tokens, auth_codes CASCADE`;
+const TRUNCATE = dsql`TRUNCATE links, captures, hubs, hub_links, owner, sessions, api_tokens, auth_codes, quotes CASCADE`;
 
 // Each emoji is one code point but two UTF-16 units.
 const EMOJI = '🔖';

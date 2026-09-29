@@ -10,8 +10,8 @@ import { authHeaders } from '../test/auth.js';
 
 const TEST_URL =
   process.env.TEST_DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark_test';
-const ALL = dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, link_deletions, owner, sessions, api_tokens, auth_codes CASCADE`;
-const DATA = dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, link_deletions CASCADE`;
+const ALL = dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, link_deletions, owner, sessions, api_tokens, auth_codes, quotes CASCADE`;
+const DATA = dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, link_deletions, quotes CASCADE`;
 
 /** UTC, ISO 8601, six fractional digits. */
 const FEED_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;

@@ -10,7 +10,7 @@ import type { PageFetch } from './fetchHead.js';
 
 const TEST_URL =
   process.env.TEST_DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark_test';
-const ALL = dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, owner, sessions, api_tokens, auth_codes CASCADE`;
+const ALL = dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, owner, sessions, api_tokens, auth_codes, quotes CASCADE`;
 
 /** What each URL answers, by path; anything else is a page about its own path. */
 let pages: Record<string, PageFetch> = {};
@@ -38,7 +38,7 @@ describe('link checks', () => {
   beforeEach(async () => {
     pages = {};
     seen.length = 0;
-    await app.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs CASCADE`);
+    await app.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, quotes CASCADE`);
   });
   afterAll(async () => { await app.db.execute(ALL); });
 

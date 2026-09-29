@@ -16,15 +16,15 @@ describe('hubs api', () => {
     await runMigrations(TEST_URL);
     app = await buildApp({ databaseUrl: TEST_URL });
     db = app.db;
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, owner, sessions, api_tokens, auth_codes CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, owner, sessions, api_tokens, auth_codes, quotes CASCADE`);
     headers = await authHeaders(db);
     return async () => { await app.close(); };
   });
   beforeEach(async () => {
-    await db.execute(dsql`TRUNCATE links, hubs, hub_links CASCADE`);
+    await db.execute(dsql`TRUNCATE links, hubs, hub_links, quotes CASCADE`);
   });
   afterAll(async () => {
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, owner, sessions, api_tokens, auth_codes CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, owner, sessions, api_tokens, auth_codes, quotes CASCADE`);
   });
 
   it('CRUD + linkCount ordering', async () => {

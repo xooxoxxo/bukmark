@@ -56,6 +56,28 @@ export const captures = pgTable('captures', {
   capturedAt: timestamp('captured_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('captures_link_idx').on(t.linkId)]);
 
+/**
+ * Passages saved from pages. link_id goes null when the link is deleted; the
+ * source_url/source_title copy keeps the quote readable. Beyond what drizzle
+ * expresses, drizzle/0010 adds search_tsv (generated from text and note, like
+ * links.search_tsv) and its GIN index.
+ */
+export const quotes = pgTable('quotes', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  linkId: uuid('link_id').references(() => links.id, { onDelete: 'set null' }),
+  text: text('text').notNull(),
+  textKey: text('text_key').notNull(),
+  note: text('note').notNull().default(''),
+  sourceUrl: text('source_url').notNull(),
+  sourceTitle: text('source_title').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index('quotes_link_idx').on(t.linkId),
+  uniqueIndex('quotes_link_text_key_uq').on(t.linkId, t.textKey).where(sql`${t.linkId} is not null`),
+  index('quotes_created_at_idx').on(t.createdAt.desc(), t.id),
+]);
+
 export const hubs = pgTable('hubs', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   name: text('name').notNull(),

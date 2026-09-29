@@ -10,7 +10,7 @@ import { checkLinks } from '../og/checkLinks.js';
 
 const TEST_URL =
   process.env.TEST_DATABASE_URL ?? 'postgres://bukmark:bukmark@localhost:5432/bukmark_test';
-const CLEAN = dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, link_deletions CASCADE`;
+const CLEAN = dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, link_deletions, quotes CASCADE`;
 
 /** A stamp no real write makes, so any write that moves updated_at shows. */
 const LONG_AGO = '2000-01-01T00:00:00.000000Z';

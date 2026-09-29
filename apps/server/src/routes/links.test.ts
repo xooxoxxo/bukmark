@@ -17,7 +17,7 @@ describe('links api', () => {
   beforeAll(async () => {
     await runMigrations(TEST_URL);
     const tempDb = await getDb(TEST_URL);
-    await tempDb.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, owner, sessions, api_tokens, auth_codes CASCADE`);
+    await tempDb.db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, owner, sessions, api_tokens, auth_codes, quotes CASCADE`);
     await tempDb.sql.end();
     app = await buildApp({ databaseUrl: TEST_URL, fetchOgImage: async () => ogStub });
     db = app.db;
@@ -26,10 +26,10 @@ describe('links api', () => {
   });
   beforeEach(async () => {
     ogStub = null;
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, quotes CASCADE`);
   });
   afterAll(async () => {
-    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, owner, sessions, api_tokens, auth_codes CASCADE`);
+    await db.execute(dsql`TRUNCATE links, captures, hubs, hub_links, deleted_hashes, import_jobs, owner, sessions, api_tokens, auth_codes, quotes CASCADE`);
   });
 
   async function seed() {
