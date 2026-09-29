@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { sql as dsql } from 'drizzle-orm';
+import { eq, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
 import { getDb, type Db } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
-import { deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
+import { captures, deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 import { authHeaders } from '../test/auth.js';
 
 const TEST_URL =
@@ -128,6 +128,13 @@ describe('links api', () => {
     expect(body.link.hubIds).toHaveLength(1);
     const caps = await db.execute(dsql`SELECT source FROM captures WHERE original_url = 'https://new.example.com/a'`);
     expect(caps[0]!.source).toBe('manual');
+  });
+
+  it('POST ignores a client-supplied capture source', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/links', headers, payload: { url: 'https://src.example.com/x', source: 'quote' } });
+    expect(res.statusCode).toBe(200);
+    const caps = await db.select().from(captures).where(eq(captures.linkId, res.json().link.id));
+    expect(caps.map((c) => c.source)).toEqual(['manual']);
   });
 
   it('POST on an existing url updates provided fields and bumps dupeCount', async () => {

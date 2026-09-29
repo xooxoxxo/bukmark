@@ -88,12 +88,12 @@ export async function createQuote(
     // Same path as any save: match key, unsorted, og image, tombstone resurrection.
     const saved = await addLink(
       db,
-      { url: norm.url, urlHash: norm.urlHash, title: input.title, source: 'quote' },
+      { url: norm.url, urlHash: norm.urlHash, title: input.title, source: 'quote', onlyIfAbsent: true },
       fetchOgImage,
     );
     linkId = saved.link.id;
     linkTitle = saved.link.title;
-    linkCreated = true;
+    linkCreated = saved.outcome !== 'existing';
   }
 
   const existing = () => db.select().from(quotes)

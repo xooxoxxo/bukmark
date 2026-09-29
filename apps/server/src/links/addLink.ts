@@ -13,10 +13,17 @@ export interface AddLinkInput {
   relevance?: number;
   /** Capture source recorded for this save. Defaults to 'manual'. */
   source?: string;
+  /**
+   * Insert only when the page is not saved yet. A page already saved (exact
+   * address or match key, including one a concurrent call just inserted) is
+   * returned untouched: no dupe bump, no updated_at change, no capture, no
+   * title overwrite, and outcome 'existing'.
+   */
+  onlyIfAbsent?: boolean;
 }
 
 export interface AddLinkResult {
-  outcome: 'created' | 'updated' | 'resurrected';
+  outcome: 'created' | 'updated' | 'resurrected' | 'existing';
   link: {
     id: string; url: string; title: string; note: string; status: string;
     relevance: number | null; dupeCount: number; hubIds: string[];
@@ -29,7 +36,7 @@ export async function addLink(
   input: AddLinkInput,
   fetchOgImage: (url: string) => Promise<string | null>,
 ): Promise<AddLinkResult> {
-  const { url, urlHash, title, note, hub, relevance, source = 'manual' } = input;
+  const { url, urlHash, title, note, hub, relevance, source = 'manual', onlyIfAbsent = false } = input;
   const key = matchKey(url);
 
   const { outcome, id } = await db.transaction(async (tx) => {
@@ -49,6 +56,25 @@ export async function addLink(
       ? await tx.select({ id: links.id }).from(links).where(eq(links.matchKey, key)).limit(1)
       : [];
     const foundExisting = existing[0] ?? nearDupe[0] ?? null;
+
+    if (onlyIfAbsent) {
+      if (foundExisting) return { outcome: 'existing' as AddLinkResult['outcome'], id: foundExisting.id };
+      const ins = await tx
+        .insert(links)
+        .values({
+          url, urlHash, matchKey: key, title: title ?? '', note: note ?? '',
+          status: 'active', relevance: relevance ?? null, dupeCount: 1,
+        })
+        .onConflictDoNothing({ target: links.urlHash })
+        .returning({ id: links.id });
+      if (!ins[0]) {
+        // Lost a race to a concurrent insert of the same page: leave the winner alone.
+        const [won] = await tx.select({ id: links.id }).from(links).where(eq(links.urlHash, urlHash)).limit(1);
+        return { outcome: 'existing' as AddLinkResult['outcome'], id: won!.id };
+      }
+      await tx.insert(captures).values({ linkId: ins[0].id, source, originalUrl: url, originalTitle: title ?? '' });
+      return { outcome: (resurrected ? 'resurrected' : 'created') as AddLinkResult['outcome'], id: ins[0].id };
+    }
 
     const onSave = {
       status: 'active' as const,
@@ -94,8 +120,10 @@ export async function addLink(
     return { outcome: outcome as AddLinkResult['outcome'], id: linkId };
   });
 
-  const image = await fetchOgImage(url).catch(() => null);
-  await db.update(links).set({ imageUrl: image, ogFetchedAt: dsql`now()` }).where(eq(links.id, id));
+  if (outcome !== 'existing') {
+    const image = await fetchOgImage(url).catch(() => null);
+    await db.update(links).set({ imageUrl: image, ogFetchedAt: dsql`now()` }).where(eq(links.id, id));
+  }
 
   const [row] = await db
     .select({

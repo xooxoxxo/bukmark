@@ -94,6 +94,26 @@ describe('createQuote', () => {
     expect(new Set(rs.map((r) => r.quote.id)).size).toBe(1);
     expect(rs.filter((r) => r.created)).toHaveLength(1);
     expect(await db.select().from(quotes)).toHaveLength(1);
+    expect(rs.filter((r) => r.link.created)).toHaveLength(1);
+    const ls = await db.select().from(links);
+    expect(ls).toHaveLength(1);
+    expect(ls[0]!.dupeCount).toBe(1);
+    expect(await db.select().from(captures)).toHaveLength(1);
+  });
+
+  it('a racing loser leaves the link untouched (updated_at, title, captures)', async () => {
+    const url = 'https://example.com/race2';
+    const [first] = await Promise.all([
+      createQuote(db, og, { url, title: 'Winner', text: 'one' }),
+      createQuote(db, og, { url, title: 'Loser', text: 'two' }),
+    ]);
+    const [l] = await db.select().from(links).where(eq(links.id, first.link.id));
+    // Whoever inserted first owns the title; the other never overwrote it.
+    expect(['Winner', 'Loser']).toContain(l!.title);
+    expect(l!.dupeCount).toBe(1);
+    expect(l!.updatedAt.getTime()).toBe(l!.firstSeen.getTime());
+    expect(await db.select().from(captures)).toHaveLength(1);
+    expect(await db.select().from(quotes)).toHaveLength(2);
   });
 
   it('resurrects a tombstoned url like a save', async () => {

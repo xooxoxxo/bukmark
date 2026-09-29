@@ -319,7 +319,12 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
     const b = req.body as { url: string; title?: string; note?: string; hub?: string; relevance?: number };
     const norm = normalizeUrl(b.url);
     if (!norm.ok) return reply.code(400).send({ error: `${norm.reason} url` });
-    return addLink(req.server.db, { ...b, url: norm.url, urlHash: norm.urlHash }, req.server.fetchOgImage);
+    const { title, note, hub, relevance } = b;
+    return addLink(
+      req.server.db,
+      { url: norm.url, urlHash: norm.urlHash, title, note, hub, relevance },
+      req.server.fetchOgImage,
+    );
   });
 
   app.post('/links/import', {
