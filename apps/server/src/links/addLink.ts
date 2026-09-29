@@ -1,4 +1,5 @@
 import { eq, sql as dsql } from 'drizzle-orm';
+import { matchKey } from '@bukmark/shared';
 import type { Db } from '../db/client.js';
 import { captures, deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 import { reactivateHub } from './setLinkHubs.js';
@@ -27,6 +28,7 @@ export async function addLink(
   fetchOgImage: (url: string) => Promise<string | null>,
 ): Promise<AddLinkResult> {
   const { url, urlHash, title, note, hub, relevance } = input;
+  const key = matchKey(url);
 
   const { outcome, id } = await db.transaction(async (tx) => {
     const tomb = await tx
@@ -38,25 +40,38 @@ export async function addLink(
     const existing = await tx
       .select({ id: links.id }).from(links).where(eq(links.urlHash, urlHash)).limit(1);
 
-    const rows = await tx
-      .insert(links)
-      .values({
-        url, urlHash, title: title ?? '', note: note ?? '',
-        status: 'active', relevance: relevance ?? null, dupeCount: 1,
-      })
-      .onConflictDoUpdate({
-        target: links.urlHash,
-        set: {
-          status: 'active',
-          dupeCount: dsql`${links.dupeCount} + 1`,
-          updatedAt: dsql`now()`,
-          ...(title !== undefined ? { title } : {}),
-          ...(note !== undefined ? { note } : {}),
-          ...(relevance !== undefined ? { relevance } : {}),
-        },
-      })
-      .returning({ id: links.id });
-    const linkId = rows[0]!.id;
+    // No exact match: the same page under a variant address (http/https, a
+    // trailing slash, the mobile or AMP site) is the link we already have, so
+    // update that one rather than adding a second.
+    const nearDupe = existing.length === 0
+      ? await tx.select({ id: links.id }).from(links).where(eq(links.matchKey, key)).limit(1)
+      : [];
+    const foundExisting = existing[0] ?? nearDupe[0] ?? null;
+
+    const onSave = {
+      status: 'active' as const,
+      dupeCount: dsql`${links.dupeCount} + 1`,
+      updatedAt: dsql`now()`,
+      ...(title !== undefined ? { title } : {}),
+      ...(note !== undefined ? { note } : {}),
+      ...(relevance !== undefined ? { relevance } : {}),
+    };
+
+    let linkId: string;
+    if (nearDupe[0]) {
+      await tx.update(links).set(onSave).where(eq(links.id, nearDupe[0].id));
+      linkId = nearDupe[0].id;
+    } else {
+      const rows = await tx
+        .insert(links)
+        .values({
+          url, urlHash, matchKey: key, title: title ?? '', note: note ?? '',
+          status: 'active', relevance: relevance ?? null, dupeCount: 1,
+        })
+        .onConflictDoUpdate({ target: links.urlHash, set: onSave })
+        .returning({ id: links.id });
+      linkId = rows[0]!.id;
+    }
 
     await tx.insert(captures).values({
       linkId, source: 'manual', originalUrl: url, originalTitle: title ?? '',
@@ -73,7 +88,7 @@ export async function addLink(
         .onConflictDoNothing();
     }
 
-    const outcome = resurrected ? 'resurrected' : existing.length ? 'updated' : 'created';
+    const outcome = resurrected ? 'resurrected' : foundExisting ? 'updated' : 'created';
     return { outcome: outcome as AddLinkResult['outcome'], id: linkId };
   });
 

@@ -63,21 +63,13 @@ a decision you make. The MCP server reads those hints.
 
 ## Duplicates
 
-Saving already folds `www`, tracking parameters and `#fragments` into one link.
-The duplicate finder catches the same page saved under an address that differs
-in another way: `http` and `https`, a trailing slash, a mobile site (`m.`,
-`mobile.`) or an AMP version. Addresses with different query values, such as two
-YouTube videos, are never grouped.
-
-1. Open **Settings** in the sidebar and click **Find duplicates**.
-2. Each group says why its links look the same. Choose the one to keep; the
-   oldest is chosen for you.
-3. Click **Merge**. The kept link gets the others' hubs, their save history and
-   their notes; the others are deleted, and a bookmark sync removes them too.
-   Re-importing a file does not bring them back.
-
-The API: [GET /api/links/duplicates](/docs/api/#get-apilinksduplicates) lists the
-groups, [POST /api/links/merge](/docs/api/#post-apilinksmerge) merges one.
+A link is saved once. Adding a page that is already here, from the extension,
+the web app or an import, updates the link you have instead of adding a second
+one. Besides exact matches (`www`, tracking parameters and `#fragments` never
+count), these variants of an address count as the same page: `http` and
+`https`, with or without a trailing slash, the mobile site (`m.`, `mobile.`) and
+the AMP version. Addresses whose query values differ, such as two YouTube
+videos, stay separate links.
 
 ## Export
 

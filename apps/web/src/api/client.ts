@@ -91,6 +91,10 @@ export function patchLink(id: string, body: LinkPatch): Promise<LinkDto> {
   return http(`/links/${id}`, jsonInit('PATCH', body));
 }
 
+export function refreshLink(id: string): Promise<LinkDto> {
+  return http(`/links/${id}/refresh`, jsonInit('POST', {}));
+}
+
 export function bulkLinks(body: {
   ids: string[];
   action: BulkAction;

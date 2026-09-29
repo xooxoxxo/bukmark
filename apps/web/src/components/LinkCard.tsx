@@ -4,6 +4,7 @@ import type { LinkDto } from '../api/types';
 import { useEditing } from '../state/editing';
 import { useSelection } from '../state/selection';
 import styles from './LinkCard.module.css';
+import { InlineNoteEditor } from './InlineNoteEditor';
 import { goneLabel } from './LinkRow';
 import { Snippet } from './Snippet';
 import { Checkbox } from './ui/Checkbox';
@@ -36,6 +37,9 @@ export function LinkCard({ link }: { link: LinkDto }) {
           {link.title || link.url}
         </a>
         {link.snippet ? <Snippet text={link.snippet} className={styles.snippet} /> : null}
+        <div className={styles.note}>
+          <InlineNoteEditor link={link} compact />
+        </div>
         <div className={styles.chips}>
           {link.broken ? <span className={styles.gone}>{goneLabel(link)}</span> : null}
           {link.hubIds.map((id) => (

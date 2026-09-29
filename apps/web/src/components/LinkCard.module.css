@@ -108,6 +108,11 @@
   font-weight: 600;
 }
 
+.note {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
 .edit {
   margin-left: auto;
   padding: var(--bk-space-2xs) var(--bk-space-sm);

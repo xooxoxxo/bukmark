@@ -29,8 +29,7 @@ Installed like an app, the web app appears in Android's Share sheet.
    Share sheet.
 3. In any app, share a page and pick **bukmark** from the Share sheet.
 4. bukmark opens a save form with the page's title and link filled in, a
-   "Why keep it?" note and a hub picker. Tap **Save**: nothing is saved until
-   you do.
+   note and a hub picker. Tap **Save**: nothing is saved until you do.
 
 Many Android apps share a link inside a line of text rather than on its own;
 bukmark takes the first web link it finds there.

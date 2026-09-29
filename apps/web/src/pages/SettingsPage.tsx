@@ -4,7 +4,6 @@ import { errorMessage } from '../api/client';
 import { buildExportUrl, type ExportFormat } from '../api/exportUrl';
 import { useLogout } from '../api/queries';
 import { ImportBookmarks } from '../components/ImportBookmarks';
-import { DuplicatesFinder } from '../components/DuplicatesFinder';
 import { DOCS_URL } from '../docs';
 import {
   ACCENTS,
@@ -36,7 +35,6 @@ export function SettingsPage() {
   const [theme, setTheme] = useState<ThemeChoice>(readThemeChoice);
   const [accent, setAccent] = useState(readAccent);
   const [logoutError, setLogoutError] = useState('');
-  const [showDuplicates, setShowDuplicates] = useState(false);
   const logout = useLogout();
 
   const presets = new Set(ACCENTS.map(([hex]) => hex));
@@ -168,26 +166,6 @@ export function SettingsPage() {
               <span className={styles.hint}>JSON, archived links included.</span>
             </li>
           </ul>
-        </div>
-      </section>
-
-      <section className={styles.section} aria-labelledby="duplicates">
-        <h2 id="duplicates" className={styles.heading}>Duplicates</h2>
-        <div className={styles.field}>
-          <p className={styles.hint}>
-            The same page saved under two addresses: http and https, with and without a trailing
-            slash, a mobile site or an AMP version. Merging keeps one link and moves the others'
-            hubs onto it.
-          </p>
-          {showDuplicates ? (
-            <DuplicatesFinder />
-          ) : (
-            <div>
-              <button type="button" className={styles.button} onClick={() => setShowDuplicates(true)}>
-                Find duplicates
-              </button>
-            </div>
-          )}
         </div>
       </section>
 

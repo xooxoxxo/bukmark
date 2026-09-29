@@ -193,5 +193,84 @@ describe('links api', () => {
     const res = await app.inject({ method: 'GET', url: '/api/links?unassigned=true', headers });
     expect(res.json().items[0].groupHint).toBeNull();
   });
+
+  it('POST /api/links/:id/refresh fetches and updates og:image', async () => {
+    const created = await app.inject({ method: 'POST', url: '/api/links', headers, payload: { url: 'https://refresh.example.com/1' } });
+    const id = created.json().link.id;
+    expect(created.json().link.imageUrl).toBeNull();
+
+    ogStub = 'https://cdn.example.com/new-og.png';
+    const refreshed = await app.inject({ method: 'POST', url: `/api/links/${id}/refresh`, headers });
+    expect(refreshed.statusCode).toBe(200);
+    expect(refreshed.json().imageUrl).toBe('https://cdn.example.com/new-og.png');
+
+    // Verify it's persisted
+    const fetched = await app.inject({ method: 'GET', url: `/api/links/${id}`, headers });
+    expect(fetched.json().imageUrl).toBe('https://cdn.example.com/new-og.png');
+  });
+
+  it('POST /api/links/:id/refresh returns 404 for unknown link', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/links/00000000-0000-0000-0000-000000000000/refresh', headers });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('POST /api/links/:id/refresh does not overwrite existing title', async () => {
+    const created = await app.inject({ method: 'POST', url: '/api/links', headers, payload: { url: 'https://title.example.com/1', title: 'My Title' } });
+    const id = created.json().link.id;
+    const refreshed = await app.inject({ method: 'POST', url: `/api/links/${id}/refresh`, headers });
+    expect(refreshed.json().title).toBe('My Title');
+  });
+
+  describe('a page saved under a variant address is the link already here', () => {
+    const save = (url: string, extra: Record<string, unknown> = {}) =>
+      app.inject({ method: 'POST', url: '/api/links', headers, payload: { url, ...extra } });
+    const count = async () => (await db.select().from(links)).length;
+
+    it.each([
+      ['https://example.com/post', 'http://example.com/post'],
+      ['https://example.com/post', 'https://example.com/post/'],
+      ['https://example.com/post', 'https://m.example.com/post'],
+      ['https://example.com/post', 'https://example.com/post/amp'],
+      ['https://example.com/post', 'https://amp.example.com/post?amp=1'],
+    ])('%s then %s: one link, saved twice', async (first, second) => {
+      const a = await save(first, { title: 'First' });
+      const b = await save(second);
+      expect(b.statusCode).toBe(200);
+      expect(b.json().link.id).toBe(a.json().link.id);
+      expect(b.json().outcome).toBe('updated');
+      expect(b.json().link.dupeCount).toBe(2);
+      expect(await count()).toBe(1);
+    });
+
+    it('keeps different query values apart', async () => {
+      await save('https://youtube.com/watch?v=aaa');
+      await save('https://youtube.com/watch?v=bbb');
+      expect(await count()).toBe(2);
+    });
+
+    it('lookup finds the link under a variant address', async () => {
+      await save('https://example.com/post');
+      const res = await app.inject({ method: 'GET', url: `/api/links/lookup?url=${encodeURIComponent('https://m.example.com/post/')}`, headers });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().saved).not.toBeNull();
+    });
+
+    it('an import counts a variant address as already here, and collapses variants within the file', async () => {
+      await save('https://example.com/post', { title: 'Mine' });
+      const res = await app.inject({
+        method: 'POST', url: '/api/links/import', headers,
+        payload: { items: [
+          { url: 'http://example.com/post/', title: 'Imported' },
+          { url: 'https://new.example.com/a' },
+          { url: 'https://m.new.example.com/a' },
+        ] },
+      });
+      expect(res.json()).toMatchObject({ created: 1, updated: 1 });
+      expect(await count()).toBe(2);
+      const [kept] = await db.select().from(links).where(dsql`${links.url} = 'https://example.com/post'`);
+      expect(kept!.title).toBe('Mine');
+    });
+  });
+
 });
 

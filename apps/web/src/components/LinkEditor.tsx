@@ -1,7 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { useState, type FormEvent } from 'react';
 import { errorMessage } from '../api/client';
-import { useDeleteLink, useEditLink, useHubs, useLink } from '../api/queries';
+import { useDeleteLink, useEditLink, useHubs, useLink, useRefreshLink } from '../api/queries';
 import type { HubDto, LinkDetail, LinkPatch } from '../api/types';
 import { useEditing } from '../state/editing';
 import styles from './LinkEditor.module.css';
@@ -83,7 +83,9 @@ function EditorForm({ link, hubs, onDone }: { link: LinkDetail; hubs: HubDto[]; 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const edit = useEditLink();
   const remove = useDeleteLink();
-  const busy = edit.isPending || remove.isPending;
+  const refresh = useRefreshLink();
+  const [previewBefore, setPreviewBefore] = useState<string | null>(null);
+  const busy = edit.isPending || remove.isPending || refresh.isPending;
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -120,12 +122,36 @@ function EditorForm({ link, hubs, onDone }: { link: LinkDetail; hubs: HubDto[]; 
     <form onSubmit={onSubmit} className={styles.form}>
       <Dialog.Title className={styles.title}>Edit link</Dialog.Title>
       <a className={styles.url} href={link.url} target="_blank" rel="noreferrer">{link.url}</a>
-      <p className={link.broken ? `${styles.check} ${styles.broken}` : styles.check}>{checkLine(link)}</p>
+      <div className={styles.checkRow}>
+        <p className={link.broken ? `${styles.check} ${styles.broken}` : styles.check}>{checkLine(link)}</p>
+        <button
+          type="button"
+          className={styles.updatePreview}
+          onClick={() => {
+            setPreviewBefore(link.imageUrl);
+            refresh.mutate(link.id);
+          }}
+          disabled={busy}
+        >
+          {refresh.isPending ? 'Updating…' : 'Update preview'}
+        </button>
+      </div>
+      {refresh.isError ? (
+        <p className={styles.error} role="alert">{errorMessage(refresh.error)}</p>
+      ) : refresh.isSuccess ? (
+        <p className={styles.check} role="status">
+          {refresh.data.imageUrl === null
+            ? 'The page has no preview image.'
+            : refresh.data.imageUrl !== previewBefore
+              ? 'Preview updated.'
+              : 'No new preview image; the current one is kept.'}
+        </p>
+      ) : null}
 
       <label className={styles.label} htmlFor="edit-title">Title</label>
       <input id="edit-title" className={styles.input} value={title} onChange={(e) => setTitle(e.target.value)} />
 
-      <label className={styles.label} htmlFor="edit-note">Why keep it?</label>
+      <label className={styles.label} htmlFor="edit-note">Note</label>
       <textarea id="edit-note" className={styles.input} rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
 
       <div className={styles.row}>

@@ -4,6 +4,7 @@ import type { LinkDto } from '../api/types';
 import { useEditing } from '../state/editing';
 import { useSelection } from '../state/selection';
 import styles from './LinkRow.module.css';
+import { InlineNoteEditor } from './InlineNoteEditor';
 import { Snippet } from './Snippet';
 import { Checkbox } from './ui/Checkbox';
 
@@ -43,7 +44,9 @@ export function LinkRow({ link }: { link: LinkDto }) {
           {link.dupeCount > 1 ? <span className={styles.dupe}>×{link.dupeCount}</span> : null}
           {link.broken ? <span className={styles.gone}>{goneLabel(link)}</span> : null}
         </div>
-        {link.note ? <p className={styles.note}>{link.note}</p> : null}
+        <div className={styles.note}>
+          <InlineNoteEditor link={link} />
+        </div>
         {link.snippet ? <Snippet text={link.snippet} className={styles.snippet} /> : null}
       </div>
       <div className={styles.chips}>

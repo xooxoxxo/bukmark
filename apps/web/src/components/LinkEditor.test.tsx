@@ -9,7 +9,7 @@ import { LinkEditor, checkLine } from './LinkEditor';
 
 vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof client>();
-  return { ...actual, fetchLink: vi.fn(), fetchHubs: vi.fn(), patchLink: vi.fn(), bulkLinks: vi.fn() };
+  return { ...actual, fetchLink: vi.fn(), fetchHubs: vi.fn(), patchLink: vi.fn(), bulkLinks: vi.fn(), refreshLink: vi.fn() };
 });
 
 const LINK: LinkDetail = {
@@ -46,7 +46,7 @@ describe('LinkEditor', () => {
     renderEditor();
     const dialog = await screen.findByRole('dialog', { name: 'Edit link' });
     expect(await within(dialog).findByLabelText('Title')).toHaveValue('A post');
-    expect(within(dialog).getByLabelText('Why keep it?')).toHaveValue('why');
+    expect(within(dialog).getByLabelText('Note')).toHaveValue('why');
     expect(within(dialog).getByRole('checkbox', { name: 'rust' })).toBeChecked();
     expect(within(dialog).getByRole('checkbox', { name: 'reading' })).not.toBeChecked();
     expect(within(dialog).getByText(/The page was there on/)).toBeInTheDocument();
@@ -119,4 +119,17 @@ describe('checkLine', () => {
   ])('%j', (link, expected) => {
     expect(checkLine(link)).toMatch(expected);
   });
+
+  it('updates the preview on request, even for a link that has none, and says what it found', async () => {
+    vi.mocked(client.refreshLink).mockResolvedValueOnce({ ...LINK, imageUrl: 'https://a.dev/og.png' });
+    renderEditor({ imageUrl: null });
+    await userEvent.click(await screen.findByRole('button', { name: 'Update preview' }));
+    expect(client.refreshLink).toHaveBeenCalledWith('l1');
+    expect(await screen.findByText('Preview updated.')).toBeInTheDocument();
+
+    vi.mocked(client.refreshLink).mockResolvedValueOnce({ ...LINK, imageUrl: null });
+    await userEvent.click(screen.getByRole('button', { name: 'Update preview' }));
+    expect(await screen.findByText('The page has no preview image.')).toBeInTheDocument();
+  });
+
 });

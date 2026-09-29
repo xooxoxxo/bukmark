@@ -7,8 +7,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { config } from './config.js';
 import { getDb, type Db } from './db/client.js';
+import { backfillMatchKey } from './db/backfillMatchKey.js';
 import { linkRoutes } from './routes/links.js';
-import { duplicateRoutes } from './routes/duplicates.js';
 import { hubRoutes } from './routes/hubs.js';
 import { exportRoutes } from './routes/export.js';
 import { fetchOgImage as defaultFetchOgImage } from './og/fetchOgImage.js';
@@ -70,6 +70,13 @@ export async function buildApp(
   app.decorate('fetchOgImage', opts.fetchOgImage ?? defaultFetchOgImage);
   app.addHook('onClose', async () => { await sql.end(); });
 
+  // Links saved before match keys existed get theirs in the background, so a
+  // large collection does not hold up the server answering. Until it is done,
+  // an older link is matched by its exact address only.
+  void backfillMatchKey(db).catch((err) => {
+    app.log.warn({ err }, 'failed to backfill match_key');
+  });
+
   const checkPage = opts.checkPage ?? defaultCheckPage;
   if (opts.checkPages) startPageChecks(app, checkPage);
 
@@ -100,8 +107,7 @@ export async function buildApp(
     api.addHook('onRequest', requireAuth);
     await api.register(protectedAuthRoutes, { prefix: '/auth' });
     await api.register(linkRoutes, { checkPage });
-    await api.register(duplicateRoutes);
-    await api.register(hubRoutes);
+      await api.register(hubRoutes);
     await api.register(exportRoutes);
   }, { prefix: '/api' });
 

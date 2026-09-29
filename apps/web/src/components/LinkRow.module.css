@@ -69,14 +69,9 @@
 }
 
 .note {
-  display: -webkit-box;
-  overflow: hidden;
   margin: var(--bk-space-2xs) 0 0;
-  color: var(--bk-neutral);
   font-size: 0.8125rem;
   line-height: 1.45;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .chips {

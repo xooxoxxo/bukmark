@@ -1,7 +1,7 @@
 import { Type } from '@sinclair/typebox';
 import { and, asc, desc, eq, inArray, ne, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { normalizeUrl } from '@bukmark/shared';
+import { normalizeUrl, matchKey } from '@bukmark/shared';
 import { pgCode } from '../db/client.js';
 import { deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 import { addLink } from '../links/addLink.js';
@@ -74,16 +74,20 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
     if (!norm.ok) return reply.code(400).send({ error: `${norm.reason} url` });
     const { db } = req.server;
     const host = new URL(norm.url).hostname;
+    const key = matchKey(norm.url);
 
+    // Check by exact URL hash first, then by near-duplicate match key
     const [link] = await db.select({ id: links.id }).from(links).where(eq(links.urlHash, norm.urlHash));
-    const saved = link
+    const linkedByKey = !link ? (await db.select({ id: links.id }).from(links).where(eq(links.matchKey, key))).at(0) : null;
+    const savedLink = link ?? linkedByKey;
+    const saved = savedLink
       ? {
-          id: link.id,
+          id: savedLink.id,
           hubs: (await db
             .select({ name: hubs.name })
             .from(hubLinks)
             .innerJoin(hubs, eq(hubs.id, hubLinks.hubId))
-            .where(eq(hubLinks.linkId, link.id))
+            .where(eq(hubLinks.linkId, savedLink.id))
             .orderBy(hubs.name)).map((h) => h.name),
         }
       : null;
@@ -345,6 +349,50 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
   }, async (req) => {
     const { limit = 20 } = req.body as { limit?: number };
     return backfillOg(req.server.db, req.server.fetchOgImage, limit);
+  });
+
+  // Re-fetch og:image for a single link
+  app.post('/links/:id/refresh', {
+    schema: {
+      params: Type.Object({ id: Type.String({ format: 'uuid' }) }),
+      response: {
+        200: LinkDto,
+        400: Type.Object({ error: Type.String() }),
+        404: Type.Object({ error: Type.String() }),
+      },
+    },
+  }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const [link] = await req.server.db
+      .select({ id: links.id, url: links.url })
+      .from(links)
+      .where(eq(links.id, id));
+    if (!link) return reply.code(404).send({ error: 'link not found' });
+
+    // A failed or empty fetch keeps the preview you had: asking again should
+    // never make a link lose its image.
+    const image = await req.server.fetchOgImage(link.url).catch(() => null);
+    const updates: Record<string, unknown> = { ogFetchedAt: dsql`now()` };
+    if (image) updates.imageUrl = image;
+
+    await req.server.db
+      .update(links)
+      .set({ ...updates, updatedAt: dsql`now()` })
+      .where(eq(links.id, id));
+
+    const [updated] = await req.server.db
+      .select({
+        id: links.id, url: links.url, title: links.title, note: links.note,
+        status: links.status, relevance: links.relevance, dupeCount: links.dupeCount, firstSeen: links.firstSeen,
+        imageUrl: links.imageUrl,
+      })
+      .from(links)
+      .where(eq(links.id, id));
+
+    if (!updated) return reply.code(400).send({ error: 'failed to update link' });
+
+    const hubRows = await req.server.db.select({ hubId: hubLinks.hubId }).from(hubLinks).where(eq(hubLinks.linkId, id));
+    return { ...updated, firstSeen: updated.firstSeen.toISOString(), hubIds: hubRows.map((h) => h.hubId) };
   });
 
   app.post('/links/assign', {

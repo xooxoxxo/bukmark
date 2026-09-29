@@ -11,7 +11,6 @@ const ROUTE_FILES = [
   { file: 'apps/server/src/auth/authorizePage.ts', prefix: '', isPublic: true },
   { file: 'apps/server/src/auth/protectedRoutes.ts', prefix: '/api/auth', isPublic: false },
   { file: 'apps/server/src/routes/links.ts', prefix: '/api', isPublic: false },
-  { file: 'apps/server/src/routes/duplicates.ts', prefix: '/api', isPublic: false },
   { file: 'apps/server/src/routes/hubs.ts', prefix: '/api', isPublic: false },
   { file: 'apps/server/src/routes/export.ts', prefix: '/api', isPublic: false },
 ];

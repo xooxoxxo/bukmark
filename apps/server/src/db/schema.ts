@@ -7,6 +7,7 @@ export const links = pgTable('links', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   url: text('url').notNull(),
   urlHash: text('url_hash').notNull(),
+  matchKey: text('match_key'),
   title: text('title').notNull().default(''),
   note: text('note').notNull().default(''),
   status: text('status', { enum: ['active', 'archived'] }).notNull().default('active'),
@@ -30,6 +31,7 @@ export const links = pgTable('links', {
   uniqueIndex('links_url_hash_uq').on(t.urlHash),
   index('links_status_idx').on(t.status),
   index('links_checked_at_idx').on(t.checkedAt),
+  index('links_match_key_idx').on(t.matchKey),
   // The sync feed reads links in (updated_at, id) order from a cursor.
   index('links_updated_at_idx').on(t.updatedAt, t.id),
 ]);

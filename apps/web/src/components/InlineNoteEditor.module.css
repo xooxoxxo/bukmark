@@ -1,0 +1,66 @@
+/* The note reads as text until clicked; the empty state is a quiet prompt. */
+.note,
+.add {
+  display: block;
+  max-width: 100%;
+  margin: var(--bk-space-2xs) 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--bk-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  text-align: left;
+  white-space: pre-line;
+  cursor: text;
+}
+
+.add {
+  color: var(--bk-neutral);
+}
+
+.note:hover {
+  color: var(--bk-ink);
+}
+
+.note:focus-visible,
+.add:focus-visible {
+  outline: 2px solid var(--bk-accent);
+  outline-offset: 2px;
+}
+
+.edit {
+  margin-top: var(--bk-space-2xs);
+}
+
+.textarea {
+  display: block;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--bk-space-2xs) var(--bk-space-xs);
+  border: 2px solid var(--bk-ink);
+  border-radius: 0;
+  background: var(--bk-paper);
+  color: var(--bk-ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.status {
+  margin: var(--bk-space-2xs) 0 0;
+  color: var(--bk-neutral);
+  font-size: var(--bk-text-xs);
+}
+
+.error {
+  margin: var(--bk-space-2xs) 0 0;
+  color: var(--danger);
+  font-size: var(--bk-text-xs);
+}
+
+.compact {
+  font-size: var(--bk-text-xs);
+}

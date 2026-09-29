@@ -157,7 +157,7 @@ describe('SavePage', () => {
   it('posts once when Save is pressed, however fast it is pressed again', async () => {
     server.state.hubs = [hub('h2', 'Travel'), hub('h1', 'Reading')];
     openSave(query({ url: SHARED, title: 'Example page' }));
-    fireEvent.change(await screen.findByLabelText('Why keep it?'), {
+    fireEvent.change(await screen.findByLabelText('Note'), {
       target: { value: 'for the trip' },
     });
     await userEvent.click(screen.getByRole('combobox', { name: 'Hub' }));

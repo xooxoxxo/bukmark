@@ -134,7 +134,7 @@ export function SavePage() {
             </div>
 
             <div className={styles.field}>
-              <label htmlFor="save-note">Why keep it?</label>
+              <label htmlFor="save-note">Note</label>
               <textarea
                 id="save-note"
                 value={note}

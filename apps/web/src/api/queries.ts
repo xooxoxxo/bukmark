@@ -101,6 +101,14 @@ export function usePatchLink() {
   });
 }
 
+export function useRefreshLink() {
+  const invalidate = useInvalidate('link', 'links');
+  return useMutation({
+    mutationFn: (id: string) => api.refreshLink(id),
+    onSuccess: () => invalidate(),
+  });
+}
+
 export function useBulkLinks() {
   const invalidate = useInvalidate('links', 'hubs', 'stats');
   return useMutation({
