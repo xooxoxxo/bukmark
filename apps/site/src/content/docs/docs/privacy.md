@@ -2,7 +2,7 @@
 title: Privacy
 description: What the browser extension sends and when, what your own server keeps, and what this website loads.
 sidebar:
-  order: 9
+  order: 10
 ---
 
 bukmark is software you run yourself: there is no bukmark company server and no
@@ -47,8 +47,9 @@ or anything else is not, not even to ask.
 
 **Save quote to bukmark**, in the right-click menu of selected text, or its
 shortcut, sends the text you selected with the page's address and title
-(`POST /api/quotes`). Your server saves the page too if it isn't saved yet.
-Nothing is sent when nothing is selected.
+(`POST /api/quotes`). The text goes to the server you logged in to, and
+nowhere else. Your server saves the page too if it isn't saved yet. Nothing is
+sent when nothing is selected.
 
 #### Your bookmarks
 

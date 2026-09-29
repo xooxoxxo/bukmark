@@ -2,7 +2,7 @@
 title: Sorting with MCP
 description: Use any MCP client and the bukmark MCP server to sort your unsorted bookmarks into hubs.
 sidebar:
-  order: 4
+  order: 5
 ---
 
 Bukmark's MCP (Model Context Protocol) server lets any MCP client (Claude Code,

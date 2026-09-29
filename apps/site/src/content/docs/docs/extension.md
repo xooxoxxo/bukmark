@@ -152,17 +152,18 @@ login's: bound to that server, and revoked when you log out.
   this item, or press **`Alt+Shift+Q`** (Windows, Linux, ChromeOS) /
   **`Control+Shift+Q`** (Mac). The selected text is saved as a quote, with the
   page's address and title, and the page itself is saved too if it wasn't
-  already. Line breaks are kept. It shows the same badges as the shortcut
+  already. Line breaks are kept where the browser lets the extension read the page. It shows the same badges as the shortcut
   above. With nothing selected, the shortcut does nothing. Safari on iPhone
   and iPad has no right-click item, and Firefox for Android has neither.
+  [Quotes](/docs/quotes/) covers reading them.
 - **Options → Server** — change the server URL, log in, or log out.
 
 ### Keyboard shortcut
 
-The popup shows the key your browser actually assigned, and
-**Options → Keyboard shortcut** shows it too, and the quote shortcut's key
-below it — or says a key is not set, which happens when something else
-already uses the suggested one. Both are changed in the same place:
+**Options → Keyboard shortcut** shows the key your browser actually assigned
+for saving a link, and the quote shortcut's key below it — or says a key is not
+set, which happens when something else already uses the suggested one. The
+popup doesn't show either. Both are changed in the same place:
 
 | Browser | Where |
 | --- | --- |

@@ -2,7 +2,7 @@
 title: Development
 description: Set up a local development environment and understand the bukmark monorepo.
 sidebar:
-  order: 8
+  order: 9
 ---
 
 Run bukmark from a checkout with hot reload. At the end the API and the web app

@@ -2,7 +2,7 @@
 title: Import & Export
 description: Bring bookmarks in from your browser, and get bukmark data out as HTML, JSON, or CSV.
 sidebar:
-  order: 5
+  order: 6
 ---
 
 Bring your existing bookmarks in, and get your data back out as a file a browser

@@ -35,6 +35,9 @@ steps take you from install to sorted, and back out.
 - **Every link editable.** A link's **Edit** dialog has title, note, hubs,
   relevance, archive and delete. The list sorts by relevance, newest, oldest or
   title.
+- **The passage, not just the page.** Select text and save it as a quote from
+  the extension or your phone; it keeps its source and is searchable
+  ([Quotes](/docs/quotes)).
 - **Your hubs in your bookmarks.** The extension can keep a **bukmark** folder in
   your browser's bookmarks and your server the same, both ways
   ([Sync](/docs/extension/#sync-with-your-bookmarks)).

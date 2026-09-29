@@ -2,7 +2,7 @@
 title: API reference
 description: Every REST endpoint bukmark serves, including the export endpoint.
 sidebar:
-  order: 6
+  order: 7
 ---
 
 Every REST endpoint your bukmark server serves, with its parameters, responses
@@ -776,8 +776,9 @@ Apply one action to multiple links in a single request.
 ### POST /api/quotes
 
 Save a passage from a page. If the page is not saved yet it is saved too,
-unsorted. The same passage (ignoring case and extra whitespace) from the same
-page is one quote: saving it again returns the existing one.
+unsorted; if it is, the page is left as it is, so this is not a re-save and does
+not raise its seen count. The same passage (ignoring case and extra whitespace)
+from the same page is one quote: saving it again returns the existing one.
 
 **Body**
 
@@ -790,7 +791,12 @@ page is one quote: saving it again returns the existing one.
 }
 ```
 
-`text` is trimmed and must be 1 to 10000 characters; `note` is at most 10000 characters (a longer one is a `400`, here and in `PATCH`).
+| Name | Type | Meaning |
+| -- | -- | -- |
+| `url` | string, required | The page the passage is from. Only http and https addresses are accepted |
+| `text` | string, required | The passage. Trimmed, with its inner line breaks kept, and 1 to 10000 characters after that |
+| `title` | string, optional | The page's title, used when the page is not saved yet. A saved page keeps its own title |
+| `note` | string, optional | Your note, at most 10000 characters. Default: empty |
 
 **Response:** `201` when the quote was created, `200` when it already existed.
 
@@ -810,17 +816,31 @@ page is one quote: saving it again returns the existing one.
 }
 ```
 
-**Errors:** `400` with `{ "error": "unparseable url" }`, `{ "error": "non-http url" }`,
-`{ "error": "quote text is empty" }` or a message that the text is over 10000
-characters.
+- `sourceUrl` is the normalized address. `sourceTitle` is `title`, or else the
+  saved page's title; both stay with the quote if the link is deleted.
+- `linkId` is `null` for a quote whose link was deleted.
+- `link.created` is `true` when this call saved the page (or brought back one
+  you had deleted), `false` when the page was already saved.
+
+**Errors**
+
+| Status | Body | When |
+| -- | -- | -- |
+| `400` | `{ "error": "unparseable url" }` | The address can't be read |
+| `400` | `{ "error": "non-http url" }` | The address isn't http(s) |
+| `400` | `{ "error": "quote text is empty" }` | `text` is empty or only whitespace |
+| `400` | `{ "error": "quote text is over 10000 characters" }` | `text` is too long |
+| `400` | a schema validation error | `url` or `text` is missing, or `note` is over 10000 characters |
+| `401` | `unauthenticated` | See [401](#401-unauthenticated) |
 
 ### GET /api/quotes
 
-List quotes, newest first.
+List quotes, newest first, from every page, including quotes whose page was
+deleted.
 
 | Name | Type | Meaning |
 | -- | -- | -- |
-| `q` | string, optional | Search the quote text and note |
+| `q` | string, optional | Search the quote text and note, by whole words, as `q` does for links. A quote's page title and address are not searched |
 | `linkId` | uuid, optional | Only quotes saved from this link |
 | `cursor` | string, optional | The `nextCursor` of the previous page |
 | `limit` | integer, optional | 1 to 100, default 50 |
@@ -831,22 +851,41 @@ List quotes, newest first.
 { "items": [ { "id": "uuid", "text": "The quoted passage." } ], "nextCursor": null }
 ```
 
-Each item has the fields shown for `POST /api/quotes`. `nextCursor` is an opaque
-string, or `null` on the last page.
+Each item has the fields shown for `POST /api/quotes`. To page, send the
+`nextCursor` of one response as `cursor` of the next, with the same `q`,
+`linkId` and `limit`, until it is `null`. It is an opaque string: keep it as it
+came.
 
-**Errors:** `400` with `{ "error": "invalid cursor" }`.
+**Errors**
+
+| Status | Body | When |
+| -- | -- | -- |
+| `400` | `{ "error": "invalid cursor" }` | `cursor` isn't one this server gave out |
+| `400` | a schema validation error | `linkId` isn't a uuid, or `limit` is out of range |
+| `401` | `unauthenticated` | See [401](#401-unauthenticated) |
 
 ### PATCH /api/quotes/:id
 
-Edit a quote. Send `text`, `note`, or both. Returns `{ "quote": { … } }`.
+Edit a quote. Send `text`, `note`, or both. `text` follows the rules for
+`POST /api/quotes`. Returns `200` with `{ "quote": { … } }`.
 
-**Errors:** `400` with `{ "error": "send text, note, or both" }` or a text
-message as for `POST /api/quotes`; `404` with `{ "error": "not found" }`;
-`409` with `{ "error": "this page already has a quote with that text" }`.
+**Errors**
+
+| Status | Body | When |
+| -- | -- | -- |
+| `400` | `{ "error": "send text, note, or both" }` | The body has neither |
+| `400` | `{ "error": "quote text is empty" }` or `{ "error": "quote text is over 10000 characters" }` | `text` is not valid |
+| `400` | a schema validation error | `id` isn't a uuid, or `note` is over 10000 characters |
+| `401` | `unauthenticated` | See [401](#401-unauthenticated) |
+| `404` | `{ "error": "not found" }` | No quote has that id |
+| `409` | `{ "error": "this page already has a quote with that text" }` | Another quote of the same page already has that text (ignoring case and extra whitespace) |
 
 ### DELETE /api/quotes/:id
 
-Delete a quote. Returns `204` with no body, or `404` with
+Delete a quote. Returns `204` with no body.
+
+**Errors:** `400` with a schema validation error when `id` isn't a uuid, `401`
+`unauthenticated` ([401](#401-unauthenticated)), or `404` with
 `{ "error": "not found" }`.
 
 ### GET /api/hubs

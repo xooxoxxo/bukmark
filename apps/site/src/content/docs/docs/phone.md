@@ -34,6 +34,9 @@ Installed like an app, the web app appears in Android's Share sheet.
 Many Android apps share a link inside a line of text rather than on its own;
 bukmark takes the first web link it finds there.
 
+To save a passage you selected, not the page, see
+[Quotes](/docs/quotes/#save-from-android).
+
 <details>
 <summary>bukmark is missing from the Share sheet</summary>
 
@@ -89,6 +92,9 @@ The body can carry the other fields `POST /api/links` accepts — `title`,
 `note`, `hub` — see the [API reference](/docs/api/#post-apilinks).
 
 </details>
+
+To save selected text instead of a page, see
+[Quotes](/docs/quotes/#save-from-an-iphone).
 
 :::caution[The header step still needs a device test]
 Apple's guide covers **Get Contents of URL** with POST and a JSON body, but it

@@ -2,7 +2,7 @@
 title: CLI
 description: Batch-triage a OneTab export using the v0 CLI tool.
 sidebar:
-  order: 7
+  order: 8
 ---
 
 The v0 CLI bulk-imports a tab dump and has an AI assistant triage it in
