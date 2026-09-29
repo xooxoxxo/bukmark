@@ -11,10 +11,9 @@ file, or saved an export from the web app or with `curl`.
 
 ## Import
 
-1. Get a bookmarks file in one of these formats:
-   - **HTML**: Exported from Chrome, Firefox, or Safari
-   - **CSV**: Exported from Raindrop, Pocket, Instapaper, Linkwarden, or a spreadsheet
-   - **JSON**: A backup from bukmark itself
+1. Get a bookmarks file: HTML exported from a browser (Chrome, Edge, Firefox,
+   Safari), a CSV export from Raindrop, Pocket or Instapaper, or a JSON backup
+   from bukmark itself.
 2. In the web app's sidebar, open **Settings → Import bookmarks…** and choose
    the file.
 3. Read the result line. It counts each case [below](#duplicates-and-skips), so
@@ -22,22 +21,20 @@ file, or saved an export from the web app or with `curl`.
 4. Sort: everything you import lands **unsorted**, on purpose
    ([Sorting with MCP](/docs/sorting/)).
 
-### Supported CSV exporters
+### CSV files
 
-The CSV importer detects column headers (case-insensitive) from Raindrop, Pocket,
-Instapaper, Linkwarden, or a generic spreadsheet:
+Any CSV with a header row and a `url` column imports: Raindrop, Pocket and
+Instapaper exports, or a spreadsheet you made. Headers are matched regardless of
+case.
 
-| Exporter | Required columns | Optional columns |
-| -- | -- | -- |
-| Raindrop | `url` | `title`, `folder`, `tags`, `note`, `excerpt` |
-| Pocket | `url`, `title` | `tags`, `status`, `time_added` |
-| Instapaper | `url`, `title` | `folder`, `selection`, `timestamp` |
-| Linkwarden | `url` | `title`, `tags` |
-| Generic | `url` (or `link`, `href`) | `title` (or `name`), `folder`, `tags`, `note` |
+| Column | Read as |
+| -- | -- |
+| `url`, `link`, `href` or `address` | The link. Required. |
+| `title` or `name` | Its title. |
+| `folder`, `collection` or `category` | A hint for sorting, like a browser folder. |
+| `tags`, `labels` or `keywords` | Added to that hint. |
 
-Folder names from the export become a hint for sorting, just as with HTML imports.
-Tags are included in the hint if present. Notes are not carried over, as the
-import schema supports only URL, title, and folder hint.
+Other columns, notes and excerpts included, are not imported.
 
 ### Duplicates and skips
 

@@ -133,8 +133,8 @@ export function SettingsPage() {
         <div className={styles.field}>
           <p className={styles.label}>Import</p>
           <p className={styles.hint}>
-            A bookmarks file exported from Chrome, Edge, Firefox, Safari or another bookmark
-            manager (HTML), or a bukmark JSON export. New links land unsorted.
+            A bookmarks file from Chrome, Edge, Firefox or Safari (HTML), a CSV export from
+            Raindrop, Pocket or Instapaper, or a bukmark JSON export. New links land unsorted.
           </p>
           <div>
             <ImportBookmarks

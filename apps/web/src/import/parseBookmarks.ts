@@ -147,60 +147,50 @@ export function parseBackupJson(text: string): ParsedFile {
 }
 
 /**
- * RFC 4180 CSV parser with support for quoted fields, doubled quotes, CRLF/LF,
- * BOM, and embedded newlines. Returns an array of strings, one per column.
+ * RFC 4180 records: quoted fields, doubled quotes, CRLF or LF, a leading BOM.
+ * The whole text is read in one pass, not split into lines first, because a
+ * quoted field may hold a newline (Raindrop notes and excerpts often do), and
+ * splitting first would cut that record in two. Blank lines are dropped.
  */
-function parseCSVRow(line: string): string[] {
-  const fields: string[] = [];
+function parseCSVRecords(text: string): string[][] {
+  const src = text.startsWith('\uFEFF') ? text.slice(1) : text;
+  const records: string[][] = [];
+  let record: string[] = [];
   let field = '';
   let inQuotes = false;
-  let i = 0;
 
-  while (i < line.length) {
-    const char = line[i];
+  const endRecord = () => {
+    record.push(field);
+    if (record.some((f) => f.trim() !== '')) records.push(record);
+    record = [];
+    field = '';
+  };
 
+  for (let i = 0; i < src.length; i++) {
+    const char = src[i];
     if (inQuotes) {
-      if (char === '"') {
-        if (line[i + 1] === '"') {
-          // Doubled quote: add one quote to the field
-          field += '"';
-          i += 2;
-        } else {
-          // End of quoted field
-          inQuotes = false;
-          i += 1;
-        }
+      if (char === '"' && src[i + 1] === '"') {
+        field += '"';
+        i += 1;
+      } else if (char === '"') {
+        inQuotes = false;
       } else {
         field += char;
-        i += 1;
       }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === ',') {
+      record.push(field);
+      field = '';
+    } else if (char === '\n' || char === '\r') {
+      if (char === '\r' && src[i + 1] === '\n') i += 1;
+      endRecord();
     } else {
-      if (char === '"') {
-        inQuotes = true;
-        i += 1;
-      } else if (char === ',') {
-        fields.push(field);
-        field = '';
-        i += 1;
-      } else {
-        field += char;
-        i += 1;
-      }
+      field += char;
     }
   }
-  fields.push(field);
-  return fields;
-}
-
-/**
- * Split CSV into lines, handling CRLF and LF, plus BOM if present.
- */
-function splitCSVLines(text: string): string[] {
-  // Strip BOM if present
-  let clean = text.startsWith('﻿') ? text.slice(1) : text;
-  // Normalize to LF
-  clean = clean.replace(/\r\n/g, '\n');
-  return clean.split('\n').filter((line) => line.trim().length > 0);
+  if (field !== '' || record.length > 0) endRecord();
+  return records;
 }
 
 /**
@@ -213,13 +203,12 @@ function splitCSVLines(text: string): string[] {
  * - tags/labels → included in folderPath as a hint
  */
 export function parseCSV(text: string): ParsedFile {
-  const lines = splitCSVLines(text);
-  if (lines.length === 0) {
+  const records = parseCSVRecords(text);
+  if (records.length === 0) {
     throw new UnsupportedFileError('That CSV file is empty.');
   }
 
-  const headerLine = lines[0]!;
-  const headers = parseCSVRow(headerLine);
+  const headers = records[0]!;
   const normalizedHeaders = headers.map((h: string) => h.toLowerCase().trim());
 
   // Detect column indices
@@ -247,8 +236,7 @@ export function parseCSV(text: string): ParsedFile {
   let nonWeb = 0;
   let duplicates = 0;
 
-  for (let i = 1; i < lines.length; i++) {
-    const fields = parseCSVRow(lines[i]!);
+  for (const fields of records.slice(1)) {
     const url = fields[urlIdx]?.trim() ?? '';
 
     if (!isWebUrl(url)) {

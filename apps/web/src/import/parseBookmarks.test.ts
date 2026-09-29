@@ -189,12 +189,17 @@ https://case.example.com,Ignored Case,MY FOLDER`;
   it('handles quoted fields with embedded commas and newlines', () => {
     const quoted = `url,title,note
 https://quoted.example.com,"Title, with comma","Note with
-embedded newline"`;
-    const { items } = parseCSV(quoted);
+embedded newline"
+https://next.example.com,Next,`;
+    const { items, nonWeb } = parseCSV(quoted);
+    // The newline inside the quoted note must not end the record.
+    expect(nonWeb).toBe(0);
+    expect(items).toHaveLength(2);
     expect(items[0]).toMatchObject({
       url: 'https://quoted.example.com',
       title: 'Title, with comma',
     });
+    expect(items[1]).toMatchObject({ url: 'https://next.example.com', title: 'Next' });
   });
 
   it('handles doubled quotes in quoted fields', () => {
