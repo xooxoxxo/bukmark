@@ -351,13 +351,38 @@ describe('quotes api', () => {
       expect((await imp({ items: [{ url: 'https://a.com/2' }], orphanQuotes: [{ text: 'no source' }] })).statusCode).toBe(400);
     });
 
-    it('a quote of a link the import skips as deleted is counted skipped, not restored', async () => {
+    it('quotes of a link that stays deleted come back as orphans with the item\'s url and title', async () => {
       const made = (await post({ url: 'https://a.com/one', text: 'Kept.' })).json();
       await app.inject({ method: 'POST', url: '/api/links/bulk', headers, payload: { ids: [made.link.id], action: 'delete' } });
       await db.delete(quotes);
-      const res = await imp({ items: [{ url: 'https://a.com/one', quotes: [{ text: 'Back?' }] }] });
+      const item = { url: 'https://a.com/one', title: 'One', quotes: [{ text: 'Back.', note: 'n', createdAt: '2026-01-01T00:00:00.000Z' }] };
+      const res = await imp({ items: [item] });
       expect(res.json().skippedDeleted).toBe(1);
-      expect(res.json().quotes).toEqual({ added: 0, skipped: 1 });
+      expect(res.json().quotes).toEqual({ added: 1, skipped: 0 });
+      const rows = await db.select().from(quotes);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ linkId: null, text: 'Back.', note: 'n', sourceUrl: 'https://a.com/one', sourceTitle: 'One' });
+      expect(await db.select().from(links)).toHaveLength(0);
+      expect((await imp({ items: [item] })).json().quotes).toEqual({ added: 0, skipped: 1 });
+    });
+
+    it('imports orphan quotes alone, and rejects a request with nothing in it', async () => {
+      const res = await imp({ items: [], orphanQuotes: [{ text: 'Only me.', sourceUrl: 'https://gone.com/p' }] });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 1, skipped: 0 } });
+      expect(await db.select().from(links)).toHaveLength(0);
+      expect((await imp({ items: [] })).statusCode).toBe(400);
+      expect((await imp({ items: [], orphanQuotes: [] })).statusCode).toBe(400);
+    });
+
+    it('accepts a body over Fastify\'s 1 MiB default', async () => {
+      const big = 'x'.repeat(9000);
+      const quotesList = Array.from({ length: 150 }, (_, i) => ({ text: `${i} ${big}` }));
+      const payload = { items: [{ url: 'https://a.com/big', quotes: quotesList }] };
+      expect(JSON.stringify(payload).length).toBeGreaterThan(1024 * 1024);
+      const res = await imp(payload);
+      expect(res.statusCode).toBe(200);
+      expect(res.json().quotes.added).toBe(150);
     });
   });
 });

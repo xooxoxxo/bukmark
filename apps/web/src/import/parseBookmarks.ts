@@ -1,3 +1,4 @@
+import { chunkBySize } from '../api/importSize';
 import type { ImportItem, ImportOrphanQuote, ImportQuote } from '../api/client';
 
 export interface ParsedFile {
@@ -8,11 +9,15 @@ export interface ParsedFile {
   duplicates: number;
   /** Quotes whose page is gone, from a bukmark backup. Absent when there are none. */
   orphanQuotes?: ImportOrphanQuote[];
+  /** Quotes in a backup that cannot be restored (empty text, or over the server's length limit). Absent when none. */
+  quotesNotRestored?: number;
 }
 
-// The server's limits: a quote over them would fail the whole batch, so such quotes are dropped here.
+// The server's limits. A quote over them would fail the whole batch, so it is
+// left out and counted in ParsedFile.quotesNotRestored instead.
 const QUOTE_MAX_CHARS = 10000;
-const QUOTES_PER_LINK = 200;
+/** The server takes this many quotes per item; a link with more is sent as several items. */
+const QUOTES_PER_ITEM = 200;
 
 function readQuote(raw: unknown): ImportQuote | null {
   if (typeof raw !== 'object' || raw === null) return null;
@@ -149,8 +154,17 @@ export function parseBackupJson(text: string): ParsedFile {
   }
 
   const byUrl = new Map<string, ImportItem>();
+  const quotesByUrl = new Map<string, ImportQuote[]>();
   let nonWeb = 0;
   let duplicates = 0;
+  let quotesNotRestored = 0;
+
+  const readQuotes = (raw: unknown): ImportQuote[] => {
+    if (!Array.isArray(raw)) return [];
+    const ok = raw.map(readQuote).filter((q): q is ImportQuote => q !== null);
+    quotesNotRestored += raw.length - ok.length;
+    return ok;
+  };
 
   for (const raw of links as BackupLink[]) {
     const url = typeof raw?.url === 'string' ? raw.url.trim() : '';
@@ -160,35 +174,48 @@ export function parseBackupJson(text: string): ParsedFile {
     }
     if (byUrl.has(url)) {
       duplicates += 1;
+      // The same page listed twice is one link, but its quotes are not thrown away.
+      quotesByUrl.get(url)!.push(...readQuotes(raw.quotes));
       continue;
     }
     const title = typeof raw.title === 'string' ? raw.title.trim() : '';
     const hubs = Array.isArray(raw.hubs)
       ? raw.hubs.filter((h): h is string => typeof h === 'string')
       : [];
-    const quotes = Array.isArray(raw.quotes)
-      ? raw.quotes.map(readQuote).filter((q): q is ImportQuote => q !== null).slice(0, QUOTES_PER_LINK)
-      : [];
+    quotesByUrl.set(url, readQuotes(raw.quotes));
     byUrl.set(url, {
       url,
       ...(title === '' ? {} : { title }),
-      ...(quotes.length === 0 ? {} : { quotes }),
       // Hubs are parallel, not nested, so they are joined as a list rather than
       // a path: this is a hint for sorting, not a folder location.
       ...(hubs.length === 0 ? {} : { folderPath: hubs.join(', ') }),
     });
   }
 
+  // A link's quotes ride on its item, up to the per-item cap and a byte budget;
+  // the rest go as further items with the same url, which the server merges
+  // (a text it already has is skipped, so nothing doubles).
+  const items: ImportItem[] = [];
+  for (const [url, item] of byUrl) {
+    const [first = [], ...rest] = chunkBySize(quotesByUrl.get(url) ?? [], QUOTES_PER_ITEM);
+    items.push({ ...item, ...(first.length === 0 ? {} : { quotes: first }) });
+    for (const chunk of rest) {
+      items.push({ url, ...(item.title === undefined ? {} : { title: item.title }), quotes: chunk });
+    }
+  }
+
   const rawOrphans = (data as { orphanQuotes?: unknown }).orphanQuotes;
   const orphanQuotes = Array.isArray(rawOrphans)
     ? rawOrphans.map(readOrphanQuote).filter((q): q is ImportOrphanQuote => q !== null)
     : [];
+  if (Array.isArray(rawOrphans)) quotesNotRestored += rawOrphans.length - orphanQuotes.length;
 
   return {
-    items: [...byUrl.values()],
+    items,
     nonWeb,
     duplicates,
     ...(orphanQuotes.length === 0 ? {} : { orphanQuotes }),
+    ...(quotesNotRestored === 0 ? {} : { quotesNotRestored }),
   };
 }
 

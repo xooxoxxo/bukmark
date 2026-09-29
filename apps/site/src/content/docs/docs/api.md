@@ -525,7 +525,7 @@ send them here. Import creates no hubs.
 
 | Name | Type | Meaning |
 | -- | -- | -- |
-| `items` | array, required | 1–200 links to import |
+| `items` | array, required | Up to 200 links to import. May be empty only when `orphanQuotes` is not; a request with neither is a `400` |
 | `items[].url` | string, required | |
 | `items[].title` | string, optional | |
 | `items[].folderPath` | string, optional | Browser bookmark folder path, kept as a sorting hint (`groupHint`); it never becomes a hub |
@@ -557,8 +557,11 @@ send them here. Import creates no hubs.
 - `invalid` (array) — URLs that could not be normalized, with the reason for
   each: `unparseable url` or `non-http url`
 - `quotes` (object) — `added` quotes stored; `skipped` quotes already saved, or
-  belonging to a link that stayed deleted. Both are `0` when the request had no
-  quotes
+  unusable (blank text, or on an unreadable url). Both are `0` when the request
+  had no quotes. Quotes of a link that stays deleted are not lost: they are
+  stored as quotes with no link, keeping that item's address and title
+
+The request body is limited to 4 MiB.
 
 ### POST /api/links/og-backfill
 

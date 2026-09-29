@@ -97,8 +97,9 @@ export async function importLinks(
   const res: ImportLinksResult = {
     created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 0, skipped: 0 },
   };
-  await importItems(db, items, source, res);
-  if (orphanQuotes.length > 0) await restoreOrphanQuotes(db, orphanQuotes, res);
+  const fromDeleted = await importItems(db, items, source, res);
+  const orphans = [...orphanQuotes, ...fromDeleted];
+  if (orphans.length > 0) await restoreOrphanQuotes(db, orphans, res);
   return res;
 }
 
@@ -139,7 +140,7 @@ async function importItems(
   items: ImportItem[],
   source: string,
   res: ImportLinksResult,
-): Promise<void> {
+): Promise<ImportOrphanQuote[]> {
 
   // Normalize first, and key by hash so duplicates inside one batch collapse.
   // Postgres rejects an INSERT ... ON CONFLICT whose VALUES list hits the same
@@ -153,6 +154,7 @@ async function importItems(
     const n = normalizeUrl(it.url);
     if (!n.ok) {
       res.invalid.push({ url: it.url, reason: `${n.reason} url` });
+      res.quotes.skipped += it.quotes?.length ?? 0;
       continue;
     }
     const key = matchKey(n.url);
@@ -173,7 +175,7 @@ async function importItems(
       quotes: [...(prior?.quotes ?? []), ...(it.quotes ?? [])],
     });
   }
-  if (byHash.size === 0) return;
+  if (byHash.size === 0) return [];
 
   const hashes = [...byHash.keys()];
 
@@ -185,8 +187,15 @@ async function importItems(
 
   const live = hashes.filter((h) => !tombs.has(h));
   res.skippedDeleted = hashes.length - live.length;
-  for (const h of hashes) if (tombs.has(h)) res.quotes.skipped += byHash.get(h)!.quotes.length;
-  if (live.length === 0) return;
+  // The link stays deleted, but its quotes are the user's own words: they come
+  // back as quotes with no page (Q3), keeping the address and title they had.
+  const fromDeleted: ImportOrphanQuote[] = [];
+  for (const h of hashes) {
+    if (!tombs.has(h)) continue;
+    const n = byHash.get(h)!;
+    for (const q of n.quotes) fromDeleted.push({ ...q, sourceUrl: n.url, sourceTitle: n.title });
+  }
+  if (live.length === 0) return fromDeleted;
 
   const existingRows = await db
     .select({ h: links.urlHash })
@@ -304,4 +313,5 @@ async function importItems(
     if (existing.has(h) || variantOf.has(h)) res.updated += 1;
     else res.created += 1;
   }
+  return fromDeleted;
 }

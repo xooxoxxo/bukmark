@@ -58,8 +58,10 @@ returns to its link with its text, note and saved date. Quotes whose page you
 deleted are kept too, in the file's `orphanQuotes`, and come back as quotes
 with no page, still showing where they were saved from. Importing the same
 backup again adds nothing twice: a quote you already have (same text, same
-page) is skipped. The result line adds **N quotes restored** when there were
-any.
+page) is skipped. A quote of a link you deleted on purpose is not brought
+back onto that link: it returns as a quote with no page. The result line adds
+**N quotes restored**, and **N quotes not restored** for quotes that were
+already here or could not be read.
 
 <details>
 <summary>Why browser folders don't become hubs</summary>

@@ -28,7 +28,7 @@ export function ImportBookmarks({ buttonClass, statusClass, errorClass }: {
     try {
       const text = await file.text();
       const parsed = parseImportFile(file.name, text);
-      if (parsed.items.length === 0) {
+      if (parsed.items.length === 0 && !parsed.orphanQuotes?.length) {
         setStatus({ kind: 'error', message: 'No web links in that file.' });
         return;
       }
@@ -45,6 +45,10 @@ export function ImportBookmarks({ buttonClass, statusClass, errorClass }: {
       if (result.updated > 0) parts.push(`${result.updated} already here`);
       if (result.quotes.added > 0) {
         parts.push(`${result.quotes.added} ${result.quotes.added === 1 ? 'quote' : 'quotes'} restored`);
+      }
+      const notRestored = result.quotes.skipped + (parsed.quotesNotRestored ?? 0);
+      if (notRestored > 0) {
+        parts.push(`${notRestored} ${notRestored === 1 ? 'quote' : 'quotes'} not restored`);
       }
       if (result.skippedDeleted > 0) parts.push(`${result.skippedDeleted} stayed deleted`);
       if (parsed.duplicates > 0) parts.push(`${parsed.duplicates} duplicate`);

@@ -52,6 +52,9 @@ const SORTS = {
 } as const;
 
 /** A quote in a bukmark backup. createdAt is read leniently: an unreadable one falls back to now. */
+/** Body limit of POST /links/import: 4 MiB (Fastify's default is 1 MiB). */
+const IMPORT_BODY_LIMIT = 4 * 1024 * 1024;
+
 const importQuote = Type.Object({
   text: Type.String({ minLength: 1, maxLength: 10000 }),
   note: Type.Optional(Type.String()),
@@ -337,6 +340,9 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
   });
 
   app.post('/links/import', {
+    // Fastify's default is 1 MiB; a restore batch of quotes can pass that. The
+    // web client closes a batch at ~800 KB, and this is the headroom above it.
+    bodyLimit: IMPORT_BODY_LIMIT,
     schema: {
       body: Type.Object({
         items: Type.Array(
@@ -346,7 +352,7 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
             folderPath: Type.Optional(Type.String()),
             quotes: Type.Optional(Type.Array(importQuote, { maxItems: 200 })),
           }),
-          { minItems: 1, maxItems: 200 },
+          { maxItems: 200 },
         ),
         orphanQuotes: Type.Optional(Type.Array(
           Type.Object({
@@ -358,8 +364,11 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
         )),
       }),
     },
-  }, async (req) => {
+  }, async (req, reply) => {
     const { items, orphanQuotes } = req.body as { items: ImportItem[]; orphanQuotes?: ImportOrphanQuote[] };
+    if (items.length === 0 && !orphanQuotes?.length) {
+      return reply.code(400).send({ error: 'nothing to import' });
+    }
     return importLinks(req.server.db, items, undefined, orphanQuotes);
   });
 

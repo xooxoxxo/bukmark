@@ -97,15 +97,39 @@ describe('useImportLinks', () => {
     expect(total.created).toBe(201);
   });
 
-  it('spreads more than 1000 orphans over requests, each with at least one item', async () => {
+  it('spreads more than 1000 orphans over requests that carry no items', async () => {
     vi.mocked(client.importLinks).mockResolvedValue(result(1, 0));
     const orphans = Array.from({ length: 2500 }, (_, i) => ({ text: `o${i}`, sourceUrl: 'https://gone.com' }));
     const { result: hook } = renderHook(() => useImportLinks(), { wrapper: makeWrapper() });
     await hook.current.mutateAsync({ items: [{ url: 'https://a.com/1' }], orphanQuotes: orphans });
     const calls = vi.mocked(client.importLinks).mock.calls;
     expect(calls.map((c) => c[1]?.length)).toEqual([1000, 1000, 500]);
-    expect(calls.every((c) => c[0].length >= 1)).toBe(true);
-    // Only the first request carries the item's quotes; a re-sent item does not repeat them.
-    expect(calls[1]?.[0]).toEqual([{ url: 'https://a.com/1' }]);
+    expect(calls.map((c) => c[0].length)).toEqual([1, 0, 0]);
+  });
+
+  it('imports orphan quotes from a file with no links', async () => {
+    vi.mocked(client.importLinks).mockResolvedValue(result(0, 1));
+    const orphans = [{ text: 'o', sourceUrl: 'https://gone.com' }];
+    const { result: hook } = renderHook(() => useImportLinks(), { wrapper: makeWrapper() });
+    await hook.current.mutateAsync({ items: [], orphanQuotes: orphans });
+    expect(vi.mocked(client.importLinks).mock.calls).toEqual([[[], orphans]]);
+  });
+
+  it('closes a batch before its body passes the byte budget', async () => {
+    vi.mocked(client.importLinks).mockResolvedValue(result(0, 0));
+    const big = 'x'.repeat(9000);
+    const items = Array.from({ length: 100 }, (_, i) => ({
+      url: `https://a.com/${i}`,
+      quotes: Array.from({ length: 5 }, (_, j) => ({ text: `${j} ${big}` })),
+    }));
+    const { result: hook } = renderHook(() => useImportLinks(), { wrapper: makeWrapper() });
+    await hook.current.mutateAsync({ items });
+    const calls = vi.mocked(client.importLinks).mock.calls;
+    expect(calls.length).toBeGreaterThan(1);
+    expect(calls.flatMap((c) => c[0])).toEqual(items);
+    for (const c of calls) {
+      expect(c[0].length).toBeLessThanOrEqual(200);
+      expect(new TextEncoder().encode(JSON.stringify({ items: c[0] })).length).toBeLessThan(800_000 + 60_000);
+    }
   });
 });

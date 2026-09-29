@@ -160,6 +160,30 @@ describe('SettingsPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('3 quotes restored');
   });
 
+  it('says how many quotes were not restored, from the file and from the server', async () => {
+    vi.mocked(client.importLinks).mockResolvedValue({
+      created: 1, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 1, skipped: 2 },
+    });
+    renderSettings();
+    const backup = JSON.stringify({
+      links: [{ url: 'https://a.com/1', quotes: [{ text: 'ok' }, { text: '' }] }],
+    });
+    await userEvent.upload(screen.getByTestId('import-file'), new File([backup], 'b.json', { type: 'application/json' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('1 quote restored, 3 quotes not restored');
+  });
+
+  it('imports a backup that has orphan quotes but no links', async () => {
+    vi.mocked(client.importLinks).mockResolvedValue({
+      created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 1, skipped: 0 },
+    });
+    renderSettings();
+    const backup = JSON.stringify({ links: [], orphanQuotes: [{ text: 'Orphan.', sourceUrl: 'https://gone.com/p' }] });
+    await userEvent.upload(screen.getByTestId('import-file'), new File([backup], 'b.json', { type: 'application/json' }));
+    await waitFor(() => expect(client.importLinks).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(client.importLinks).mock.calls[0]?.[0]).toEqual([]);
+    expect(await screen.findByRole('status')).toHaveTextContent('1 quote restored');
+  });
+
   it('says nothing about quotes when none were restored', async () => {
     renderSettings();
     await userEvent.upload(screen.getByTestId('import-file'), bookmarksFile(TWO_LINKS));

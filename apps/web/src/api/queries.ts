@@ -6,6 +6,7 @@ import {
   type QueryClient,
 } from '@tanstack/react-query';
 import * as api from './client';
+import { chunkBySize } from './importSize';
 import type { BulkAction, HubPatch, LinkPatch, LinkSort } from './types';
 
 export const PAGE_SIZE = 200;
@@ -140,23 +141,16 @@ export function useImportLinks() {
       const total: api.ImportResult = {
         created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 0, skipped: 0 },
       };
-      // Each item stays whole inside its batch, so its quotes travel with it.
-      const batches: api.ImportItem[][] = [];
-      for (let i = 0; i < items.length; i += api.IMPORT_BATCH_SIZE) {
-        batches.push(items.slice(i, i + api.IMPORT_BATCH_SIZE));
-      }
-      const orphanChunks: api.ImportOrphanQuote[][] = [];
-      for (let i = 0; i < orphanQuotes.length; i += api.IMPORT_ORPHAN_BATCH_SIZE) {
-        orphanChunks.push(orphanQuotes.slice(i, i + api.IMPORT_ORPHAN_BATCH_SIZE));
-      }
+      // A batch closes at the item cap or before its body would pass the byte
+      // budget, whichever comes first; an item stays whole so its quotes travel
+      // with it (the parser keeps a single item under the budget).
+      const batches = chunkBySize(items, api.IMPORT_BATCH_SIZE);
+      const orphanChunks = chunkBySize(orphanQuotes, api.IMPORT_ORPHAN_BATCH_SIZE);
 
       let done = 0;
-      const requests = Math.max(batches.length, orphanChunks.length);
-      for (let n = 0; n < requests; n++) {
-        // A file with over 1000 orphans and few links needs more requests than
-        // batches. The server wants an item in each, so the last item is sent
-        // again without its quotes: importing it twice changes nothing.
-        const batch = batches[n] ?? [{ ...items[items.length - 1]!, quotes: undefined }];
+      for (let n = 0; n < Math.max(batches.length, orphanChunks.length); n++) {
+        // Past the last batch a request carries orphans alone, with no items.
+        const batch = batches[n] ?? [];
         const res = await api.importLinks(batch, orphanChunks[n]);
         total.created += res.created;
         total.updated += res.updated;
@@ -164,7 +158,7 @@ export function useImportLinks() {
         total.invalid.push(...res.invalid);
         total.quotes.added += res.quotes.added;
         total.quotes.skipped += res.quotes.skipped;
-        if (batches[n]) done += batch.length;
+        done += batch.length;
         onProgress?.(done, items.length);
       }
       return total;

@@ -161,14 +161,47 @@ describe('parseBackupJson', () => {
       ]);
     });
 
-    it('skips quotes over the server limits rather than failing the whole import', () => {
-      const big = 'x'.repeat(10001);
-      const many = Array.from({ length: 250 }, (_, i) => ({ text: `q${i}` }));
-      const { items } = parseBackupJson(JSON.stringify({
-        links: [{ url: 'https://a.com/1', quotes: [{ text: big }, ...many] }],
+    it('sends a link\'s extra quotes as further items with the same url, and loses none', () => {
+      const many = Array.from({ length: 450 }, (_, i) => ({ text: `q${i}` }));
+      const { items, quotesNotRestored } = parseBackupJson(JSON.stringify({
+        links: [{ url: 'https://a.com/1', title: 'Alpha', hubs: ['x'], quotes: many }],
       }));
-      expect(items[0]?.quotes).toHaveLength(200);
-      expect(items[0]?.quotes?.[0]?.text).toBe('q0');
+      expect(items.map((i) => i.quotes?.length)).toEqual([200, 200, 50]);
+      expect(items.every((i) => i.url === 'https://a.com/1' && i.title === 'Alpha')).toBe(true);
+      expect(items[0]?.folderPath).toBe('x');
+      expect(items[1]).not.toHaveProperty('folderPath');
+      expect(items.flatMap((i) => i.quotes!.map((q) => q.text))).toEqual(many.map((q) => q.text));
+      expect(quotesNotRestored).toBeUndefined();
+    });
+
+    it('splits by size too, so no item is a giant request body', () => {
+      const big = 'x'.repeat(9000);
+      const many = Array.from({ length: 150 }, (_, i) => ({ text: `${i} ${big}` }));
+      const { items } = parseBackupJson(JSON.stringify({ links: [{ url: 'https://a.com/1', quotes: many }] }));
+      expect(items.length).toBeGreaterThan(1);
+      expect(items.reduce((n, i) => n + i.quotes!.length, 0)).toBe(150);
+    });
+
+    it('counts quotes it cannot restore instead of dropping them silently', () => {
+      const { items, quotesNotRestored } = parseBackupJson(JSON.stringify({
+        links: [{ url: 'https://a.com/1', quotes: [{ text: 'x'.repeat(10001) }, { text: ' ' }, { text: 'fine' }] }],
+        orphanQuotes: [{ text: '', sourceUrl: 'https://gone.com' }, { text: 'no source' }],
+      }));
+      expect(items[0]?.quotes).toEqual([{ text: 'fine' }]);
+      expect(quotesNotRestored).toBe(4);
+    });
+
+    it('merges the quotes of a repeated url into the first item', () => {
+      const { items, duplicates } = parseBackupJson(JSON.stringify({
+        links: [
+          { url: 'https://a.com/1', title: 'A', quotes: [{ text: 'one' }] },
+          { url: 'https://a.com/1', title: 'A again', quotes: [{ text: 'two' }] },
+        ],
+      }));
+      expect(duplicates).toBe(1);
+      expect(items).toHaveLength(1);
+      expect(items[0]?.title).toBe('A');
+      expect(items[0]?.quotes).toEqual([{ text: 'one' }, { text: 'two' }]);
     });
 
     it('an older backup without quotes parses as before', () => {
