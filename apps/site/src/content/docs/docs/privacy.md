@@ -43,6 +43,13 @@ While you are logged out, it sends nothing until you click **Log in** or
 Only `http://` and `https://` pages are ever sent: a local file, a browser page
 or anything else is not, not even to ask.
 
+#### Saving a quote
+
+**Save quote to bukmark**, in the right-click menu of selected text, or its
+shortcut, sends the text you selected with the page's address and title
+(`POST /api/quotes`). Your server saves the page too if it isn't saved yet.
+Nothing is sent when nothing is selected.
+
 #### Your bookmarks
 
 The extension has no access to your bookmarks until you click Import or turn on
@@ -109,8 +116,11 @@ Apart from bookmark sync's list, it keeps no history and no list of what you sav
 ### What it never does
 
 It has no content scripts: it never reads, changes or runs code in the pages you
-visit. It sees the address and title of the tab you are on only when you open
-the popup or press the shortcut, which is what `activeTab` allows.
+visit. The one exception is saving a quote: when you choose
+**Save quote to bukmark** or press its shortcut, it runs one line in that tab
+that reads the text you selected, and nothing else. It sees the address and
+title of the tab you are on only when you open the popup, press a shortcut or
+choose that menu item, which is what `activeTab` allows.
 
 In Chrome, Edge and Firefox it has no `tabs` permission, so it sees no other tab's
 address at all. When a login finishes in a tab, it sees that tab's address
@@ -122,7 +132,9 @@ follow theirs. It keeps and sends nothing about any other tab.
 
 | Permission | What it is for |
 | -- | -- |
-| `activeTab` | The address and title of the tab you are on, when you open the popup or press the shortcut. |
+| `activeTab` | The address and title of the tab you are on, when you open the popup, press a shortcut or save a quote. |
+| `contextMenus` | The **Save quote to bukmark** item in the right-click menu of selected text. |
+| `scripting` | Reading the text you selected, with its line breaks, in the tab where you save a quote. Only that tab, only then. |
 | `alarms` | Asking your server for changes every 5 minutes while bookmark sync is on. |
 | `bookmarks` | Optional, and not granted at install. Asked for when you click **Import all bookmarks**, to read them, or turn on sync, to keep the bukmark folder. |
 | `tabs` | Safari only: following the tab a login opens, since Safari has no login window. |

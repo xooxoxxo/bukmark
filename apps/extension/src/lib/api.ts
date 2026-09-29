@@ -58,6 +58,18 @@ export interface LinkPatch {
   removeHubs?: string[];
 }
 
+export interface QuoteInput {
+  url: string;
+  title?: string;
+  text: string;
+}
+
+/** POST /api/quotes's answer: 201 for a new quote, 200 for one already saved from that page. */
+export interface QuoteReply {
+  quote: { id: string; text: string };
+  link: { id: string; created: boolean };
+}
+
 /** GET /api/links/lookup: the page itself if saved, and how its site is filed. */
 export interface LinkLookup {
   saved: { hubs: string[] } | null;
@@ -130,6 +142,14 @@ export function saveLink(auth: Credentials, input: SaveInput, init: RequestInit 
   if (input.note) body.note = input.note;
   if (input.hub) body.hub = input.hub;
   return sendJson<SaveReply>(auth, 'POST', '/api/links', body, init);
+}
+
+/** Saves a passage from a page, and the page too if it is not saved yet. */
+export function saveQuote(auth: Credentials, input: QuoteInput, init: RequestInit = {}): Promise<QuoteReply> {
+  // As with links, an empty title is left out rather than sent.
+  const body: Record<string, unknown> = { url: input.url, text: input.text };
+  if (input.title) body.title = input.title;
+  return sendJson<QuoteReply>(auth, 'POST', '/api/quotes', body, init);
 }
 
 export function lookupLink(auth: Credentials, url: string): Promise<LinkLookup> {

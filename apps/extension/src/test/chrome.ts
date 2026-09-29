@@ -80,7 +80,33 @@ function storageArea(name: AreaName, data: Data, listeners: ChangeListener[]) {
  * bookmarks and alarms (its build does not ask for them), Firefox for Android
  * commands and windows (Safari on iOS: windows.create).
  */
-export type MissingApi = 'identity' | 'getRedirectURL' | 'bookmarks' | 'commands' | 'sync' | 'windows' | 'alarms';
+export type MissingApi =
+  | 'identity' | 'getRedirectURL' | 'bookmarks' | 'commands' | 'sync' | 'windows' | 'alarms' | 'contextMenus' | 'scripting';
+
+/** A context menu item as contextMenus.create was given it. */
+export interface FakeMenuItem {
+  id: string;
+  title: string;
+  contexts: string[];
+}
+
+/** What contextMenus.onClicked passes: the fields the extension reads. */
+export interface FakeMenuClick {
+  menuItemId: string | number;
+  pageUrl?: string;
+  selectionText?: string;
+  frameId?: number;
+}
+
+/** A tab as an event or tabs.query reports it. */
+export interface FakeEventTab {
+  id?: number;
+  url?: string;
+  title?: string;
+}
+
+type MenuClickListener = (info: FakeMenuClick, tab?: FakeEventTab) => void;
+type CommandListener = (command: string, tab?: FakeEventTab) => void;
 
 export interface FakeAlarm {
   name: string;
@@ -132,6 +158,11 @@ export function fakeChrome(seed: FakeSeed = {}) {
   const onStartup: Array<() => void> = [];
   const alarms = new Map<string, FakeAlarm>();
   const onAlarm: AlarmListener[] = [];
+  const menuItems = new Map<string, FakeMenuItem>();
+  const onMenuClicked: MenuClickListener[] = [];
+  const onCommand: CommandListener[] = [];
+  /** runtime.lastError, set only while a callback runs, as the browser sets it. */
+  let lastError: { message: string } | undefined;
   const openTab = (url: string, windowId: number): FakeTab => {
     const tab = { id: ++lastId, windowId, url };
     openTabs.set(tab.id, tab);
@@ -150,6 +181,7 @@ export function fakeChrome(seed: FakeSeed = {}) {
     },
     runtime: {
       id: EXTENSION_ID,
+      get lastError() { return lastError; },
       sendMessage: vi.fn(async (_message: unknown): Promise<unknown> => ({ ok: true })),
       openOptionsPage: vi.fn(async () => {}),
       getPlatformInfo: vi.fn(async () => ({ os: 'mac', arch: 'arm' })),
@@ -194,7 +226,7 @@ export function fakeChrome(seed: FakeSeed = {}) {
     tabs: {
       /** The open tabs by id, for arranging and asserting state directly. Only tabs the extension opened or a test added. */
       data: openTabs,
-      query: vi.fn(async (_q: object): Promise<Array<{ url?: string; title?: string }>> => [
+      query: vi.fn(async (_q: object): Promise<FakeEventTab[]> => [
         { url: 'https://example.com/article', title: 'An article' },
       ]),
       create: vi.fn(async ({ url }: { url: string }): Promise<FakeTab | undefined> => openTab(url, 1)),
@@ -222,8 +254,37 @@ export function fakeChrome(seed: FakeSeed = {}) {
       }),
     },
     bookmarks: bookmarksApi(new BookmarkTree(browser === 'firefox' ? 'firefox' : 'chrome')),
+    contextMenus: {
+      /** The menu items that exist, by id. */
+      data: menuItems,
+      /** Every error create reported through runtime.lastError, such as a duplicate id. */
+      errors: [] as string[],
+      create: vi.fn((item: FakeMenuItem, callback?: () => void): string => {
+        if (menuItems.has(item.id)) lastError = { message: `Cannot create item with duplicate id ${item.id}` };
+        else menuItems.set(item.id, { ...item });
+        // Like Chrome: an error nobody reads in the callback is still reported.
+        if (lastError) chrome.contextMenus.errors.push(lastError.message);
+        queueMicrotask(() => {
+          callback?.();
+          lastError = undefined;
+        });
+        return item.id;
+      }),
+      /** Answers a turn later, as the browser does, so a create can land in between. */
+      removeAll: vi.fn(async (): Promise<void> => {
+        menuItems.clear();
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      }),
+      onClicked: { listeners: onMenuClicked, addListener: vi.fn((listener: MenuClickListener) => { onMenuClicked.push(listener); }) },
+    },
+    scripting: {
+      /** Answers as a page with nothing selected; a test sets what the page returns. */
+      executeScript: vi.fn(async (_details: { target: { tabId: number }; func: () => unknown }): Promise<Array<{ frameId: number; result?: unknown }>> => [
+        { frameId: 0, result: '' },
+      ]),
+    },
     commands: {
-      onCommand: { addListener: vi.fn((_listener: (command: string) => void) => {}) },
+      onCommand: { listeners: onCommand, addListener: vi.fn((listener: CommandListener) => { onCommand.push(listener); }) },
       getAll: vi.fn(async () => [
         { name: SAVE_COMMAND, description: 'Save the current tab', shortcut: 'Alt+Shift+K' },
       ]),
@@ -239,7 +300,7 @@ export function fakeChrome(seed: FakeSeed = {}) {
   }
   if (without.has('getRedirectURL')) delete (loose.identity as Partial<typeof chrome.identity>).getRedirectURL;
   if (without.has('sync')) delete (loose.storage as Partial<typeof chrome.storage>).sync;
-  for (const api of ['identity', 'bookmarks', 'commands', 'windows', 'alarms'] as const) {
+  for (const api of ['identity', 'bookmarks', 'commands', 'windows', 'alarms', 'contextMenus', 'scripting'] as const) {
     if (without.has(api)) delete loose[api];
   }
   return chrome;
@@ -289,6 +350,9 @@ export function stopBackground(chrome: FakeChrome): void {
   chrome.tabs.onUpdated.listeners.length = 0;
   chrome.tabs.onRemoved.listeners.length = 0;
   chrome.runtime.onStartup.listeners.length = 0;
+  const { contextMenus, commands } = chrome as Partial<FakeChrome>;
+  if (contextMenus) contextMenus.onClicked.listeners.length = 0;
+  if (commands) commands.onCommand.listeners.length = 0;
   const { alarms, bookmarks } = chrome as Partial<FakeChrome>;
   if (alarms) alarms.onAlarm.listeners.length = 0;
   if (bookmarks) {

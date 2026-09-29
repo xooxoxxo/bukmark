@@ -2,7 +2,7 @@
  * manifest.json for each browser build. The JavaScript is the same for every
  * target; vite.config.ts writes the manifest that differs.
  */
-import { SAVE_COMMAND } from './lib/shortcut';
+import { SAVE_COMMAND, SAVE_QUOTE_COMMAND } from './lib/shortcut';
 
 export type Target = 'chrome' | 'firefox' | 'safari';
 
@@ -34,6 +34,14 @@ export const FIREFOX_ADDON_ID = 'capture@bukmark.it';
  * with accesskey="k" can take the key.
  */
 export const SAVE_SHORTCUT = { default: 'Alt+Shift+K', mac: 'MacCtrl+Shift+K' } as const;
+
+/**
+ * Saving the selection as a quote. Q is in none of the lists above either, and
+ * the same reasoning gives a Mac Control+Shift+Q. Chrome's quit key is
+ * Ctrl+Shift+Q on Windows and Linux, which the Alt default keeps clear of.
+ * Chrome takes at most four suggested keys; the extension suggests two.
+ */
+export const SAVE_QUOTE_SHORTCUT = { default: 'Alt+Shift+Q', mac: 'MacCtrl+Shift+Q' } as const;
 
 type Background =
   | { service_worker: string; type: 'module' }
@@ -75,7 +83,11 @@ export function isTarget(value: string): value is Target {
 // addresses of a tab login's pages. Without it, installing warns of nothing
 // like "Read your browsing history", and no other tab's address is ever seen.
 // `alarms` runs bookmark sync's pull every few minutes; it warns of nothing.
-const PERMISSIONS = ['activeTab', 'storage', 'identity', 'alarms'];
+// `contextMenus` adds "Save quote to bukmark" to a selection's right-click menu,
+// and `scripting` reads that selection, line breaks kept, in the tab activeTab
+// was granted for by the click or the shortcut. Neither warns at install, and
+// with no host permission for web pages, scripting reaches no other tab.
+const PERMISSIONS = ['activeTab', 'storage', 'identity', 'alarms', 'contextMenus', 'scripting'];
 // Asked for on the Import click or when sync is turned on (lib/permissions.ts), not at install.
 const OPTIONAL_PERMISSIONS = ['bookmarks'];
 
@@ -109,6 +121,10 @@ export function manifestFor(target: Target): Manifest {
         suggested_key: { ...SAVE_SHORTCUT },
         description: 'Save the current tab to bukmark without opening the popup',
       },
+      [SAVE_QUOTE_COMMAND]: {
+        suggested_key: { ...SAVE_QUOTE_SHORTCUT },
+        description: 'Save the selected text as a quote',
+      },
     },
   };
 
@@ -141,7 +157,9 @@ export function manifestFor(target: Target): Manifest {
       // Safari has no identity or bookmarks API, so no sync and no `alarms` for it.
       // No identity API, so every Safari login runs in a tab; `tabs` stays
       // until a Safari run shows the host access alone lets it see that tab.
-      permissions: ['activeTab', 'tabs', 'storage'],
+      // Menus since Safari 14 and scripting since 15.4, both below the 16.4
+      // minimum (MDN browser-compat-data). Safari on iOS has no menus.
+      permissions: ['activeTab', 'tabs', 'storage', 'contextMenus', 'scripting'],
       optional_permissions: undefined,
       // A non-persistent event page: iOS requires one, and has been seen
       // stopping extension service workers.

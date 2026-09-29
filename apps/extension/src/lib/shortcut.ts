@@ -1,6 +1,9 @@
 /** The command the keyboard shortcut runs (manifest `commands`). */
 export const SAVE_COMMAND = 'save-current-tab';
 
+/** The command that saves the selected text as a quote (background/saveQuote.ts). */
+export const SAVE_QUOTE_COMMAND = 'save-quote';
+
 /** chrome.storage.session key: why the last keyboard save failed, for the next popup to show. */
 export const LAST_SAVE_ERROR = 'lastSaveError';
 

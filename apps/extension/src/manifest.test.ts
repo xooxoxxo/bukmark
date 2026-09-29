@@ -3,8 +3,8 @@ import type { ConfigEnv, Plugin, UserConfig } from 'vite';
 import { describe, expect, it, vi } from 'vitest';
 import viteConfig from '../vite.config';
 import { DEFAULT_BASE_URL } from './lib/settings';
-import { SAVE_COMMAND } from './lib/shortcut';
-import { FIREFOX_ADDON_ID, SAVE_SHORTCUT, TARGETS, manifestFor, type Target } from './manifest';
+import { SAVE_COMMAND, SAVE_QUOTE_COMMAND } from './lib/shortcut';
+import { FIREFOX_ADDON_ID, SAVE_QUOTE_SHORTCUT, SAVE_SHORTCUT, TARGETS, manifestFor, type Target } from './manifest';
 import { firefoxRedirectURL } from './test/chrome';
 import { matchesEverywhere, validEverywhere } from './test/matchPattern';
 
@@ -23,8 +23,9 @@ describe('manifestFor', () => {
     const m = manifestFor('chrome');
     expect(m.manifest_version).toBe(3);
     expect(m.background).toEqual({ service_worker: 'background.js', type: 'module' });
-    // alarms: bookmark sync's pull every few minutes, with no install warning.
-    expect(m.permissions).toEqual(['activeTab', 'storage', 'identity', 'alarms']);
+    // alarms: bookmark sync's pull every few minutes; contextMenus and
+    // scripting: saving the selected text as a quote. None warns at install.
+    expect(m.permissions).toEqual(['activeTab', 'storage', 'identity', 'alarms', 'contextMenus', 'scripting']);
     expect(m.optional_permissions).toEqual(['bookmarks']);
     expect(m.host_permissions).toEqual(['http://localhost/*']);
     expect(m.optional_host_permissions).toEqual(['http://*/*', 'https://*/*']);
@@ -52,7 +53,8 @@ describe('manifestFor', () => {
     const m = manifestFor('safari');
     expect(m.background).toEqual({ scripts: ['background.js'], type: 'module', persistent: false });
     // No bookmarks API, so no sync to schedule: no alarms.
-    expect(m.permissions).toEqual(['activeTab', 'tabs', 'storage']);
+    // Safari 14 has menus and 15.4 scripting, both under the 16.4 minimum.
+    expect(m.permissions).toEqual(['activeTab', 'tabs', 'storage', 'contextMenus', 'scripting']);
     expect(m.description).not.toMatch(/bookmarks/);
     expect(m.browser_specific_settings).toEqual({ safari: { strict_min_version: '16.4' } });
   });
@@ -77,21 +79,28 @@ describe('manifestFor', () => {
     expect(background).toEqual(['background.js']);
   });
 
-  it.each(TARGETS)('suggests the same shortcut to %s for the command the background listens to', (target) => {
-    expect(Object.keys(manifestFor(target).commands)).toEqual([SAVE_COMMAND]);
-    expect(manifestFor(target).commands[SAVE_COMMAND]!.suggested_key).toEqual({
-      default: 'Alt+Shift+K',
-      mac: 'MacCtrl+Shift+K',
+  it.each(TARGETS)('suggests the same shortcuts to %s for the commands the background listens to', (target) => {
+    const { commands } = manifestFor(target);
+    expect(Object.keys(commands)).toEqual([SAVE_COMMAND, SAVE_QUOTE_COMMAND]);
+    expect(commands[SAVE_COMMAND]!.suggested_key).toEqual({ default: 'Alt+Shift+K', mac: 'MacCtrl+Shift+K' });
+    expect(commands[SAVE_QUOTE_COMMAND]).toEqual({
+      suggested_key: { default: 'Alt+Shift+Q', mac: 'MacCtrl+Shift+Q' },
+      description: 'Save the selected text as a quote',
     });
+    // Chrome takes at most four suggested keys; the toolbar button has none.
+    expect(Object.values(commands).filter((c) => c.suggested_key).length).toBeLessThanOrEqual(4);
   });
 
   it('keeps off the keys the browsers publish for themselves', () => {
     // Firefox Screenshots and Edge Web capture; Alt+Shift in the Chrome,
     // ChromeOS and Edge lists (see SAVE_SHORTCUT for the sources).
     const taken = ['Ctrl+Shift+S', 'Command+Shift+S', ...'ABILMNST'.split('').map((k) => `Alt+Shift+${k}`)];
-    expect(taken).not.toContain(SAVE_SHORTCUT.default);
-    // On a Mac, Option+Shift+letter types a character: use Control.
-    expect(SAVE_SHORTCUT.mac).toMatch(/^MacCtrl\+Shift\+[A-Z]$/);
+    for (const shortcut of [SAVE_SHORTCUT, SAVE_QUOTE_SHORTCUT]) {
+      expect(taken).not.toContain(shortcut.default);
+      // On a Mac, Option+Shift+letter types a character: use Control.
+      expect(shortcut.mac).toMatch(/^MacCtrl\+Shift\+[A-Z]$/);
+    }
+    expect(SAVE_QUOTE_SHORTCUT.default).not.toBe(SAVE_SHORTCUT.default);
   });
 
   it('never ships a copy of the old static manifest into every build', () => {

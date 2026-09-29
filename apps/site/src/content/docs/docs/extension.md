@@ -148,13 +148,21 @@ login's: bound to that server, and revoked when you log out.
   save silently, no popup, no note. The badge shows `✓` when it's saved and `!`
   when it fails; the next popup says why. While logged out, nothing is sent and
   the badge shows `?`.
+- **Save quote to bukmark** — select text on a page, right-click it and choose
+  this item, or press **`Alt+Shift+Q`** (Windows, Linux, ChromeOS) /
+  **`Control+Shift+Q`** (Mac). The selected text is saved as a quote, with the
+  page's address and title, and the page itself is saved too if it wasn't
+  already. Line breaks are kept. It shows the same badges as the shortcut
+  above. With nothing selected, the shortcut does nothing. Safari on iPhone
+  and iPad has no right-click item, and Firefox for Android has neither.
 - **Options → Server** — change the server URL, log in, or log out.
 
 ### Keyboard shortcut
 
 The popup shows the key your browser actually assigned, and
 **Options → Keyboard shortcut** shows it too — or says none is set, which
-happens when something else already uses the suggested key. To change it:
+happens when something else already uses the suggested key. The quote
+shortcut is changed in the same place. To change either:
 
 | Browser | Where |
 | --- | --- |

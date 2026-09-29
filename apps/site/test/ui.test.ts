@@ -66,37 +66,59 @@ describe('extension docs describe the flows the extension implements', () => {
     expect(login).toMatch(/not signed in to the web app[\s\S]*password/);
   });
 
-  it('puts the ! and ? badges only on the keyboard shortcut, the one path that sets them', () => {
+  it('puts the ! and ? badges only on saves without the popup: the link shortcut and quotes', () => {
     const handlers = read('apps/extension/src/background/handlers.ts');
     const badge = (name: string) => new RegExp(`const ${name} = \\{ text: '([^']+)'`).exec(handlers)?.[1];
     const [failed, loggedOut] = [badge('FAILED'), badge('LOGGED_OUT')];
     expect([failed, loggedOut]).toEqual(['!', '?']);
-    // Both are set only while saving from the keyboard shortcut.
-    const shortcutPath = handlers.slice(handlers.indexOf('export async function saveActiveTab'), handlers.indexOf('async function report'));
-    expect(shortcutPath).toContain('flashBadge(FAILED)');
-    expect(shortcutPath).toContain('flagLoggedOut(');
+    // Both are set only by a save without the popup, which the link shortcut
+    // and the quote menu and shortcut share.
+    const silentPath = handlers.slice(handlers.indexOf('export async function saveSilently'), handlers.indexOf('async function report'));
+    expect(silentPath).toContain('flashBadge(FAILED)');
+    expect(silentPath).toContain('flagLoggedOut(');
     expect(handlers.split('flagLoggedOut(').length - 1).toBe(3); // its definition and two calls, both above
+    expect(silentPath.slice(silentPath.indexOf('export async function saveActiveTab'))).toContain('saveSilently(');
+    expect(read('apps/extension/src/background/saveQuote.ts')).toContain('saveSilently(');
 
     const bullets = section(extension, 'Usage').split(/\n- /).filter((b) => b.includes('`!`'));
     expect(bullets).toHaveLength(1);
     expect(bullets[0]).toContain('`?`');
     expect(extension.split('`!`')).toHaveLength(2);
     expect(extension.split('`?`')).toHaveLength(2);
+    // The quote bullet points at those badges instead of repeating them.
+    const quote = section(extension, 'Usage').split(/\n- /).find((b) => b.includes('**Save quote to bukmark**'));
+    expect(quote).toMatch(/same badges/);
   });
 
-  it('names the default shortcut the manifest suggests, for Macs and everything else', () => {
-    const m = /SAVE_SHORTCUT = \{ default: '([^']+)', mac: '([^']+)' \}/.exec(read('apps/extension/src/manifest.ts'));
-    expect(m).not.toBeNull();
-    // Chrome, Firefox and Safari all read MacCtrl as the Control key.
-    const [key, mac] = [m![1]!, m![2]!.replace('MacCtrl', 'Control')];
-    const bullet = section(extension, 'Usage').split(/\n- /).find((b) => b.includes('`!`'));
+  it('names the default shortcuts the manifest suggests, for Macs and everything else', () => {
+    const manifest = read('apps/extension/src/manifest.ts');
+    const keys = (name: string) => {
+      const m = new RegExp(`${name} = \\{ default: '([^']+)', mac: '([^']+)' \\}`).exec(manifest);
+      expect(m, name).not.toBeNull();
+      // Chrome, Firefox and Safari all read MacCtrl as the Control key.
+      return [m![1]!, m![2]!.replace('MacCtrl', 'Control')] as const;
+    };
+    const usage = section(extension, 'Usage').split(/\n- /);
+    const [key, mac] = keys('SAVE_SHORTCUT');
+    const bullet = usage.find((b) => b.includes('`!`'));
     expect(bullet).toContain(`**\`${key}\`**`);
     expect(bullet).toContain(`**\`${mac}\`**`);
-    // Every key combination the docs show anywhere is one of the two.
+    const [quoteKey, quoteMac] = keys('SAVE_QUOTE_SHORTCUT');
+    const quote = usage.find((b) => b.includes('**Save quote to bukmark**'));
+    expect(quote).toContain(`**\`${quoteKey}\`**`);
+    expect(quote).toContain(`**\`${quoteMac}\`**`);
+    // Every key combination the docs show anywhere is one of these.
+    const known = [key, mac, quoteKey, quoteMac];
     const shown = docPages().flatMap(({ body }) => [...body.matchAll(/`((?:Alt|Control|Ctrl|Cmd|Option)\+[^`]+)`/g)].map((x) => x[1]!));
-    const others = shown.filter((k) => k !== key && k !== mac && !/^Option\+Shift$/.test(k));
+    const others = shown.filter((k) => !known.includes(k) && !/^Option\+Shift$/.test(k));
     expect(others).toEqual([]);
     expect(read('apps/site/src/pages/index.astro')).toContain(key);
+  });
+
+  it('names the quote menu item the extension makes', () => {
+    const title = /QUOTE_MENU_TITLE = '([^']+)'/.exec(read('apps/extension/src/background/saveQuote.ts'))?.[1];
+    expect(title).toBe('Save quote to bukmark');
+    expect(section(extension, 'Usage')).toContain(`**${title}**`);
   });
 
   it('tells you to revoke the token in the web app when logout cannot reach the server', () => {

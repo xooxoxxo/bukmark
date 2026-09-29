@@ -1,7 +1,15 @@
 import { changesSettings } from '../lib/settings';
-import { SAVE_COMMAND } from '../lib/shortcut';
+import { SAVE_COMMAND, SAVE_QUOTE_COMMAND } from '../lib/shortcut';
 import { SYNC_ALARM, checkSyncLogin, ensureSyncAlarm, listenForBookmarks, pullIfEnabled } from '../lib/sync';
 import { handleMessage, listenForTabLogins, saveActiveTab, welcome } from './handlers';
+import { onQuoteMenuClicked, registerQuoteMenu, saveQuoteFromShortcut } from './saveQuote';
+
+// The right-click item for saving a quote: made on install, and again each
+// time this script starts, since a stopped worker or event page can come back
+// without it. Firefox for Android and Safari on iOS have no menus.
+chrome.runtime.onInstalled.addListener(() => void registerQuoteMenu());
+void registerQuoteMenu();
+chrome.contextMenus?.onClicked.addListener((info, tab) => void onQuoteMenuClicked(info, tab));
 
 // A fresh install opens the setup steps, so the extension is ready before the
 // first save instead of failing it. Updates and browser updates open nothing.
@@ -9,8 +17,9 @@ chrome.runtime.onInstalled.addListener((details) => void welcome(details));
 
 // Firefox for Android has no commands API; without the guard this line would
 // throw and the listeners below would never register.
-chrome.commands?.onCommand.addListener((command) => {
+chrome.commands?.onCommand.addListener((command, tab) => {
   if (command === SAVE_COMMAND) void saveActiveTab();
+  if (command === SAVE_QUOTE_COMMAND) void saveQuoteFromShortcut(tab);
 });
 
 chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {

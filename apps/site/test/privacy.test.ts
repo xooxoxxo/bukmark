@@ -61,10 +61,22 @@ describe('the privacy page matches what the extension asks for and does', () => 
   it('says it has no content scripts, and no manifest declares any', () => {
     for (const m of manifests) {
       expect(m.content_scripts).toBeUndefined();
-      expect(m.permissions).not.toContain('scripting');
       expect(m.permissions).not.toContain('webRequest');
     }
     expect(section(privacy, 'What it never does')).toContain('It has no content scripts');
+  });
+
+  it('runs code in a page only to read the selection, for a quote, in the tab it was asked in', () => {
+    // One scripting call, injecting one function that reads the selection.
+    expect([...extensionCode.matchAll(/chrome\.scripting\.(\w+)\(/g)].map((m) => m[1])).toEqual(['executeScript']);
+    const saveQuote = read('apps/extension/src/background/saveQuote.ts');
+    expect(saveQuote).toContain('chrome.scripting.executeScript({ target: { tabId }, func: readSelection })');
+    expect(saveQuote).toContain("const readSelection = (): string => getSelection()?.toString() ?? '';");
+    // No host access to web pages: scripting reaches only the activeTab tab.
+    for (const m of manifests) expect(m.host_permissions).toEqual(['http://localhost/*']);
+    const never = flat(section(privacy, 'What it never does'));
+    expect(never).toContain('The one exception is saving a quote');
+    expect(flat(section(privacy, 'Permissions'))).toContain('`scripting` | Reading the text you selected');
   });
 
   it('contacts only the server a login or token belongs to', () => {
@@ -162,7 +174,7 @@ describe('the privacy page matches what the extension asks for and does', () => 
     expect(background).toMatch(/onAlarm\.addListener\(\(alarm\) => \{\n\s+if \(alarm\.name === SYNC_ALARM\) void pullIfEnabled\(\);/);
     expect(background).toContain('chrome.runtime.onStartup.addListener(() => void pullIfEnabled());');
     const handlers = read('apps/extension/src/background/handlers.ts');
-    const shortcut = handlers.slice(handlers.indexOf('export async function saveActiveTab'), handlers.indexOf('async function report'));
+    const shortcut = handlers.slice(handlers.indexOf('export async function saveSilently'), handlers.indexOf('async function report'));
     expect(shortcut).toContain('void pullIfEnabled();');
     expect(read('apps/extension/src/popup/main.ts')).toContain('void requestSyncPull();');
     expect(read('apps/extension/src/lib/api.ts')).toContain('`/api/links/changes?${query}`');

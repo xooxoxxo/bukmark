@@ -1,4 +1,4 @@
-import { saveLink } from '../lib/api';
+import { saveLink, type Credentials } from '../lib/api';
 import {
   AuthRequiredError,
   IdentityUnsupportedError,
@@ -45,20 +45,30 @@ async function flagLoggedOut(why: string): Promise<void> {
   await flashBadge(LOGGED_OUT);
 }
 
-/** Keyboard save. Logged out, it makes no network call at all. */
-export async function saveActiveTab(): Promise<void> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.url || !isWebPage(tab.url)) return;
+/** A save made without the popup, which then reports how it went on the badge. */
+export interface SilentSave {
+  /** Makes the request, with the login for the configured server. */
+  send: (auth: Credentials) => Promise<unknown>;
+  /** For the next popup, when there is no login to send with. */
+  loggedOut: string;
+  /** For the next popup, before the reason, when the save fails. */
+  failed: string;
+}
+
+/**
+ * Saves with no popup: the badge flashes ✓, ! or ?, and the next popup says
+ * why. Logged out, it makes no network call at all. The keyboard save and the
+ * quote menu and shortcut all go through here.
+ */
+export async function saveSilently({ send, loggedOut, failed }: SilentSave): Promise<void> {
   try {
     const { baseUrl } = await loadSettings();
     const auth = await authFor(baseUrl);
     if (!auth) {
-      await flagLoggedOut(LOGGED_OUT_MESSAGE);
+      await flagLoggedOut(loggedOut);
       return;
     }
-    // No note on this path: a capture without a note beats no capture. Use
-    // the popup when the reason is worth recording.
-    await saveLink(auth, { url: tab.url, title: tab.title ?? '' });
+    await send(auth);
     await chrome.action.setTitle({ title: SAVE_TITLE });
     await chrome.storage.session.remove(LAST_SAVE_ERROR);
     await flashBadge(SAVED);
@@ -70,9 +80,23 @@ export async function saveActiveTab(): Promise<void> {
       return;
     }
     const reason = err instanceof Error ? err.message : 'unknown error';
-    await chrome.storage.session.set({ [LAST_SAVE_ERROR]: `The keyboard shortcut couldn't save that page: ${reason}` });
+    await chrome.storage.session.set({ [LAST_SAVE_ERROR]: `${failed}: ${reason}` });
     await flashBadge(FAILED);
   }
+}
+
+/** Keyboard save. Logged out, it makes no network call at all. */
+export async function saveActiveTab(): Promise<void> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.url || !isWebPage(tab.url)) return;
+  const { url, title = '' } = tab;
+  await saveSilently({
+    // No note on this path: a capture without a note beats no capture. Use
+    // the popup when the reason is worth recording.
+    send: (auth) => saveLink(auth, { url, title }),
+    loggedOut: LOGGED_OUT_MESSAGE,
+    failed: "The keyboard shortcut couldn't save that page",
+  });
 }
 
 /**
