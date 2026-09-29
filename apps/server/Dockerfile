@@ -3,7 +3,7 @@
 # (the project never compiles — noEmit everywhere — so runtime executes TS directly).
 # On start it applies DB migrations, then serves the API + apps/web/dist.
 
-FROM node:22-slim AS build
+FROM node:26-slim AS build
 WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
@@ -14,7 +14,7 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @bukmark/web build
 
-FROM node:22-slim AS runtime
+FROM node:26-slim AS runtime
 # Set by the release workflow from the git tag; "dev" for local builds.
 ARG VERSION=dev
 LABEL org.opencontainers.image.source="https://github.com/xooxoxxo/bukmark" \
