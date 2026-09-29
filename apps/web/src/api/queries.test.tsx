@@ -9,6 +9,7 @@ import {
   QUOTES_PAGE_SIZE,
   useBulkLinks,
   useCreateQuote,
+  useDeleteLink,
   useDeleteQuote,
   useImportLinks,
   useLinksInfinite,
@@ -225,5 +226,29 @@ describe('quote mutations', () => {
     await result.current.mutateAsync('a');
     expect(client.deleteQuote).toHaveBeenCalledWith('a');
     expect(keys()).toEqual(expect.arrayContaining(['quotes', 'links', 'stats']));
+  });
+});
+
+describe('link changes refresh the quote lists', () => {
+  it('an import (which carries quotes), a link delete and a bulk change invalidate quotes', async () => {
+    vi.mocked(client.importLinks).mockResolvedValue({
+      created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 1, alreadyHere: 0, invalid: 0 },
+    });
+    vi.mocked(client.bulkLinks).mockResolvedValue({ affected: 1 });
+
+    const imp = spiedWrapper();
+    const { result: importHook } = renderHook(() => useImportLinks(), { wrapper: imp.Wrapper });
+    await importHook.current.mutateAsync({ items: [{ url: 'https://a.com', quotes: [{ text: 'q' }] }] });
+    expect(imp.keys()).toContain('quotes');
+
+    const del = spiedWrapper();
+    const { result: deleteHook } = renderHook(() => useDeleteLink(), { wrapper: del.Wrapper });
+    await deleteHook.current.mutateAsync('l1');
+    expect(del.keys()).toContain('quotes');
+
+    const bulk = spiedWrapper();
+    const { result: bulkHook } = renderHook(() => useBulkLinks(), { wrapper: bulk.Wrapper });
+    await bulkHook.current.mutateAsync({ ids: ['l1'], action: 'delete' });
+    expect(bulk.keys()).toContain('quotes');
   });
 });

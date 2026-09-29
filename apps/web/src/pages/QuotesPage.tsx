@@ -23,17 +23,21 @@ export function QuotesPage() {
 
   // Load the next page as the end of the list scrolls into view; the button
   // under it does the same by hand (and where IntersectionObserver is missing).
-  // The implicit root is the viewport clipped by every scroller above: the list
-  // on desktop, the page on a phone, where the list does not scroll by itself.
+  // The root is the list when it scrolls by itself (desktop), so the margin
+  // prefetches ahead of its edge; on a phone the page scrolls and the root is
+  // the viewport.
+  const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const end = endRef.current;
     if (!end || !hasNextPage || isFetchingNextPage || typeof IntersectionObserver === 'undefined') return;
+    const list = scrollRef.current;
+    const scrolls = list !== null && /^(auto|scroll)$/.test(getComputedStyle(list).overflowY);
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) void fetchNextPage();
       },
-      { rootMargin: '400px 0px' },
+      { root: scrolls ? list : null, rootMargin: '400px 0px' },
     );
     observer.observe(end);
     return () => observer.disconnect();
@@ -51,7 +55,7 @@ export function QuotesPage() {
           onChange={(event) => setInput(event.target.value)}
         />
       </section>
-      <div className={styles.scroll}>
+      <div ref={scrollRef} className={styles.scroll}>
         {query.isPending ? (
           <div className={stateStyles.state} aria-live="polite">
             <h2>Loading quotes</h2>

@@ -106,6 +106,40 @@ describe('QuotesPage', () => {
     vi.unstubAllGlobals();
   });
 
+  it('observes against the list when it scrolls by itself, else the viewport', async () => {
+    const roots: (Element | Document | null | undefined)[] = [];
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(_: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+          roots.push(options?.root);
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    vi.mocked(client.fetchQuotes).mockResolvedValue({ items: [quote('b', 'Page one.')], nextCursor: 'c1' });
+    const { unmount } = renderPage();
+    await screen.findByText('Page one.');
+    await waitFor(() => expect(roots.length).toBeGreaterThan(0));
+    expect(roots.at(-1)).toBeNull();
+    unmount();
+
+    const real = window.getComputedStyle;
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((el) =>
+      ({ ...real(el), overflowY: 'auto' }) as CSSStyleDeclaration,
+    );
+    roots.length = 0;
+    renderPage();
+    await screen.findByText('Page one.');
+    await waitFor(() => expect(roots.length).toBeGreaterThan(0));
+    const root = roots.at(-1) as HTMLElement;
+    expect(root).toBeInstanceOf(HTMLElement);
+    expect(root).toContainElement(screen.getByText('Page one.'));
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it('says how to save a quote when there are none, linking to the docs', async () => {
     vi.mocked(client.fetchQuotes).mockResolvedValue({ items: [], nextCursor: null });
     renderPage();

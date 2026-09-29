@@ -87,7 +87,7 @@ export function useEditLink() {
 }
 
 export function useDeleteLink() {
-  const invalidate = useInvalidate('links', 'hubs', 'stats');
+  const invalidate = useInvalidate('links', 'hubs', 'stats', 'quotes');
   return useMutation({
     mutationFn: (id: string) => api.bulkLinks({ ids: [id], action: 'delete' }),
     onSuccess: () => invalidate(),
@@ -111,7 +111,7 @@ export function useRefreshLink() {
 }
 
 export function useBulkLinks() {
-  const invalidate = useInvalidate('links', 'hubs', 'stats');
+  const invalidate = useInvalidate('links', 'hubs', 'stats', 'quotes');
   return useMutation({
     mutationFn: (body: { ids: string[]; action: BulkAction; hubId?: string }) =>
       api.bulkLinks(body),
@@ -126,7 +126,7 @@ export function useBulkLinks() {
  * is not worth a thundering herd against a self-hosted Postgres.
  */
 export function useImportLinks() {
-  const invalidate = useInvalidate('links', 'hubs', 'stats');
+  const invalidate = useInvalidate('links', 'hubs', 'stats', 'quotes');
   return useMutation({
     mutationFn: async ({
       items,

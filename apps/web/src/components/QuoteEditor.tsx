@@ -47,7 +47,7 @@ function QuoteForm({ quote, onDone }: { quote: QuoteDto; onDone: () => void }) {
     event.preventDefault();
     if (!text.trim() || update.isPending) return;
     const body: QuotePatch = {};
-    if (text !== quote.text) body.text = text;
+    if (text.trim() !== quote.text) body.text = text.trim();
     if (note.trim() !== quote.note) body.note = note.trim();
     if (Object.keys(body).length === 0) {
       onDone();

@@ -113,5 +113,10 @@ describe('Sidebar', () => {
     vi.mocked(client.fetchHubs).mockResolvedValue({ items: [] });
     renderSidebar();
     expect(await screen.findByRole('link', { name: 'Quotes 5' })).toHaveAttribute('href', '/quotes');
+    // Directly under All links, before the link filters.
+    const items = screen.getAllByRole('link').concat(screen.getAllByRole('button'))
+      .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+      .map((el) => el.textContent);
+    expect(items.slice(0, 3)).toEqual(['All links', 'Quotes5', 'Unassigned0']);
   });
 });

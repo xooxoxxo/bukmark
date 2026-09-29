@@ -42,6 +42,13 @@ export function Sidebar() {
       >
         All links
       </NavLink>
+      <NavLink
+        to="/quotes"
+        className={({ isActive }) => (isActive ? styles.active : styles.item)}
+      >
+        Quotes
+        {stats ? <span className={styles.count}>{stats.quotes}</span> : null}
+      </NavLink>
       <button
         type="button"
         className={`${atRoot && unassigned && !broken ? styles.active : styles.item} ${styles.filterItem}`}
@@ -70,13 +77,6 @@ export function Sidebar() {
           <span className={styles.count}>{stats.broken}</span>
         </button>
       ) : null}
-      <NavLink
-        to="/quotes"
-        className={({ isActive }) => (isActive ? styles.active : styles.item)}
-      >
-        Quotes
-        {stats ? <span className={styles.count}>{stats.quotes}</span> : null}
-      </NavLink>
       <ul className={styles.hubList}>
         {(data?.items ?? []).map((hub) => (
           <li key={hub.id}>

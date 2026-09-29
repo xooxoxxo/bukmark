@@ -102,6 +102,29 @@ describe('QuoteCard', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
+  it('trims the text and the note before saving', async () => {
+    vi.mocked(client.patchQuote).mockResolvedValue({ ...base, text: 'Trimmed.', note: 'n' });
+    const user = renderCard({ note: '' });
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit quote' });
+    const text = within(dialog).getByLabelText('Text');
+    await user.clear(text);
+    await user.type(text, '  Trimmed.  ');
+    await user.type(within(dialog).getByLabelText('Note'), ' n ');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(client.patchQuote).toHaveBeenCalledWith('q1', { text: 'Trimmed.', note: 'n' }));
+  });
+
+  it('sends nothing when only surrounding spaces were added', async () => {
+    const user = renderCard();
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit quote' });
+    await user.type(within(dialog).getByLabelText('Text'), '   ');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(client.patchQuote).not.toHaveBeenCalled();
+  });
+
   it('will not save an empty text, and Cancel closes without saving', async () => {
     const user = renderCard();
     await user.click(screen.getByRole('button', { name: 'Edit' }));
