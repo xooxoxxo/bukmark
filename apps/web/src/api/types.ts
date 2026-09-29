@@ -15,6 +15,8 @@ export interface LinkDto {
   broken?: boolean;
   /** With a search: the words around the match in the page's text, hits between HIT_START and HIT_END. */
   snippet?: string | null;
+  /** How many quotes were saved from this page. */
+  quoteCount?: number;
 }
 
 /** GET /links/:id — a link with everything bukmark holds for it. */

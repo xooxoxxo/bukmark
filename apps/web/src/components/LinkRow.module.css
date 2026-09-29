@@ -61,7 +61,8 @@
   text-underline-offset: 0.2em;
 }
 
-.dupe {
+.dupe,
+.quotes {
   flex-shrink: 0;
   color: var(--bk-neutral);
   font-family: var(--bk-font-mono);

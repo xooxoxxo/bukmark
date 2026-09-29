@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { errorMessage } from '../api/client';
 import { useDeleteQuote, useUpdateQuote } from '../api/queries';
 import type { QuoteDto } from '../api/types';
-import { copyText, sourceAddress } from '../quotes/copyText';
+import { sourceAddress } from '../quotes/copyText';
+import { useCopyQuote } from '../quotes/useCopyQuote';
 import { NoteEditor } from './InlineNoteEditor';
 import styles from './QuoteCard.module.css';
 import { QUOTE_MAX, QuoteEditor } from './QuoteEditor';
-
-const COPIED_MS = 1600;
 
 function shortText(text: string): string {
   const line = text.replace(/\s+/g, ' ').trim();
@@ -17,28 +16,9 @@ function shortText(text: string): string {
 export function QuoteCard({ quote }: { quote: QuoteDto }) {
   const update = useUpdateQuote();
   const remove = useDeleteQuote();
-  const [copied, setCopied] = useState(false);
-  const [copyFailed, setCopyFailed] = useState(false);
+  const { copied, failed: copyFailed, copy } = useCopyQuote(quote);
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  useEffect(() => () => clearTimeout(timer.current), []);
-
-  async function copy() {
-    clearTimeout(timer.current);
-    try {
-      await navigator.clipboard.writeText(copyText(quote));
-    } catch {
-      setCopied(false);
-      setCopyFailed(true);
-      return;
-    }
-    setCopyFailed(false);
-    setCopied(true);
-    timer.current = setTimeout(() => setCopied(false), COPIED_MS);
-  }
-
   const address = sourceAddress(quote.sourceUrl);
   const title = quote.sourceTitle.trim();
   const date = new Date(quote.createdAt).toLocaleDateString(undefined, {

@@ -81,6 +81,14 @@
   white-space: nowrap;
 }
 
+.quotes {
+  align-self: center;
+  color: var(--bk-neutral);
+  font-family: var(--bk-font-mono);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
 .gone {
   padding: var(--bk-space-2xs) var(--bk-space-xs);
   border: 1px solid var(--danger);

@@ -5,7 +5,7 @@ import { useEditing } from '../state/editing';
 import { useSelection } from '../state/selection';
 import styles from './LinkCard.module.css';
 import { InlineNoteEditor } from './InlineNoteEditor';
-import { goneLabel } from './LinkRow';
+import { goneLabel, quoteLabel } from './LinkRow';
 import { Snippet } from './Snippet';
 import { Checkbox } from './ui/Checkbox';
 
@@ -42,6 +42,7 @@ export function LinkCard({ link }: { link: LinkDto }) {
         </div>
         <div className={styles.chips}>
           {link.broken ? <span className={styles.gone}>{goneLabel(link)}</span> : null}
+          {link.quoteCount ? <span className={styles.quotes}>{quoteLabel(link.quoteCount)}</span> : null}
           {link.hubIds.map((id) => (
             <span key={id} className={styles.chip}>
               {hubName.get(id) ?? '…'}

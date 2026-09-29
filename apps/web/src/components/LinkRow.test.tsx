@@ -79,6 +79,22 @@ describe('LinkRow', () => {
     expect(screen.queryByRole('presentation')).not.toBeInTheDocument();
   });
 
+  it('says how many quotes the link has, quietly, and nothing when it has none', () => {
+    const { unmount } = renderRow({ ...base, quoteCount: 2 });
+    expect(screen.getByText('2 quotes')).toBeInTheDocument();
+    unmount();
+    const one = renderRow({ ...base, quoteCount: 1 });
+    expect(screen.getByText('1 quote')).toBeInTheDocument();
+    one.unmount();
+    renderRow({ ...base, quoteCount: 0 });
+    expect(screen.queryByText(/quote/)).not.toBeInTheDocument();
+  });
+
+  it('shows no quote marker when the server sent no count', () => {
+    renderRow(base);
+    expect(screen.queryByText(/quote/)).not.toBeInTheDocument();
+  });
+
   it('no thumbnail when imageUrl null', () => {
     renderRow(base);
     expect(screen.queryByRole('presentation')).not.toBeInTheDocument();

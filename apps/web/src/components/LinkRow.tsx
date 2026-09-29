@@ -42,6 +42,7 @@ export function LinkRow({ link }: { link: LinkDto }) {
             {link.title || link.url}
           </a>
           {link.dupeCount > 1 ? <span className={styles.dupe}>×{link.dupeCount}</span> : null}
+          {link.quoteCount ? <span className={styles.quotes}>{quoteLabel(link.quoteCount)}</span> : null}
           {link.broken ? <span className={styles.gone}>{goneLabel(link)}</span> : null}
         </div>
         <div className={styles.note}>
@@ -61,6 +62,11 @@ export function LinkRow({ link }: { link: LinkDto }) {
       </div>
     </div>
   );
+}
+
+/** How many quotes a link has, as its marker says it. */
+export function quoteLabel(count: number): string {
+  return count === 1 ? '1 quote' : `${count} quotes`;
 }
 
 /** A broken link's marker: what the check found. */

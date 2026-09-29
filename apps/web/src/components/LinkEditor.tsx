@@ -1,8 +1,9 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { useState, type FormEvent } from 'react';
 import { errorMessage } from '../api/client';
-import { useDeleteLink, useEditLink, useHubs, useLink, useRefreshLink } from '../api/queries';
-import type { HubDto, LinkDetail, LinkPatch } from '../api/types';
+import { useDeleteLink, useEditLink, useHubs, useLink, useQuotes, useRefreshLink } from '../api/queries';
+import type { HubDto, LinkDetail, LinkPatch, QuoteDto } from '../api/types';
+import { useCopyQuote } from '../quotes/useCopyQuote';
 import { useEditing } from '../state/editing';
 import styles from './LinkEditor.module.css';
 import { Checkbox } from './ui/Checkbox';
@@ -178,6 +179,8 @@ function EditorForm({ link, hubs, onDone }: { link: LinkDetail; hubs: HubDto[]; 
         </div>
       </fieldset>
 
+      {link.quoteCount ? <LinkQuotes linkId={link.id} count={link.quoteCount} /> : null}
+
       <details className={styles.copy}>
         <summary>Saved copy of the page{link.contentText ? ` · ${words.toLocaleString()} words` : ''}</summary>
         {link.contentText ? (
@@ -208,5 +211,51 @@ function EditorForm({ link, hubs, onDone }: { link: LinkDetail; hubs: HubDto[]; 
         <button type="submit" className={styles.primary} disabled={busy}>{edit.isPending ? 'Saving…' : 'Save'}</button>
       </div>
     </form>
+  );
+}
+
+/** The link's quotes, read only with Copy each: the Quotes view edits them. */
+function LinkQuotes({ linkId, count }: { linkId: string; count: number }) {
+  const quotes = useQuotes({ linkId });
+  const items = quotes.data?.pages.flatMap((page) => page.items) ?? [];
+  return (
+    <section className={styles.quotes} aria-labelledby="edit-quotes">
+      <h3 id="edit-quotes" className={styles.label}>Quotes ({count})</h3>
+      {quotes.isPending ? <p className={styles.muted}>Loading…</p> : null}
+      {quotes.isError ? (
+        <p className={styles.error} role="alert">Could not load the quotes: {errorMessage(quotes.error)}</p>
+      ) : null}
+      {items.length > 0 ? (
+        <ul className={styles.quoteList}>
+          {items.map((quote) => <LinkQuote key={quote.id} quote={quote} />)}
+        </ul>
+      ) : null}
+      {quotes.hasNextPage ? (
+        <button
+          type="button"
+          className={styles.moreQuotes}
+          disabled={quotes.isFetchingNextPage}
+          onClick={() => void quotes.fetchNextPage()}
+        >
+          {quotes.isFetchingNextPage ? 'Loading…' : 'More quotes'}
+        </button>
+      ) : null}
+    </section>
+  );
+}
+
+function LinkQuote({ quote }: { quote: QuoteDto }) {
+  const { copied, failed, copy } = useCopyQuote(quote);
+  return (
+    <li className={styles.quote}>
+      <blockquote className={styles.quoteText} cite={quote.sourceUrl}>{quote.text}</blockquote>
+      {quote.note ? <p className={styles.quoteNote}>{quote.note}</p> : null}
+      <button type="button" className={styles.copyQuote} onClick={() => void copy()}>
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+      {failed ? (
+        <p className={styles.error} role="alert">Could not copy: the browser did not allow the clipboard.</p>
+      ) : null}
+    </li>
   );
 }

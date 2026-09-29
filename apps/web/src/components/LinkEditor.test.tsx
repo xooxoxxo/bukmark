@@ -2,14 +2,14 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
-import type { LinkDetail } from '../api/types';
+import type { LinkDetail, QuoteDto } from '../api/types';
 import { useEditing } from '../state/editing';
 import { makeWrapper } from '../test/utils';
 import { LinkEditor, checkLine } from './LinkEditor';
 
 vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof client>();
-  return { ...actual, fetchLink: vi.fn(), fetchHubs: vi.fn(), patchLink: vi.fn(), bulkLinks: vi.fn(), refreshLink: vi.fn() };
+  return { ...actual, fetchLink: vi.fn(), fetchHubs: vi.fn(), patchLink: vi.fn(), bulkLinks: vi.fn(), refreshLink: vi.fn(), fetchQuotes: vi.fn() };
 });
 
 const LINK: LinkDetail = {
@@ -18,6 +18,14 @@ const LINK: LinkDetail = {
   lastSeen: '2026-09-01T00:00:00.000Z', contentText: 'The words of the page, kept.', httpStatus: 200,
   checkError: null, checkedAt: '2026-09-20T00:00:00.000Z', broken: false,
 };
+
+function quote(over: Partial<QuoteDto>): QuoteDto {
+  return {
+    id: 'q1', linkId: 'l1', text: 'A passage.', note: '', sourceUrl: 'https://a.dev/post',
+    sourceTitle: 'A post', createdAt: '2026-09-28T10:00:00.000Z', updatedAt: '2026-09-28T10:00:00.000Z',
+    ...over,
+  };
+}
 
 function renderEditor(link: Partial<LinkDetail> = {}) {
   vi.mocked(client.fetchLink).mockResolvedValue({ ...LINK, ...link });
@@ -104,6 +112,63 @@ describe('LinkEditor', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('link not found');
     expect(useEditing.getState().id).toBe('l1');
+  });
+});
+
+describe('LinkEditor quotes', () => {
+  afterEach(() => {
+    useEditing.getState().close();
+    vi.clearAllMocks();
+  });
+
+  it('lists the link’s quotes, with their notes, and copies each in the quote format', async () => {
+    const user = userEvent.setup();
+    vi.mocked(client.fetchQuotes).mockResolvedValue({
+      items: [
+        quote({ id: 'q2', text: 'The second passage.', note: 'why this one' }),
+        quote({ id: 'q1', text: 'The first passage.\nOn two lines.' }),
+      ],
+      nextCursor: null,
+    });
+    renderEditor({ quoteCount: 2 });
+
+    const quotes = await screen.findByRole('region', { name: 'Quotes (2)' });
+    expect(client.fetchQuotes).toHaveBeenCalledWith(expect.objectContaining({ linkId: 'l1' }));
+    expect(await within(quotes).findByText('The second passage.')).toBeInTheDocument();
+    expect(within(quotes).getByText('why this one')).toBeInTheDocument();
+    expect(within(quotes).getByText(/The first passage\./)).toBeInTheDocument();
+    // Read only here: the Quotes view edits them.
+    expect(within(quotes).queryByRole('button', { name: /edit|delete/i })).not.toBeInTheDocument();
+
+    const copies = within(quotes).getAllByRole('button', { name: 'Copy' });
+    await user.click(copies[1]!);
+    expect(await navigator.clipboard.readText()).toBe('"The first passage.\nOn two lines."\n— A post, a.dev/post');
+    expect(within(quotes).getByRole('button', { name: 'Copied' })).toBeInTheDocument();
+    expect(within(quotes).getAllByRole('button', { name: 'Copy' })).toHaveLength(1);
+  });
+
+  it('says so when the clipboard refuses', async () => {
+    const user = userEvent.setup();
+    vi.mocked(client.fetchQuotes).mockResolvedValue({ items: [quote({})], nextCursor: null });
+    renderEditor({ quoteCount: 1 });
+    const copy = await screen.findByRole('button', { name: 'Copy' });
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('denied'));
+    await user.click(copy);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not copy/i);
+  });
+
+  it('asks for no quotes when the link has none', async () => {
+    renderEditor({ quoteCount: 0 });
+    await screen.findByLabelText('Title');
+    expect(client.fetchQuotes).not.toHaveBeenCalled();
+    expect(screen.queryByRole('region', { name: /Quotes/ })).not.toBeInTheDocument();
+  });
+
+  it('says why when the quotes cannot load, and keeps the rest of the dialog', async () => {
+    vi.mocked(client.fetchQuotes).mockRejectedValue(new client.ApiError('database is down', 500));
+    renderEditor({ quoteCount: 1 });
+    expect(await screen.findByText(/Could not load the quotes: database is down/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Title')).toHaveValue('A post');
   });
 });
 

@@ -51,6 +51,17 @@ describe('LinkCard', () => {
     expect(screen.queryByRole('presentation')).not.toBeInTheDocument();
   });
 
+  it('says how many quotes the link has, and nothing when it has none', () => {
+    const { unmount } = renderCard({ ...base, quoteCount: 3 });
+    expect(screen.getByText('3 quotes')).toBeInTheDocument();
+    unmount();
+    const one = renderCard({ ...base, quoteCount: 1 });
+    expect(screen.getByText('1 quote')).toBeInTheDocument();
+    one.unmount();
+    renderCard({ ...base, quoteCount: 0 });
+    expect(screen.queryByText(/quote/)).not.toBeInTheDocument();
+  });
+
   it('checkbox toggles selection', async () => {
     renderCard(base);
     await userEvent.click(screen.getByRole('checkbox'));
