@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
@@ -210,6 +210,32 @@ describe('quotes api', () => {
     expect(clash.statusCode).toBe(409);
     const self = await app.inject({ method: 'PATCH', url: `/api/quotes/${second.id}`, headers, payload: { text: 'SECOND.' } });
     expect(self.statusCode).toBe(200);
+  });
+
+  it('PATCH of an orphan quote (no link) edits text and note, with no page to clash with', async () => {
+    const [a, b] = await db.insert(quotes).values([
+      { linkId: null, text: 'One.', textKey: 'one.', sourceUrl: 'https://gone.com/p' },
+      { linkId: null, text: 'Two.', textKey: 'two.', sourceUrl: 'https://gone.com/p' },
+    ]).returning();
+    const res = await app.inject({ method: 'PATCH', url: `/api/quotes/${a!.id}`, headers, payload: { text: ' Two. ', note: 'n' } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().quote).toMatchObject({ id: a!.id, linkId: null, text: 'Two.', note: 'n', sourceUrl: 'https://gone.com/p' });
+    expect(b!.id).not.toBe(a!.id);
+  });
+
+  it('PATCH answers 409 when the database reports a unique violation after the check (a lost race)', async () => {
+    const { quote } = (await post({ url: 'https://example.com/a', text: 'Raced.' })).json();
+    // Only the quotes update fails: auth also updates (the token's last use).
+    const realUpdate = db.update.bind(db) as (table: unknown) => unknown;
+    const spy = vi.spyOn(db, 'update').mockImplementation(((table: unknown) => {
+      if (table === quotes) throw Object.assign(new Error('duplicate key'), { code: '23505' });
+      return realUpdate(table);
+    }) as unknown as typeof db.update);
+    try {
+      const res = await app.inject({ method: 'PATCH', url: `/api/quotes/${quote.id}`, headers, payload: { text: 'Raced differently.' } });
+      expect(res.statusCode).toBe(409);
+      expect(res.json().error).toMatch(/already has a quote/);
+    } finally { spy.mockRestore(); }
   });
 
   it('PATCH and DELETE of a missing quote return 404', async () => {

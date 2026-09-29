@@ -35,7 +35,9 @@ beforeEach(() => {
   );
 });
 
-afterEach(() => { vi.unstubAllGlobals(); });
+// A background that started in the test may still be registering its menu
+// (two turns each): let it finish before chrome goes away.
+afterEach(async () => { await settle(); vi.unstubAllGlobals(); });
 
 describe('first install', () => {
   it('opens the settings page with the setup steps, from the background as it starts', async () => {
