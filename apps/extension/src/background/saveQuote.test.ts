@@ -30,7 +30,12 @@ async function start(seed: FakeSeed = LOGGED_IN): Promise<void> {
 
 /** The page has this text selected: what the injected function returns there. */
 function select(text: string): void {
-  chrome.scripting.executeScript.mockResolvedValue([{ frameId: 0, result: text }]);
+  chrome.scripting.executeScript.mockResolvedValue([{ frameId: 0, result: { text, focused: true } }]);
+}
+
+/** Each frame of the page, with its selection and whether its document has focus. */
+function frames(...list: Array<{ frameId: number; text: string; focused: boolean }>): void {
+  chrome.scripting.executeScript.mockResolvedValue(list.map(({ frameId, text, focused }) => ({ frameId, result: { text, focused } })));
 }
 
 async function clickMenu(info: Partial<FakeMenuClick> = {}, tab: FakeEventTab | undefined = PAGE): Promise<void> {
@@ -160,14 +165,16 @@ describe('saving a quote from the menu', () => {
     expect(quoteRequests().map((r) => (r.body as { text: string }).text)).toEqual(['A long passage,\nwith more after it.']);
   });
 
-  it('injects a function that returns the page’s selection as text', async () => {
+  it('injects a function that returns the page’s selection as text, and whether its document has focus', async () => {
     await start();
     await clickMenu({ selectionText: 'x' });
     const [{ func }] = chrome.scripting.executeScript.mock.calls[0]!;
     vi.stubGlobal('getSelection', () => ({ toString: () => 'One.\nTwo.' }));
-    expect(func()).toBe('One.\nTwo.');
+    vi.stubGlobal('document', { hasFocus: () => true });
+    expect(func()).toEqual({ text: 'One.\nTwo.', focused: true });
     vi.stubGlobal('getSelection', () => null);
-    expect(func()).toBe('');
+    vi.stubGlobal('document', { hasFocus: () => false });
+    expect(func()).toEqual({ text: '', focused: false });
   });
 
   it('falls back to the menu’s selectionText where the page can’t be scripted', async () => {
@@ -222,8 +229,26 @@ describe('saving a quote with the shortcut', () => {
     await start();
     select('Selected.');
     await pressShortcut();
-    expect(chrome.scripting.executeScript).toHaveBeenCalledWith({ target: { tabId: PAGE.id }, func: expect.any(Function) });
+    expect(chrome.scripting.executeScript).toHaveBeenCalledWith({ target: { tabId: PAGE.id, allFrames: true }, func: expect.any(Function) });
     expect(quoteRequests().map((r) => r.body)).toEqual([{ url: PAGE.url, title: PAGE.title, text: 'Selected.' }]);
+  });
+
+  it('saves a selection made inside a frame, the top page having none', async () => {
+    await start();
+    frames({ frameId: 0, text: '', focused: false }, { frameId: 4, text: 'Inside the frame.\nTwo.', focused: false });
+    await pressShortcut();
+    expect(quoteRequests().map((r) => (r.body as { text: string }).text)).toEqual(['Inside the frame.\nTwo.']);
+  });
+
+  it('prefers the frame that has focus over another frame’s leftover selection', async () => {
+    await start();
+    frames(
+      { frameId: 0, text: 'Old selection in the top page.', focused: false },
+      { frameId: 2, text: '  ', focused: true },
+      { frameId: 5, text: 'Where the reader is.', focused: true },
+    );
+    await pressShortcut();
+    expect(quoteRequests().map((r) => (r.body as { text: string }).text)).toEqual(['Where the reader is.']);
   });
 
   it('uses the active tab when the browser passes none with the command', async () => {

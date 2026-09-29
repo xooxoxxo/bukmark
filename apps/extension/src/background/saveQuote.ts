@@ -14,12 +14,18 @@ interface QuoteTab {
   title?: string;
 }
 
+interface FrameSelection {
+  text: string;
+  focused: boolean;
+}
+
 /**
  * Runs in the page, not here: the selection as the reader sees it, line breaks
- * kept. The menu's selectionText collapses them to spaces. Self-contained,
- * since the browser sends only its source to the page.
+ * kept (the menu's selectionText collapses them to spaces), and whether this
+ * frame's document has focus. Self-contained, since the browser sends only its
+ * source to the page.
  */
-const readSelection = (): string => getSelection()?.toString() ?? '';
+const readSelection = (): FrameSelection => ({ text: getSelection()?.toString() ?? '', focused: document.hasFocus() });
 
 // Registrations run one after another, so a removeAll never lands between
 // another's removeAll and create, which would make the id twice.
@@ -52,17 +58,21 @@ export function registerQuoteMenu(): Promise<void> {
 }
 
 /**
- * The tab's selection, read in the page: in one frame when given, else the top
- * one. Null where it can't be: a browser page, a store page, a frame from
- * another site, a build without scripting. Runs only in the tab the click or
- * the shortcut granted activeTab for.
+ * The tab's selection, read in the page: in one frame when given, else in
+ * every frame, taking the focused frame's first, then any other's. Null where
+ * it can't be: a browser page, a store page, a frame from another site, a
+ * build without scripting. Runs only in the tab the click or the shortcut
+ * granted activeTab for.
  */
 async function pageSelection(tabId: number | undefined, frameId?: number): Promise<string | null> {
   if (tabId === undefined) return null;
-  const target = frameId === undefined ? { tabId } : { tabId, frameIds: [frameId] };
+  const target = frameId === undefined ? { tabId, allFrames: true } : { tabId, frameIds: [frameId] };
   try {
-    const [frame] = await chrome.scripting.executeScript({ target, func: readSelection });
-    return typeof frame?.result === 'string' ? frame.result : null;
+    const frames = await chrome.scripting.executeScript({ target, func: readSelection });
+    const read = frames
+      .map((frame) => frame.result as FrameSelection | undefined)
+      .filter((r): r is FrameSelection => typeof r?.text === 'string' && hasText(r.text));
+    return (read.find((r) => r.focused) ?? read[0])?.text ?? null;
   } catch {
     return null;
   }

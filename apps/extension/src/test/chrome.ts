@@ -280,7 +280,7 @@ export function fakeChrome(seed: FakeSeed = {}) {
     scripting: {
       /** Answers as a page with nothing selected; a test sets what the page returns. */
       executeScript: vi.fn(async (_details: { target: { tabId: number }; func: () => unknown }): Promise<Array<{ frameId: number; result?: unknown }>> => [
-        { frameId: 0, result: '' },
+        { frameId: 0, result: { text: '', focused: false } },
       ]),
     },
     commands: {
