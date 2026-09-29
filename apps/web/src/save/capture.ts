@@ -53,3 +53,40 @@ export function captureFromParams(params: URLSearchParams): Capture {
     params.get('url')?.trim() || firstWebUrl(params.get('text') ?? '') || firstWebUrl(title);
   return { url, title: title === url ? '' : title };
 }
+
+/** Two addresses for the same page: scheme, `www.`, a trailing slash and the fragment aside. */
+function samePage(a: string, b: string): boolean {
+  const key = (value: string) => {
+    const u = new URL(value);
+    const path = u.pathname.replace(/\/$/, '');
+    return `${u.hostname.replace(/^www\./, '')}${path}${u.search}`;
+  };
+  try {
+    return key(a) === key(b);
+  } catch {
+    return false;
+  }
+}
+
+/** One pair of quote marks around the whole text, as Chrome wraps a shared selection. */
+const WRAPPED = /^(["“])([\s\S]*)(["”])$/;
+
+/**
+ * The passage a share carried, or '' when it carried none. Chrome on Android
+ * sends a selection in `text` with the page's link at its end (a text-fragment
+ * link, wrapped in quote marks, when `url` is empty); that link and the marks
+ * are not part of the passage. Text that is only a link, or only the page's
+ * title, is a plain link share. A passage needs a page it came from.
+ */
+export function quoteFromParams(params: URLSearchParams, capture: Capture): string {
+  if (!isWebUrl(capture.url)) return '';
+  let text = (params.get('text') ?? '').trim();
+  const trailing = /\s*(https?:\/\/\S+)$/i.exec(text);
+  if (trailing && samePage(trimTrailing(trailing[1]!), capture.url)) {
+    text = text.slice(0, trailing.index).trim();
+  }
+  const wrapped = WRAPPED.exec(text);
+  if (wrapped && !/["“”]/.test(wrapped[2]!)) text = wrapped[2]!.trim();
+  if (!text || /^https?:\/\/\S+$/i.test(text) || text === capture.title) return '';
+  return text;
+}

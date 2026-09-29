@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { captureFromParams, firstWebUrl, isWebUrl } from './capture';
+import { captureFromParams, firstWebUrl, isWebUrl, quoteFromParams } from './capture';
 
 describe('firstWebUrl', () => {
   it.each([
@@ -87,5 +87,54 @@ describe('captureFromParams', () => {
       title: 'Example',
     });
     expect(capture('')).toEqual({ url: '', title: '' });
+  });
+});
+
+describe('quoteFromParams', () => {
+  const quote = (params: Record<string, string>) => {
+    const search = new URLSearchParams(params);
+    return quoteFromParams(search, captureFromParams(search));
+  };
+  const PAGE = 'https://example.com/a';
+
+  it('takes the text shared with a url as the quote', () => {
+    expect(quote({ url: PAGE, title: 'Example', text: 'A passage worth keeping.' })).toBe(
+      'A passage worth keeping.',
+    );
+  });
+
+  it.each([
+    ['at its end', `A passage.\n${PAGE}`],
+    ['after a space', `A passage. ${PAGE}`],
+    ['with a text fragment', `A passage.\n${PAGE}#:~:text=A%20passage`],
+    ['written differently', 'A passage.\nhttp://www.example.com/a/'],
+  ])('strips the page url from the end of the text %s', (_, text) => {
+    expect(quote({ url: PAGE, text })).toBe('A passage.');
+  });
+
+  it('keeps a link that is not the page, at the end or in the middle', () => {
+    expect(quote({ url: PAGE, text: 'See https://other.example/b' })).toBe('See https://other.example/b');
+    expect(quote({ url: PAGE, text: `Visit ${PAGE} for more` })).toBe(`Visit ${PAGE} for more`);
+  });
+
+  it('keeps the newlines of the selection and drops the quote marks Chrome wraps it in', () => {
+    expect(quote({ text: `"First line.\nSecond line."\n${PAGE}#:~:text=First` })).toBe(
+      'First line.\nSecond line.',
+    );
+    expect(quote({ url: PAGE, text: '“Curly.”' })).toBe('Curly.');
+    expect(quote({ url: PAGE, text: '"Opened" and "closed"' })).toBe('"Opened" and "closed"');
+  });
+
+  it.each([
+    ['a url only', { url: PAGE, text: PAGE }],
+    ['a url only, with the url field empty', { url: '', text: PAGE }],
+    ['another url only', { url: PAGE, text: 'https://other.example/b' }],
+    ['the title and the url', { title: 'Example page', text: `Example page ${PAGE}` }],
+    ['nothing', { url: PAGE, title: 'Example' }],
+    ['blank text', { url: PAGE, text: '  \n ' }],
+    ['text with no page to quote from', { text: 'just some words' }],
+    ['text with a page that cannot be saved', { url: 'javascript:alert(1)', text: 'words' }],
+  ])('is empty for %s', (_, params) => {
+    expect(quote(params)).toBe('');
   });
 });

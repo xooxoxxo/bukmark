@@ -130,6 +130,75 @@
   cursor: not-allowed;
 }
 
+/* A shared passage, set like a Quotes view card: a 2px accent rule, lines kept. */
+.quote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bk-space-xs);
+  margin: 0;
+  padding-left: var(--bk-space-md);
+  border-left: 2px solid var(--bk-accent);
+}
+
+.quoteText {
+  max-height: 40vh;
+  margin: 0;
+  overflow-y: auto;
+  font-family: var(--bk-font-body);
+  font-size: var(--bk-text-md);
+  line-height: 1.5;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--bk-space-xs);
+  color: var(--bk-muted);
+  font-size: var(--bk-text-sm);
+}
+
+.sourceTitle {
+  color: var(--bk-ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.host {
+  font-family: var(--bk-font-mono);
+  font-size: 0.8125rem;
+}
+
+.buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bk-space-xs);
+}
+
+.secondaryButton {
+  width: 100%;
+  padding: var(--bk-space-sm) var(--bk-space-md);
+  border: 2px solid var(--bk-ink);
+  background-color: transparent;
+  color: var(--bk-ink);
+  font-family: var(--bk-font-display);
+  font-size: var(--bk-text-sm);
+  font-weight: 800;
+  text-transform: uppercase;
+  transition: border-color var(--bk-dur-micro) var(--bk-ease-out), color var(--bk-dur-micro) var(--bk-ease-out);
+}
+
+.secondaryButton:hover:not(:disabled) {
+  border-color: var(--bk-accent);
+  color: var(--bk-accent);
+}
+
+.secondaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .outcome {
   margin: 0;
   font-family: var(--bk-font-display);

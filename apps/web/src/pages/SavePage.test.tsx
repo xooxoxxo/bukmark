@@ -1,10 +1,10 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../api/queryClient';
-import type { HubDto, LinkDto } from '../api/types';
+import type { HubDto, LinkDto, QuoteDto } from '../api/types';
 import { AppRoutes } from '../App';
 import { AuthGate } from '../components/AuthGate';
 
@@ -42,6 +42,19 @@ function savedLink(body: Body, dupeCount = 1): LinkDto {
   };
 }
 
+function savedQuote(body: Body): QuoteDto {
+  return {
+    id: 'quote-1',
+    linkId: 'link-1',
+    text: body.text!,
+    note: body.note ?? '',
+    sourceUrl: body.url!,
+    sourceTitle: body.title ?? '',
+    createdAt: '2026-09-29T00:00:00.000Z',
+    updatedAt: '2026-09-29T00:00:00.000Z',
+  };
+}
+
 function hub(id: string, name: string): HubDto {
   return { id, name, description: '', status: 'active', linkCount: 0 };
 }
@@ -53,6 +66,8 @@ function fakeServer() {
     hubs: [] as HubDto[],
     hubsFail: false,
     save: (body: Body): Response => json(200, { outcome: 'created', link: savedLink(body) }),
+    saveQuote: (body: Body): Response =>
+      json(201, { quote: savedQuote(body), link: { id: 'link-1', created: true } }),
   };
   const sent: SentRequest[] = [];
 
@@ -77,6 +92,7 @@ function fakeServer() {
         return state.hubsFail ? json(500, { error: 'database is down' }) : json(200, { items: state.hubs });
       }
       if (route === 'POST /api/links') return state.save(body!);
+      if (route === 'POST /api/quotes') return state.saveQuote(body!);
       if (route === 'GET /api/links') return json(200, { items: [], total: 0 });
       if (route === 'GET /api/stats') {
         return json(200, { links: 0, active: 0, archived: 0, hubs: 0, unassigned: 0 });
@@ -89,6 +105,7 @@ function fakeServer() {
     state,
     sent,
     saves: () => sent.filter((r) => r.method === 'POST' && r.url === '/api/links'),
+    quoteSaves: () => sent.filter((r) => r.method === 'POST' && r.url === '/api/quotes'),
     asked: (method: string, url: string) => sent.some((r) => r.method === method && r.url === url),
   };
 }
@@ -309,5 +326,141 @@ describe('SavePage', () => {
     const outcome = await screen.findByRole('status');
     expect(outcome).toHaveTextContent('Restored — you had deleted this before');
     await waitFor(() => expect(outcome).toHaveFocus());
+  });
+});
+
+describe('SavePage with shared text', () => {
+  const PASSAGE = 'The passage that made the page worth keeping.\nOn two lines.';
+
+  it('shows the quote, its source and a note field, and sends nothing until a button is pressed', async () => {
+    openSave(query({ url: SHARED, title: 'Example page', text: PASSAGE }));
+
+    const form = await screen.findByRole('form', { name: 'Save a quote' });
+    expect(form).toHaveTextContent('The passage that made the page worth keeping.');
+    expect(screen.getByText(/The passage that made/)).toHaveTextContent(
+      'The passage that made the page worth keeping. On two lines.',
+    );
+    expect(screen.getByText('Example page')).toBeInTheDocument();
+    expect(screen.getByText('example.com')).toBeInTheDocument();
+    expect(screen.getByLabelText('Note')).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Save quote' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Save link only' })).toBeEnabled();
+    expect(screen.queryByLabelText('Link')).not.toBeInTheDocument();
+
+    await settle();
+    expect(server.sent.filter((r) => r.method !== 'GET')).toEqual([]);
+  });
+
+  it('strips the page link Chrome puts at the end of the text', async () => {
+    openSave(query({ title: 'Example page', text: `"A passage."\n${SHARED}#:~:text=A%20passage`, url: '' }));
+
+    const form = await screen.findByRole('form', { name: 'Save a quote' });
+    expect(within(form).getByText('A passage.')).toBeInTheDocument();
+    expect(form).not.toHaveTextContent('https://');
+  });
+
+  it('is today’s link form when the text is only a link', async () => {
+    openSave(query({ url: SHARED, title: 'Example page', text: SHARED }));
+
+    expect(await screen.findByLabelText('Link')).toHaveValue(SHARED);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Save quote' })).not.toBeInTheDocument();
+  });
+
+  it('saves the quote, and the page with it, once however fast it is pressed again', async () => {
+    openSave(query({ url: SHARED, title: 'Example page', text: `${PASSAGE}\n${SHARED}` }));
+    fireEvent.change(await screen.findByLabelText('Note'), { target: { value: ' for the essay ' } });
+
+    const save = screen.getByRole('button', { name: 'Save quote' });
+    fireEvent.click(save);
+    fireEvent.click(save);
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Quote saved');
+    await settle();
+    expect(server.quoteSaves()).toEqual([
+      {
+        method: 'POST',
+        url: '/api/quotes',
+        contentType: 'application/json',
+        body: { url: SHARED, title: 'Example page', text: PASSAGE, note: 'for the essay' },
+      },
+    ]);
+    expect(server.saves()).toEqual([]);
+  });
+
+  it('sends only what it has: no title or note when there are none', async () => {
+    openSave(query({ url: SHARED, text: 'A passage.' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save quote' }));
+
+    await screen.findByRole('status');
+    expect(server.quoteSaves().map((r) => r.body)).toEqual([{ url: SHARED, text: 'A passage.' }]);
+  });
+
+  it('saves only the link, as the link form does, when asked to', async () => {
+    openSave(query({ url: SHARED, title: 'Example page', text: PASSAGE }));
+    fireEvent.change(await screen.findByLabelText('Note'), { target: { value: 'for the trip' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save link only' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Saved');
+    expect(server.saves().map((r) => r.body)).toEqual([
+      { url: SHARED, title: 'Example page', note: 'for the trip' },
+    ]);
+    expect(server.quoteSaves()).toEqual([]);
+  });
+
+  it('explains a failed quote save and sends again only when a button is pressed again', async () => {
+    let failures = 1;
+    const created = server.state.saveQuote;
+    server.state.saveQuote = (body) =>
+      failures-- > 0 ? json(500, { error: 'database is down' }) : created(body);
+    openSave(query({ url: SHARED, text: 'A passage.' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Save quote' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('database is down');
+    await settle();
+    expect(server.quoteSaves()).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Save link only' })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save quote' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Quote saved');
+    expect(server.quoteSaves()).toHaveLength(2);
+  });
+
+  it('explains a failed link-only save the same way', async () => {
+    server.state.save = () => json(400, { error: 'url must be http or https' });
+    openSave(query({ url: SHARED, text: 'A passage.' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Save link only' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('url must be http or https');
+    expect(screen.getByRole('button', { name: 'Save quote' })).toBeEnabled();
+  });
+
+  it('comes back through sign-in to the quote, without re-sending it', async () => {
+    server.state.saveQuote = () => {
+      server.state.authenticated = false;
+      return json(401, { error: 'Session expired', code: 'unauthenticated' });
+    };
+    openSave(query({ url: SHARED, text: 'A passage.' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save quote' }));
+
+    await signIn();
+
+    expect(await screen.findByRole('button', { name: 'Save quote' })).toBeInTheDocument();
+    await settle();
+    expect(server.quoteSaves()).toHaveLength(1);
+  });
+
+  it('says the quote is saved, then closes a window opened just for saving', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.spyOn(window.history, 'length', 'get').mockReturnValue(1);
+    openSave(query({ url: SHARED, title: 'Example page', text: 'A passage.' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Save quote' }));
+    const outcome = await screen.findByRole('status');
+    expect(outcome).toHaveTextContent('Quote saved');
+    await waitFor(() => expect(outcome).toHaveFocus());
+
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(window.close).toHaveBeenCalledTimes(1);
   });
 });
