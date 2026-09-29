@@ -103,8 +103,18 @@ export async function importLinks(
   return res;
 }
 
-/** Orphans have no link to dedupe against, so identity is (source url, text key), checked against existing orphans. */
-async function restoreOrphanQuotes(db: Db, orphans: ImportOrphanQuote[], res: ImportLinksResult): Promise<void> {
+/**
+ * Orphans have no link to dedupe against, so identity is (source url, text key), checked against existing orphans.
+ * A source url is normalized as on every other path; one that can't be (not http, unparseable) is invalid.
+ */
+async function restoreOrphanQuotes(db: Db, given: ImportOrphanQuote[], res: ImportLinksResult): Promise<void> {
+  const orphans: ImportOrphanQuote[] = [];
+  for (const o of given) {
+    const n = normalizeUrl(o.sourceUrl);
+    if (n.ok) orphans.push({ ...o, sourceUrl: n.url });
+    else res.quotes.invalid += 1;
+  }
+  if (orphans.length === 0) return;
   const urls = [...new Set(orphans.map((o) => o.sourceUrl))];
   const have = await db
     .select({ url: quotes.sourceUrl, key: quotes.textKey })

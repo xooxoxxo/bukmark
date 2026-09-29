@@ -80,6 +80,48 @@ describe('createQuote', () => {
     expect(await db.select().from(links)).toHaveLength(1);
   });
 
+  it('a quote found by a variant address takes the link\'s url as its source, as a restore would', async () => {
+    const norm = normalizeUrl('https://example.com/page');
+    if (!norm.ok) throw new Error('bad');
+    const first = await addLink(db, { url: norm.url, urlHash: norm.urlHash, title: 'Saved' }, og);
+    const r = await createQuote(db, og, { url: 'https://m.example.com/page', text: 'passage' });
+    expect(r.link.id).toBe(first.link.id);
+    expect(r.quote.sourceUrl).toBe(first.link.url);
+    expect(r.quote.sourceTitle).toBe('Saved');
+    const withTitle = await createQuote(db, og, { url: 'https://m.example.com/page', title: 'Mobile', text: 'other' });
+    expect(withTitle.quote.sourceUrl).toBe(first.link.url);
+    expect(withTitle.quote.sourceTitle).toBe('Mobile');
+  });
+
+  it('retries once when the link is deleted between the lookup and the quote insert (FK race)', async () => {
+    const norm = normalizeUrl('https://example.com/fk');
+    if (!norm.ok) throw new Error('bad');
+    const first = await addLink(db, { url: norm.url, urlHash: norm.urlHash, title: 'Fk' }, og);
+    const realInsert = db.insert.bind(db) as (table: unknown) => unknown;
+    let raced = false;
+    const spy = vi.spyOn(db, 'insert').mockImplementation(((table: unknown) => {
+      if (table === quotes && !raced) {
+        raced = true;
+        // The link goes away after the lookup found it; the real insert then hits the FK.
+        return { values: (v: unknown) => ({ returning: async () => {
+          await db.delete(links).where(eq(links.id, first.link.id));
+          return (realInsert(quotes) as { values: (v: unknown) => { returning: () => Promise<unknown> } }).values(v).returning();
+        } }) };
+      }
+      return realInsert(table);
+    }) as unknown as typeof db.insert);
+    try {
+      const r = await createQuote(db, og, { url: 'https://example.com/fk', text: 'survives' });
+      expect(raced).toBe(true);
+      expect(r.created).toBe(true);
+      expect(r.link.created).toBe(true);
+      expect(r.link.id).not.toBe(first.link.id);
+      const rows = await db.select().from(quotes);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.linkId).toBe(r.link.id);
+    } finally { spy.mockRestore(); }
+  });
+
   it('returns the existing quote for the same normalized text, created false', async () => {
     const a = await createQuote(db, og, { url: 'https://example.com/a', text: 'The  Quoted\ntext.' });
     const b = await createQuote(db, og, { url: 'https://example.com/a', text: '  the quoted text. ' });

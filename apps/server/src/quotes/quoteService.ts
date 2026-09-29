@@ -71,18 +71,40 @@ export async function createQuote(
   if (!norm.ok) throw new QuoteValidationError('invalid-url', `${norm.reason} url`);
   const { text, textKey } = normalizeText(input.text);
 
+  // One retry: a link deleted between the lookup and the quote insert (FK
+  // violation) is found again or saved anew on the second pass.
+  try {
+    return await attachQuote(db, fetchOgImage, input, norm, text, textKey);
+  } catch (err) {
+    if (pgCode(err) !== '23503') throw err;
+    return attachQuote(db, fetchOgImage, input, norm, text, textKey);
+  }
+}
+
+async function attachQuote(
+  db: Db,
+  fetchOgImage: (url: string) => Promise<string | null>,
+  input: CreateQuoteInput,
+  norm: { url: string; urlHash: string },
+  text: string,
+  textKey: string,
+): Promise<CreateQuoteResult> {
   // An existing link is left alone: a quote is not a re-save (no dupe bump,
   // no updated_at change, no capture).
-  const byHash = await db.select({ id: links.id, title: links.title }).from(links)
-    .where(eq(links.urlHash, norm.urlHash)).limit(1);
-  const found = byHash[0] ?? (await db.select({ id: links.id, title: links.title }).from(links)
+  const cols = { id: links.id, url: links.url, title: links.title };
+  const byHash = await db.select(cols).from(links).where(eq(links.urlHash, norm.urlHash)).limit(1);
+  const found = byHash[0] ?? (await db.select(cols).from(links)
     .where(eq(links.matchKey, matchKey(norm.url))).limit(1))[0];
 
   let linkId: string;
+  let linkUrl: string;
   let linkTitle: string;
   let linkCreated = false;
   if (found) {
+    // The link's address, not the variant this quote came from, so a quote's
+    // source is the same saved directly or restored from a backup.
     linkId = found.id;
+    linkUrl = found.url;
     linkTitle = found.title;
   } else {
     // Same path as any save: match key, unsorted, og image, tombstone resurrection.
@@ -92,6 +114,7 @@ export async function createQuote(
       fetchOgImage,
     );
     linkId = saved.link.id;
+    linkUrl = saved.link.url;
     linkTitle = saved.link.title;
     linkCreated = saved.outcome !== 'existing';
   }
@@ -105,10 +128,12 @@ export async function createQuote(
   const dupe = (await existing())[0];
   if (dupe) return done(dupe, false);
 
+  // Not one transaction with the link save above, on purpose: a failure after
+  // it leaves a saved page, never a lost quote, and the caller can retry.
   try {
     const [row] = await db.insert(quotes).values({
       linkId, text, textKey, note: input.note ?? '',
-      sourceUrl: norm.url, sourceTitle: input.title || linkTitle,
+      sourceUrl: linkUrl, sourceTitle: input.title || linkTitle,
     }).returning();
     return done(row!, true);
   } catch (err) {

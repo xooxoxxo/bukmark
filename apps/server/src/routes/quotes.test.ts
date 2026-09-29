@@ -422,6 +422,24 @@ describe('quotes api', () => {
       expect(await db.select().from(quotes)).toHaveLength(2);
     });
 
+    it('orphan source urls are normalized like any other; unusable ones count invalid and are not stored', async () => {
+      const bad = ['javascript:alert(1)', 'data:text/html,hi', 'not a url at all', 'ftp://x.com/a'];
+      const res = await imp({ items: [], orphanQuotes: bad.map((sourceUrl) => ({ text: 'Bad source.', sourceUrl })) });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().quotes).toEqual({ added: 0, alreadyHere: 0, invalid: 4 });
+      expect(await db.select().from(quotes)).toHaveLength(0);
+
+      await db.insert(quotes).values({ linkId: null, text: 'Kept.', textKey: 'kept.', sourceUrl: 'https://example.com/a', sourceTitle: 'A' });
+      const again = await imp({ items: [], orphanQuotes: [
+        { text: 'Kept.', sourceUrl: 'https://www.example.com/a?utm_source=x' },
+        { text: 'New.', sourceUrl: 'https://www.example.com/a?utm_source=x' },
+        { text: 'new.', sourceUrl: 'https://example.com/a' },
+      ] });
+      expect(again.json().quotes).toEqual({ added: 1, alreadyHere: 2, invalid: 0 });
+      const rows = await db.select().from(quotes);
+      expect(rows.map((r) => r.sourceUrl)).toEqual(['https://example.com/a', 'https://example.com/a']);
+    });
+
     it('imports orphan quotes alone, and rejects a request with nothing in it', async () => {
       const res = await imp({ items: [], orphanQuotes: [{ text: 'Only me.', sourceUrl: 'https://gone.com/p' }] });
       expect(res.statusCode).toBe(200);
