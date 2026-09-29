@@ -100,11 +100,11 @@ describe('docs cover what turning on auth changes', () => {
     expect(proxy).toContain('"127.0.0.1:${PORT:-3000}:3000"');
   });
 
-  it('has the landing quickstart set the password and log the extension in', () => {
+  it('shows one install command on the landing page: the first way in that works today', () => {
     const landing = read('apps/site/src/pages/index.astro');
-    const next = /<ol class="install__next">([\s\S]*?)<\/ol>/.exec(landing)?.[1] ?? '';
-    expect(next).toMatch(/set your password/);
-    expect(next).toMatch(/log in/);
+    expect(landing).toContain('const CHANNEL = CHANNELS.find((c) => c.live)!;');
+    expect(landing).toContain("data-copy={CHANNEL.lines.join('\\n')}");
+    expect(landing).not.toMatch(/role="tab"/);
   });
 
   it('offers on the landing page only install commands the install guide documents', () => {
