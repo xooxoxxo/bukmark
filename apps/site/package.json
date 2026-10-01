@@ -12,14 +12,14 @@
     "deploy:pages": "rm -rf .astro node_modules/.astro && astro build && wrangler pages deploy dist --project-name=bukmark"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.41.6",
+    "@astrojs/starlight": "^0.42.4",
     "@resvg/resvg-js": "^2.6.2",
-    "astro": "^7.1.6",
+    "astro": "^7.3.5",
     "satori": "^0.33.5"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "vitest": "^3.2.7",
-    "wrangler": "^4.118.0"
+    "wrangler": "^4.142.0"
   }
 }
