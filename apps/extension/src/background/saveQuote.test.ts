@@ -177,6 +177,20 @@ describe('saving a quote from the menu', () => {
     expect(func()).toEqual({ text: '', focused: false });
   });
 
+  it('counts a frame as focused only when the focus is not in a child frame', async () => {
+    await start();
+    await clickMenu({ selectionText: 'x' });
+    const [{ func }] = chrome.scripting.executeScript.mock.calls[0]!;
+    vi.stubGlobal('getSelection', () => ({ toString: () => 'Old selection in the top page.' }));
+    // The reader is in an iframe: the top document has focus too, but on the frame.
+    vi.stubGlobal('document', { hasFocus: () => true, activeElement: { tagName: 'IFRAME' } });
+    expect(func()).toEqual({ text: 'Old selection in the top page.', focused: false });
+    vi.stubGlobal('document', { hasFocus: () => true, activeElement: { tagName: 'BODY' } });
+    expect(func()).toMatchObject({ focused: true });
+    vi.stubGlobal('document', { hasFocus: () => true, activeElement: null });
+    expect(func()).toMatchObject({ focused: true });
+  });
+
   it('falls back to the menu’s selectionText where the page can’t be scripted', async () => {
     await start();
     chrome.scripting.executeScript.mockRejectedValue(new Error('Cannot access contents of the page.'));

@@ -74,9 +74,13 @@ export async function buildApp(
   // Links saved before match keys existed get theirs in the background, so a
   // large collection does not hold up the server answering. Until it is done,
   // an older link is matched by its exact address only.
-  void backfillMatchKey(db).catch((err) => {
+  const backfill = backfillMatchKey(db).catch((err) => {
     app.log.warn({ err }, 'failed to backfill match_key');
   });
+  // Closing waits for it: a backfill still writing after close would hold row
+  // locks into whatever opens the database next (a restart, or the next test's
+  // TRUNCATE), and its connection would outlive the pool being shut down.
+  app.addHook('onClose', async () => { await backfill; });
 
   const checkPage = opts.checkPage ?? defaultCheckPage;
   if (opts.checkPages) startPageChecks(app, checkPage);

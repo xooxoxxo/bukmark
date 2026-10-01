@@ -119,7 +119,8 @@ Apart from bookmark sync's list, it keeps no history and no list of what you sav
 It has no content scripts: it never reads, changes or runs code in the pages you
 visit. The one exception is saving a quote: when you choose
 **Save quote to bukmark** or press its shortcut, it runs one line in that tab
-that reads the text you selected, and nothing else. It sees the address and
+that reads the text you selected and whether each frame of the page has the
+focus, to tell which frame you selected it in, and nothing else. It sees the address and
 title of the tab you are on only when you open the popup, press a shortcut or
 choose that menu item, which is what `activeTab` allows.
 

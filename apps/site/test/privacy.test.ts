@@ -73,7 +73,7 @@ describe('the privacy page matches what the extension asks for and does', () => 
     expect(saveQuote).toContain('chrome.scripting.executeScript({ target, func: readSelection })');
     // The target is the tab the click or shortcut was in: one frame of it, or its frames.
     expect(saveQuote).toContain('const target = frameId === undefined ? { tabId, allFrames: true } : { tabId, frameIds: [frameId] };');
-    expect(saveQuote).toContain("const readSelection = (): FrameSelection => ({ text: getSelection()?.toString() ?? '', focused: document.hasFocus() });");
+    expect(saveQuote).toContain("const readSelection = (): FrameSelection => ({ text: getSelection()?.toString() ?? '', focused: document.hasFocus() && !/^i?frame$/i.test(document.activeElement?.tagName ?? '') });");
     // No host access to web pages: scripting reaches only the activeTab tab.
     for (const m of manifests) expect(m.host_permissions).toEqual(['http://localhost/*']);
     const never = flat(section(privacy, 'What it never does'));

@@ -22,10 +22,12 @@ interface FrameSelection {
 /**
  * Runs in the page, not here: the selection as the reader sees it, line breaks
  * kept (the menu's selectionText collapses them to spaces), and whether this
- * frame's document has focus. Self-contained, since the browser sends only its
- * source to the page.
+ * frame is the one the reader is in. document.hasFocus() is true for every
+ * document on the way down to the focused frame, so a frame whose focus sits
+ * in a child frame does not count. Self-contained, since the browser sends
+ * only its source to the page.
  */
-const readSelection = (): FrameSelection => ({ text: getSelection()?.toString() ?? '', focused: document.hasFocus() });
+const readSelection = (): FrameSelection => ({ text: getSelection()?.toString() ?? '', focused: document.hasFocus() && !/^i?frame$/i.test(document.activeElement?.tagName ?? '') });
 
 // Registrations run one after another, so a removeAll never lands between
 // another's removeAll and create, which would make the id twice.
