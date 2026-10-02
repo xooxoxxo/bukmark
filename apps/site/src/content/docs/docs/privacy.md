@@ -225,11 +225,16 @@ whoever runs the AI model behind it.
 
 ## This website
 
-bukmark.it is a static site. It has no accounts, no cookies and no analytics.
-One service sees your visit:
+bukmark.it is a static site. It has no accounts and no cookies. One service
+sees your visit:
 
 - **Cloudflare Pages** hosts it and, like any web host, receives your IP address
   and the pages you request.
+- **Cloudflare Web Analytics** counts visits so we can see which pages people
+  read. Its script, from `static.cloudflareinsights.com`, sets no cookies and
+  stores nothing in your browser; it reports the page, the referring site, your
+  browser and your country, not who you are. It never runs inside the bukmark
+  app or the extension, only on this website.
 
 Its fonts come from bukmark.it too, so no font service sees your visit.
 
