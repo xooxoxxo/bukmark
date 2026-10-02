@@ -27,11 +27,6 @@ Pick one way, then go on to [First-run setup](#first-run-setup).
 | [Homebrew](#homebrew) | The same command. |
 | [Docker Compose from source](#docker-compose-from-source) | A checkout that builds the image, for building it yourself or changing the code. |
 
-:::note[Coming with the first release]
-The install script and Homebrew need the first published release. Until it is
-out, use [Docker Compose from source](#docker-compose-from-source).
-:::
-
 ### Install script
 
 ```bash

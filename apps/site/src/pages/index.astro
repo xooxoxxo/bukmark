@@ -13,20 +13,20 @@ const SHARE = {
 };
 
 // The ways in, quickest first. All need Docker; the install guide has the rest.
-// `live` turns a way in on once it works for anyone: the script and Homebrew
-// need the first release (the published image and the formula in the tap).
+// `live` turns a way in on once it works for anyone (the script and Homebrew
+// went live with v0.3.0, the first published image).
 const CHANNELS = [
 	{
 		id: 'script',
 		label: 'Script',
-		live: false,
+		live: true,
 		lines: ['curl -fsSL https://bukmark.it/install.sh | sh'],
 		note: 'Needs Docker. Installs the bukmark command in your home folder, no sudo.',
 	},
 	{
 		id: 'brew',
 		label: 'Homebrew',
-		live: false,
+		live: true,
 		lines: ['brew install xooxoxxo/tap/bukmark', 'bukmark setup'],
 		note: 'Needs Docker Desktop, OrbStack or Colima.',
 	},

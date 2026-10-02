@@ -5,7 +5,7 @@ class Bukmark < Formula
   desc "Self-hosted bookmark manager that runs in Docker"
   homepage "https://bukmark.it"
   url "https://github.com/xooxoxxo/bukmark/archive/refs/tags/v0.3.0.tar.gz"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  sha256 "558a47c86c71d21e3924ca7db98a8bd230f0a078a158af05208131b47d7b658d"
   license "MIT"
 
   livecheck do

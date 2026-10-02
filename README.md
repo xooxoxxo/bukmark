@@ -51,9 +51,6 @@ brew install xooxoxxo/tap/bukmark
 bukmark setup
 ```
 
-> The script and Homebrew run the published image, which arrives with the first
-> release (v0.3.0). Until then, use Docker Compose from source.
-
 **Docker Compose from source.**
 
 ```bash
