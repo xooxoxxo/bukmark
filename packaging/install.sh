@@ -113,8 +113,9 @@ main() {
     *) die "$base/bukmark did not report its version. Nothing was installed." ;;
   esac
 
-  mkdir -p "$bin_dir" 2>/dev/null && [ -w "$bin_dir" ] ||
+  if ! mkdir -p "$bin_dir" 2>/dev/null || [ ! -w "$bin_dir" ]; then
     die "Cannot write to $bin_dir. Set BUKMARK_BIN_DIR to a folder you own and try again."
+  fi
   # Replace in one step, so a bukmark that is running keeps its file.
   cp "$tmp" "$bin_dir/.bukmark.$$"
   chmod 755 "$bin_dir/.bukmark.$$"
