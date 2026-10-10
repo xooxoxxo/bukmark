@@ -213,7 +213,7 @@ teardown() {
   [ "$status" -eq 0 ]
   grep -qx 'BUKMARK_LISTEN=0.0.0.0' "$BUKMARK_HOME/.env"
   [ "$(grep -v '^BUKMARK_LISTEN=' "$BUKMARK_HOME/.env")" = "$before" ]
-  [ "$(stat -f %Lp "$BUKMARK_HOME/.env" 2>/dev/null || stat -c %a "$BUKMARK_HOME/.env")" = 600 ]
+  [ "$(file_mode "$BUKMARK_HOME/.env")" = 600 ]
   bukmark setup --local
   grep -qx 'BUKMARK_LISTEN=127.0.0.1' "$BUKMARK_HOME/.env"
 }
