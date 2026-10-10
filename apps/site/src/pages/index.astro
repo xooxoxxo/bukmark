@@ -43,12 +43,13 @@ const CHANNELS = [
 // The hero shows one way in: the quickest one that works today.
 const CHANNEL = CHANNELS.find((c) => c.live)!;
 
-// What the Claude box proposes: every unsorted demo link and where it goes.
-const PROPOSALS = LINKS.filter((l) => l.sortTo).map((l) => ({
-	url: l.url,
-	title: l.title,
-	hub: l.sortTo!,
-	isNew: !HUBS.includes(l.sortTo!),
+// What the Claude box proposes: every unsorted demo link and where it goes,
+// shown one line per hub.
+const PROPOSALS = LINKS.filter((l) => l.sortTo).map((l) => ({ url: l.url, title: l.title, hub: l.sortTo! }));
+const GROUPS = [...new Set(PROPOSALS.map((p) => p.hub))].map((hub) => ({
+	hub,
+	isNew: !HUBS.includes(hub),
+	titles: PROPOSALS.filter((p) => p.hub === hub).map((p) => p.title),
 }));
 ---
 
@@ -193,13 +194,9 @@ const PROPOSALS = LINKS.filter((l) => l.sortTo).map((l) => ({
 									</svg>
 								</button>
 							</div>
-							<pre class="install__code ask__log"><code><span class="install__line"><span class="install__prompt" aria-hidden="true">&gt; </span>sort my unsorted bukmark links<span class="ask__caret" aria-hidden="true"></span></span><span class="ask__hint" aria-hidden="true"><span class="ask__hint-key">press ↵ to send</span><span class="ask__hint-tap">tap ▷ to send</span></span>
-<span class="ask__step" data-step="500"><span class="ask__dot">⏺</span> bukmark · list_unsorted</span><span class="ask__step ask__out" data-step="700">  └ {PROPOSALS.length} links</span><span class="ask__step" data-step="300"><span class="ask__dot">⏺</span> bukmark · list_hubs</span><span class="ask__step ask__out" data-step="600">  └ {HUBS.join(', ')}</span>
-<span class="ask__step" data-step="500">Here's where they fit:</span>{PROPOSALS.map((p) => (
-	<span class="ask__step ask__row" data-step="140" data-url={p.url} data-hub={p.hub}><span class="ask__title">{p.title}</span><span class="ask__to"><span class="ask__arrow">→</span> {p.hub}{p.isNew && <span class="ask__new"> new</span>}</span></span>
-))}
-<span class="ask__step" data-step="400">File all {PROPOSALS.length}?</span><span class="ask__step install__line" data-step="700"><span class="install__prompt" aria-hidden="true">&gt; </span>yes</span>
-<span class="ask__step" data-step="400" data-assign><span class="ask__dot">⏺</span> bukmark · assign_hubs</span><span class="ask__step ask__out" data-step="300" role="status">  └ ✓ {PROPOSALS.length} links sorted</span></code></pre>
+							<pre class="install__code ask__log" data-ask-log><code><span class="install__line"><span class="install__prompt" aria-hidden="true">&gt; </span>sort my unsorted bukmark links<span class="ask__caret" aria-hidden="true"></span></span><span class="ask__hint" aria-hidden="true"><span class="ask__hint-key">press ↵ to send</span><span class="ask__hint-tap">tap ▷ to send</span></span><span class="ask__step" data-step="500"><span class="ask__dot">⏺</span> list_unsorted<span class="ask__res" data-step="600">  {PROPOSALS.length} links</span></span><span class="ask__step" data-step="300"><span class="ask__dot">⏺</span> list_hubs<span class="ask__res" data-step="500">  {HUBS.length} hubs</span></span>{GROUPS.map((g) => (
+	<span class="ask__step ask__row" data-step="280"><span class="ask__hub">{g.hub}{g.isNew && <span class="ask__new"> new</span>}</span><span class="ask__titles"><span class="ask__arrow">←</span> {g.titles.join(', ')}</span></span>
+))}<span class="ask__step" data-step="400">File all {PROPOSALS.length}? <span class="ask__res ask__yes" data-step="700"><span class="install__prompt" aria-hidden="true">&gt; </span>yes</span></span><span class="ask__step" data-step="400" data-assign={JSON.stringify(PROPOSALS.map((p) => [p.url, p.hub]))}><span class="ask__dot">⏺</span> assign_hubs<span class="ask__res" data-step="200" role="status">  ✓ {PROPOSALS.length} links sorted</span></span></code></pre>
 						</div>
 					</header>
 					<DemoApp />
@@ -273,7 +270,7 @@ const PROPOSALS = LINKS.filter((l) => l.sortTo).map((l) => ({
 			const demo = document.querySelector<HTMLElement>('[data-demo]');
 			if (ask && demo) {
 				const steps = [...ask.querySelectorAll<HTMLElement>('[data-step]')];
-				const rows = steps.filter((step) => step.dataset.url);
+				const log = ask.querySelector<HTMLElement>('[data-ask-log]')!;
 				const play = ask.querySelector<HTMLButtonElement>('[data-ask-play]')!;
 				const wait = (ms: number) => new Promise((done) => setTimeout(done, reducedMotion ? 0 : ms));
 				let onScreen = false;
@@ -289,12 +286,12 @@ const PROPOSALS = LINKS.filter((l) => l.sortTo).map((l) => ({
 					for (const step of steps) {
 						await wait(Number(step.dataset.step));
 						step.classList.add('is-shown');
-						if (step.dataset.assign === undefined) continue;
-						for (const row of rows) {
+						// A small window: the newest line stays in view, as in a terminal.
+						log.scrollTo({ top: log.scrollHeight, behavior: reducedMotion ? 'auto' : 'smooth' });
+						if (!step.dataset.assign) continue;
+						for (const [url, hub] of JSON.parse(step.dataset.assign) as [string, string][]) {
 							await wait(260);
-							demo.dispatchEvent(
-								new CustomEvent('demo:assign', { detail: { url: row.dataset.url, hub: row.dataset.hub } }),
-							);
+							demo.dispatchEvent(new CustomEvent('demo:assign', { detail: { url, hub } }));
 						}
 					}
 					ask.dataset.state = 'done';
@@ -548,16 +545,26 @@ const PROPOSALS = LINKS.filter((l) => l.sortTo).map((l) => ({
 			.ask__play:hover { opacity: 1; }
 			.ask__play:focus-visible { outline: 2px solid #0e0f13; outline-offset: 2px; }
 			.ask__play:disabled { visibility: hidden; }
-			.ask__log { min-height: 0; }
+			/* Six lines tall: the product below is the point, this is the prompt. */
+			.ask { align-self: end; }
+			.product-view .product-view__intro { margin-bottom: clamp(2rem, 4vw, 3.5rem); }
+			.ask__log {
+				height: calc(6 * 1.7em + 2 * var(--bk-space-md));
+				padding-block: var(--bk-space-md);
+				overflow: hidden;
+			}
 			.ask__step,
 			.ask__hint { display: block; }
-			.ask__out,
+			.ask__res,
 			.ask__hint { color: var(--bk-muted); }
+			.ask__yes { color: inherit; }
 			.ask__dot,
 			.ask__arrow { color: var(--bk-accent); }
-			.ask__row { display: grid; grid-template-columns: minmax(0, 24ch) auto; justify-content: start; gap: var(--bk-space-md); padding-left: 2ch; }
-			.ask__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+			.ask__row { display: grid; grid-template-columns: 10ch minmax(0, 1fr); padding-left: 2ch; }
+			.ask__titles { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 			.ask__new { color: var(--bk-muted); }
+			/* Older lines fade out at the top as new ones push them up. */
+			.ask[data-state] .ask__log { mask-image: linear-gradient(transparent, #000 2.25em); }
 			.ask__caret {
 				display: inline-block;
 				width: 0.55em;
@@ -574,9 +581,9 @@ const PROPOSALS = LINKS.filter((l) => l.sortTo).map((l) => ({
 				.ask__hint-tap { display: inline; }
 			}
 			.ask:not(.is-live) :is(.ask__hint, .ask__play, .ask__caret) { display: none; }
-			.ask.is-live .ask__step:not(.is-shown) { visibility: hidden; }
+			.ask.is-live [data-step]:not(.is-shown) { display: none; }
 			.ask[data-state] .ask__caret { display: none; }
-			.ask[data-state] .ask__hint { visibility: hidden; }
+			.ask[data-state] .ask__hint { display: none; }
 			.workflow,
 			.product-view,
 			.closing { padding: clamp(5rem, 10vw, 10rem) clamp(1.25rem, 4vw, 4rem); }
