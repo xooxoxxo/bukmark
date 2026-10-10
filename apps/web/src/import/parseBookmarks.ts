@@ -370,13 +370,11 @@ export function parseCSV(text: string): ParsedFile {
  * Omnivore exports.
  *
  * Omnivore (shut down November 2024) exported a ZIP, written by
- * packages/api/src/jobs/export.ts in omnivore-app/omnivore (and before that by
- * packages/export-handler):
+ * packages/api/src/jobs/export.ts in omnivore-app/omnivore:
  *   metadata_<from>_to_<to>.json   an array of up to 20 items each:
  *     { id, slug, title, description, author, url, state, readingProgress,
  *       thumbnail, labels: string[], savedAt, updatedAt, publishedAt }
- *     state is 'Archived' | 'Active' | 'Unknown' (older exports:
- *     'archived' | 'active')
+ *     state is 'Archived' | 'Active' | 'Unknown'; not read here
  *   content/<slug>.html or .pdf    the saved page, not read here
  *   highlights/<slug>.md           the item's highlights, see below
  */
@@ -407,48 +405,55 @@ function isOmnivoreMetadata(data: unknown): data is OmnivoreItem[] {
  *   (blank line) #label #label        when the highlight had labels
  *   (blank line) the note             when it had one; may run several paragraphs
  *
- * and a page note (no quote) as its bare text. The format has no delimiter
- * between a highlight's note and a following page note, so a page note that
- * comes after a highlight is read as part of that highlight's note; one before
- * every highlight is dropped (bukmark's import takes no link notes).
+ * and a page note (no quote) as its bare text.
+ *
+ * So the file is read as paragraphs (split at blank lines), and only a
+ * paragraph that starts with ">" starts a highlight; a ">" line inside a note
+ * paragraph is part of the note. Every other paragraph belongs to the
+ * highlight above it. The format has no delimiter between a highlight's note
+ * and a following page note, so a page note that comes after a highlight is
+ * read as part of that highlight's note; one before every highlight is
+ * dropped (bukmark's import takes no link notes).
  */
 export function parseOmnivoreHighlights(markdown: string): ImportQuote[] {
-  const lines = markdown.replace(/\r\n?/g, '\n').split('\n');
-  const quotes: { text: string; notes: string[]; sawLabels: boolean }[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i]!;
-    if (line.startsWith('>')) {
-      // A quote runs until the first blank line: Omnivore turned blank lines
-      // inside it into "> ", so a real blank line is where it ends.
-      const quoteLines: string[] = [];
-      for (; i < lines.length && lines[i]!.trim() !== ''; i++) {
-        const l = lines[i]!;
-        if (quoteLines.length === 0) quoteLines.push(l.replace(/^>\s?/, ''));
-        else quoteLines.push(/^>\s*$/.test(l) ? '' : l);
-      }
-      quotes.push({ text: quoteLines.join('\n').trim(), notes: [], sawLabels: false });
-      continue;
-    }
+  const paragraphs: string[][] = [];
+  let para: string[] = [];
+  for (const line of markdown.replace(/\r\n?/g, '\n').split('\n')) {
     if (line.trim() === '') {
-      i++;
-      continue;
+      if (para.length > 0) paragraphs.push(para);
+      para = [];
+    } else {
+      para.push(line);
     }
-    // A paragraph after a quote: its labels line, or (part of) its note.
-    const para: string[] = [];
-    for (; i < lines.length && lines[i]!.trim() !== '' && !lines[i]!.startsWith('>'); i++) {
-      para.push(lines[i]!);
+  }
+  if (para.length > 0) paragraphs.push(para);
+
+  const isQuote = (p: string[] | undefined) => p !== undefined && p[0]!.startsWith('>');
+  const quotes: { text: string; notes: string[] }[] = [];
+
+  paragraphs.forEach((p, i) => {
+    if (isQuote(p)) {
+      // The first line carries the "> " Omnivore prefixed; a later line that is
+      // only ">" is a blank line of the original quote.
+      const text = p
+        .map((l, j) => (j === 0 ? l.replace(/^>\s?/, '') : /^>\s*$/.test(l) ? '' : l))
+        .join('\n')
+        .trim();
+      quotes.push({ text, notes: [] });
+      return;
     }
     const current = quotes[quotes.length - 1];
-    if (!current) continue; // a page note before any highlight
-    const text = para.join('\n').trim();
-    if (current.notes.length === 0 && !current.sawLabels && para.length === 1 && /^#[^\s#]/.test(text)) {
-      current.sawLabels = true; // Omnivore's highlight labels, not the reader's words
-      continue;
-    }
-    current.notes.push(text);
-  }
+    if (!current) return; // a page note before any highlight
+    const text = p.join('\n').trim();
+    // Omnivore's highlight labels line ("#idea #later") comes right after the
+    // quote and before the note. A lone "#word" line with no note after it is
+    // kept as the note: it may be the reader's words, and losing a note is
+    // worse than keeping a labels line.
+    const next = paragraphs[i + 1];
+    const isLabels =
+      isQuote(paragraphs[i - 1]) && p.length === 1 && /^#[^\s#]/.test(text) && next !== undefined && !isQuote(next);
+    if (!isLabels) current.notes.push(text);
+  });
 
   return quotes.map(({ text, notes }) => ({
     text,
@@ -467,7 +472,7 @@ function parseOmnivoreItems(
   let quotesNotRestored = 0;
 
   const readHighlights = (slug: unknown): ImportQuote[] => {
-    const md = typeof slug === 'string' ? highlightsBySlug.get(slug) : undefined;
+    const md = typeof slug === 'string' ? highlightsBySlug.get(slug.normalize('NFC')) : undefined;
     if (md === undefined) return [];
     const raw = parseOmnivoreHighlights(md);
     const ok = raw.map(readQuote).filter((q): q is ImportQuote => q !== null);
@@ -511,19 +516,50 @@ const METADATA_FILE = /(?:^|\/)metadata_\d+_to_\d+\.json$/;
 const HIGHLIGHTS_FILE = /(?:^|\/)highlights\/([^/]+)\.md$/;
 
 /**
+ * The whole ZIP is read into memory and unpacked on the main thread, so a
+ * multi-gigabyte export (content/ holds every saved page) would freeze the tab
+ * or fail with an unhelpful RangeError. Over this, it is refused up front.
+ */
+export const ZIP_MAX_BYTES = 1024 * 1024 * 1024;
+/** A metadata or highlights file over this is not a real one; it is not inflated. */
+const ZIP_ENTRY_MAX_BYTES = 50 * 1024 * 1024;
+
+/** Throws before a ZIP is read when it is too large to read in the browser. */
+export function checkZipSize(bytes: number): void {
+  if (bytes > ZIP_MAX_BYTES) {
+    throw new UnsupportedFileError(
+      'That export is too large to read in the browser. Delete its content folder and zip it again, or import a metadata_*.json file.',
+    );
+  }
+}
+
+/**
  * An Omnivore export ZIP. Only the metadata and highlights entries are
  * inflated: content/ holds every saved page, often most of the archive's size,
  * and nothing in it is imported. Entries may sit under a top-level folder, as
  * when the export was unzipped and zipped again.
  */
 export function parseOmnivoreZip(bytes: Uint8Array): ParsedFile {
+  checkZipSize(bytes.length);
   let entries: Record<string, Uint8Array>;
+  let tooLarge: string | undefined;
   try {
     entries = unzipSync(bytes, {
-      filter: (f) => METADATA_FILE.test(f.name) || HIGHLIGHTS_FILE.test(f.name),
+      filter: (f) => {
+        if (!METADATA_FILE.test(f.name) && !HIGHLIGHTS_FILE.test(f.name)) return false;
+        if (f.originalSize > ZIP_ENTRY_MAX_BYTES) {
+          tooLarge ??= f.name;
+          return false;
+        }
+        return true;
+      },
     });
   } catch {
     throw new UnsupportedFileError('That ZIP file could not be read.');
+  }
+  // A skipped metadata or highlights file would drop links or quotes unsaid.
+  if (tooLarge !== undefined) {
+    throw new UnsupportedFileError(`${tooLarge} in that ZIP is too large to read.`);
   }
 
   const decoder = new TextDecoder();
@@ -536,7 +572,8 @@ export function parseOmnivoreZip(bytes: Uint8Array): ParsedFile {
     const text = decoder.decode(entries[name]);
     const highlight = HIGHLIGHTS_FILE.exec(name);
     if (highlight) {
-      highlightsBySlug.set(highlight[1]!, text);
+      // NFC: a ZIP made again on macOS stores non-ASCII names decomposed (NFD).
+      highlightsBySlug.set(highlight[1]!.normalize('NFC'), text);
       continue;
     }
     let data: unknown;

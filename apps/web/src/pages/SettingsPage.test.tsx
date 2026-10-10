@@ -226,6 +226,17 @@ describe('SettingsPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('1 added, 2 quotes restored');
   });
 
+  it('refuses an export ZIP too large to read in the browser, before reading it', async () => {
+    renderSettings();
+    const zip = new File([new Uint8Array(4)], 'huge-export.zip', { type: 'application/zip' });
+    Object.defineProperty(zip, 'size', { value: 3 * 1024 * 1024 * 1024 });
+    const read = vi.spyOn(zip, 'arrayBuffer');
+    await userEvent.upload(screen.getByTestId('import-file'), zip);
+    expect(await screen.findByRole('alert')).toHaveTextContent('too large to read in the browser');
+    expect(read).not.toHaveBeenCalled();
+    expect(client.importLinks).not.toHaveBeenCalled();
+  });
+
   it('says nothing about quotes when none were restored', async () => {
     renderSettings();
     await userEvent.upload(screen.getByTestId('import-file'), bookmarksFile(TWO_LINKS));

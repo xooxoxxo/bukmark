@@ -1,7 +1,9 @@
-import { strToU8, zipSync } from 'fflate';
+import { strToU8, unzipSync, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import {
   UnsupportedFileError,
+  ZIP_MAX_BYTES,
+  checkZipSize,
   parseBackupJson,
   parseImportBytes,
   parseImportFile,
@@ -54,6 +56,32 @@ function item(slug: string, url: string, extra: Record<string, unknown> = {}) {
 
 const LONG = 'x'.repeat(10001);
 
+/**
+ * Rewrites a field of one entry's local header and central directory record:
+ * signature, then the field at `local` / `central` bytes in.
+ */
+function patchEntry(zip: Uint8Array, name: string, write: (view: DataView, at: number) => void, local: number, central: number) {
+  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+  const target = new TextDecoder().decode(strToU8(name));
+  let patched = 0;
+  for (let i = 0; i + 46 < zip.length; i++) {
+    const sig = view.getUint32(i, true);
+    const nameAt = sig === 0x04034b50 ? i + 30 : sig === 0x02014b50 ? i + 46 : -1;
+    if (nameAt < 0) continue;
+    const nameLen = view.getUint16(sig === 0x04034b50 ? i + 26 : i + 28, true);
+    if (new TextDecoder().decode(zip.subarray(nameAt, nameAt + nameLen)) !== target) continue;
+    write(view, i + (sig === 0x04034b50 ? local : central));
+    patched += 1;
+  }
+  expect(patched).toBe(2);
+}
+/** Sets an entry's compression method to one no unzipper knows. */
+const breakCompression = (zip: Uint8Array, name: string) =>
+  patchEntry(zip, name, (v, at) => v.setUint16(at, 99, true), 8, 10);
+/** Claims an entry inflates to `size` bytes. */
+const setOriginalSize = (zip: Uint8Array, name: string, size: number) =>
+  patchEntry(zip, name, (v, at) => v.setUint32(at, size, true), 22, 24);
+
 function omnivoreZip(prefix = ''): Uint8Array {
   const meta0 = [
     item('first-post', 'https://a.com/first', { labels: ['rust', 'to read'] }),
@@ -93,7 +121,7 @@ function omnivoreZip(prefix = ''): Uint8Array {
 }
 
 describe('Omnivore highlights markdown', () => {
-  it('reads each quote, with its note, and leaves highlight labels out', () => {
+  it('reads each quote, with its note, and leaves highlight labels out when a note follows', () => {
     const md = highlightsFile([
       { type: 'HIGHLIGHT', quote: 'One line.' },
       { type: 'HIGHLIGHT', quote: 'Line one\nline two' },
@@ -106,7 +134,8 @@ describe('Omnivore highlights markdown', () => {
       { text: 'One line.' },
       { text: 'Line one\nline two' },
       { text: 'P1\n\nP2' },
-      { text: 'Tagged.' },
+      // A lone labels line can't be told from a "#word" note, so it is kept.
+      { text: 'Tagged.', note: '#x' },
       { text: 'Both.', note: 'A note.' },
       { text: 'Note only.', note: 'Just a note.' },
     ]);
@@ -118,6 +147,31 @@ describe('Omnivore highlights markdown', () => {
       { type: 'HIGHLIGHT', quote: 'Quoted.' },
     ]);
     expect(parseOmnivoreHighlights(md)).toEqual([{ text: 'Quoted.' }]);
+  });
+
+  it('starts a highlight only after a blank line, not at a ">" inside a note', () => {
+    expect(parseOmnivoreHighlights('> A \n\nsee:\n> cited')).toEqual([{ text: 'A', note: 'see:\n> cited' }]);
+  });
+
+  it('keeps a single "#word" note on a highlight with no labels', () => {
+    const md = highlightsFile([
+      { type: 'HIGHLIGHT', quote: 'Quoted.', annotation: '#todo' },
+      { type: 'HIGHLIGHT', quote: 'Next.' },
+    ]);
+    expect(parseOmnivoreHighlights(md)).toEqual([{ text: 'Quoted.', note: '#todo' }, { text: 'Next.' }]);
+  });
+
+  it('reads a page note after a highlight as part of that highlight\'s note', () => {
+    // Documented limit: the export does not mark where a note ends.
+    const md = highlightsFile([
+      { type: 'HIGHLIGHT', quote: 'Quoted.', annotation: 'Mine.' },
+      { type: 'NOTE', annotation: 'About the page.' },
+      { type: 'HIGHLIGHT', quote: 'Later.' },
+    ]);
+    expect(parseOmnivoreHighlights(md)).toEqual([
+      { text: 'Quoted.', note: 'Mine.\n\nAbout the page.' },
+      { text: 'Later.' },
+    ]);
   });
 
   it('reads CRLF files and an empty file', () => {
@@ -176,6 +230,37 @@ describe('Omnivore export ZIP', () => {
     const { items } = parseImportBytes('export.zip', zip);
     expect(items.map((i) => i.quotes?.length)).toEqual([200, 5]);
     expect(items.every((i) => i.url === 'https://c.com/busy')).toBe(true);
+  });
+
+  it('matches a highlights file to its item whatever the Unicode normalization', () => {
+    const slug = 'café-notes';
+    const zip = zipSync({
+      'metadata_0_to_1.json': strToU8(JSON.stringify([item(slug.normalize('NFC'), 'https://c.com/cafe')])),
+      // What a macOS re-zip stores: the decomposed (NFD) name.
+      [`highlights/${slug.normalize('NFD')}.md`]: strToU8('> Un café. '),
+    });
+    expect(parseImportBytes('export.zip', zip).items[0]!.quotes).toEqual([{ text: 'Un café.' }]);
+  });
+
+  it('never inflates content/: an unreadable page entry does not matter', () => {
+    const zip = zipSync({
+      'metadata_0_to_1.json': strToU8(JSON.stringify([item('p', 'https://c.com/p')])),
+      'content/p.html': strToU8('<p>page</p>'),
+    });
+    breakCompression(zip, 'content/p.html');
+    expect(() => unzipSync(zip)).toThrow(); // proof the entry really is unreadable
+    expect(parseImportBytes('export.zip', zip).items).toEqual([{ url: 'https://c.com/p', title: 'Title p' }]);
+  });
+
+  it('refuses a metadata or highlights file over 50 MB instead of dropping it', () => {
+    const zip = zipSync({ 'metadata_0_to_1.json': strToU8('[]') });
+    setOriginalSize(zip, 'metadata_0_to_1.json', 60 * 1024 * 1024);
+    expect(() => parseImportBytes('export.zip', zip)).toThrow(/too large/);
+  });
+
+  it('refuses an export over 1 GB before reading it', () => {
+    expect(() => checkZipSize(ZIP_MAX_BYTES + 1)).toThrow(/too large to read in the browser/);
+    expect(() => checkZipSize(ZIP_MAX_BYTES)).not.toThrow();
   });
 
   it('rejects a ZIP with no metadata files', () => {

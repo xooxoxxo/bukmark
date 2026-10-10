@@ -57,6 +57,9 @@ notes on a whole page (a page note written after a highlight is read as part of
 that highlight's note, since the export does not tell them apart). A highlight
 over 10,000 characters can't be saved and is counted as **not restored**.
 
+An export over 1 GB is too large to read in the browser: unzip it, delete its
+`content` folder, and zip the rest again, or import a `metadata_*.json` file.
+
 A single `metadata_*.json` file from the unzipped export imports too, with the
 links and labels but no highlights, since those are in the separate
 `highlights` folder.

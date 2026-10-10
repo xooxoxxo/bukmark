@@ -3,6 +3,7 @@ import { errorMessage } from '../api/client';
 import { useImportLinks } from '../api/queries';
 import {
   UnsupportedFileError,
+  checkZipSize,
   isZipFile,
   parseImportBytes,
   parseImportFile,
@@ -31,10 +32,15 @@ export function ImportBookmarks({ buttonClass, statusClass, errorClass }: {
 
     setStatus({ kind: 'reading', message: `Reading ${file.name}…` });
     try {
-      // A ZIP (an Omnivore export) is read as bytes; every other format is text.
-      const parsed = isZipFile(file.name)
-        ? parseImportBytes(file.name, new Uint8Array(await file.arrayBuffer()))
-        : parseImportFile(file.name, await file.text());
+      // A ZIP (an Omnivore export) is read as bytes, after a size check so a
+      // huge one is refused before it is loaded; every other format is text.
+      let parsed;
+      if (isZipFile(file.name)) {
+        checkZipSize(file.size);
+        parsed = parseImportBytes(file.name, new Uint8Array(await file.arrayBuffer()));
+      } else {
+        parsed = parseImportFile(file.name, await file.text());
+      }
       if (parsed.items.length === 0 && !parsed.orphanQuotes?.length) {
         setStatus({ kind: 'error', message: 'No web links in that file.' });
         return;
