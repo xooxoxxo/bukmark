@@ -142,7 +142,7 @@ describe('extension docs match the builds and the login the extension ships', ()
     expect(targets).toEqual(['chrome', 'firefox', 'safari']);
     expect(read('apps/extension/vite.config.ts')).toContain('outDir: `dist/${mode}`');
     const scripts = JSON.parse(read('apps/extension/package.json')).scripts as Record<string, string>;
-    const load = section(extension, 'Load Into Your Browser');
+    const load = section(extension, 'Load into your browser');
     for (const t of targets) {
       expect(scripts.build).toContain(`--mode ${t}`);
       expect(load).toContain(`\`apps/extension/dist/${t}\``);
@@ -153,7 +153,7 @@ describe('extension docs match the builds and the login the extension ships', ()
   });
 
   it('gives the minimum browser versions the manifests require', () => {
-    const load = section(extension, 'Load Into Your Browser');
+    const load = section(extension, 'Load into your browser');
     const gecko = /gecko: \{[\s\S]*?strict_min_version: '(\d+)\.0'/.exec(manifest)?.[1];
     const safari = /safari: \{ strict_min_version: '([\d.]+)' \}/.exec(manifest)?.[1];
     expect(load).toContain(`Firefox ${gecko} or later`);

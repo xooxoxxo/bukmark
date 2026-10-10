@@ -50,7 +50,7 @@ const endpointSections = new Map(
     .flatMap((s) => s.title.split(', ').map((endpoint) => [endpoint, s.body] as const)),
 );
 
-const quickReference = section(api, 'Quick Reference')
+const quickReference = section(api, 'Quick reference')
   .split('\n')
   .map((line) => /^\|\s*(GET|POST|PUT|PATCH|DELETE)\s*\|\s*`([^`]+)`/.exec(line))
   .filter((m) => m !== null)

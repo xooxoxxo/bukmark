@@ -5,42 +5,46 @@ sidebar:
   order: 9
 ---
 
-Run bukmark from a checkout with hot reload. At the end the API and the web app
-run locally, you are signed in, and you know where each part of the monorepo
-lives.
+Run bukmark from a checkout with hot reload.
 
-## Development Commands
+## Development commands
 
-1. Start Postgres only.
+1. Start Postgres:
 
    ```bash
    docker compose up -d db
    ```
 
-2. Start the API on :3000, with hot reload.
+2. Start the API on :3000:
 
    ```bash
    cd apps/server && pnpm dev
    ```
 
-3. Start the web app: the Vite dev server, which proxies `/api`.
+3. Start the web app (Vite proxies `/api` to the API):
 
    ```bash
    cd apps/web && pnpm dev
    ```
 
-4. Open the web app. On first run it shows a setup screen: enter and confirm a
-   password (12+ characters), then click **Create password**. You are signed in
-   immediately.
+4. Open the web app, enter a password (12+ characters) twice and click
+   **Create password**.
 
-To run the full suite and the type check:
+Tests and type check:
 
 ```bash
 pnpm test                        # full suite
 pnpm typecheck
 ```
 
-## Monorepo Layout
+To reset the password, run
+`pnpm --filter @bukmark/server auth:reset-owner` (add `--revoke-tokens` to
+delete access tokens too).
+
+After `pnpm --filter @bukmark/web build`, restart the server to serve the new
+bundles.
+
+## Monorepo layout
 
 | Path | What it is |
 | -- | -- |
@@ -51,39 +55,8 @@ pnpm typecheck
 | `apps/cli` | CLI tool for batch triage |
 | `packages/shared` | Shared types and utilities |
 
-## Authentication in development
+## Preview images
 
-The Vite dev server (`pnpm --filter @bukmark/web dev`) proxies `/api` to the
-backend on `localhost:3000`, preserving same-origin for session cookies. Bearer
-tokens work without any special configuration.
-
-<details>
-<summary>Reset the password and start over</summary>
-
-```bash
-pnpm --filter @bukmark/server auth:reset-owner
-```
-
-This deletes the owner and all sessions and shows the setup screen again.
-Access tokens keep working unless you add `--revoke-tokens`
-(`pnpm --filter @bukmark/server auth:reset-owner --revoke-tokens`).
-
-</details>
-
-## Static Asset Registration
-
-`apps/server` serves `apps/web/dist` statically, and asset routes are
-registered at boot. After `pnpm --filter @bukmark/web build`, restart the
-server or new bundles fall through to the SPA fallback.
-
-## Fetching Preview Images
-
-Adding a bookmark fetches its `og:image` server-side, behind an SSRF guard, so
-a saved link can't be used to scan or attack services on your LAN or cloud
-infrastructure. The fetcher:
-
-- blocks private, loopback, link-local (including the cloud metadata endpoint
-  `169.254.169.254`) and CGNAT ranges;
-- follows redirects manually and re-validates every hop, so a chain of
-  redirects can't bypass the guard;
-- caps both time and body size.
+Saving a link fetches its `og:image` on the server. The fetcher blocks private,
+loopback, link-local (including `169.254.169.254`) and CGNAT addresses,
+re-checks every redirect, and caps time and body size.

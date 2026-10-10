@@ -20,11 +20,11 @@ describe('brand fonts', () => {
     const css = read('apps/site/src/styles/custom.css');
     expect(css).not.toMatch(/@import url\(['"]?https:/);
     const files = [...css.matchAll(/src: url\('(\/fonts\/[^']+\.woff2)'\)/g)].map((m) => m[1]!);
-    expect(files).toEqual(['/fonts/bricolage-grotesque-latin.woff2', '/fonts/geist-latin.woff2']);
+    expect(files).toEqual(['/fonts/geist-latin.woff2']);
     for (const file of files) expect(existsSync(join(root, 'apps/site/public', file))).toBe(true);
 
     const config = read('apps/site/astro.config.mjs');
-    expect(config).toContain("['bricolage-grotesque-latin', 'geist-latin'].map");
+    expect(config).toContain("['geist-latin'].map");
     expect(config).toContain("rel: 'preload'");
     expect(read('apps/site/src/pages/index.astro')).toContain('<link rel="preload" href="/fonts/geist-latin.woff2" as="font"');
   });

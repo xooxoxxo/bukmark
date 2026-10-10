@@ -5,64 +5,53 @@ sidebar:
   order: 10
 ---
 
-bukmark is software you run yourself: there is no bukmark company server and no
-bukmark account. This page lists what the browser extension sends and when, what
-your own server keeps, and what this website loads.
+bukmark is software you run yourself, with no company server and no account.
 
 Effective 29 September 2026.
 
-The browser extension sends your data only to the bukmark server you run, which
-keeps it in your own database. Whoever runs that server, usually you, is in
-charge of the data on it. The people who make bukmark receive none of it.
+Your data goes only to the bukmark server you run. Whoever runs it, usually
+you, is in charge of that data. The people who make bukmark receive none of it.
 
 ## The browser extension
 
-bukmark capture sends data to one place: the server address you enter under
-**Server**, which is `http://localhost:3000` unless you change it. It has no
-analytics, no telemetry, no ads and no tracking, and it contacts no other address.
-
-Some browsers describe this at install as data the extension's developer
-collects. With bukmark capture it goes to your server, and the developers never
-see it.
+bukmark capture sends data only to the server address under **Server**
+(`http://localhost:3000` unless you change it). It has no analytics, telemetry,
+ads or tracking, and it contacts no other address. Browsers may describe this
+at install as data the developer collects; it goes only to your server.
 
 ### What it sends, and when
 
-While you are logged out, it sends nothing until you click **Log in** or
-**Use token**. Once you are logged in, it sends data at the moments below.
+Logged out, it sends nothing until you click **Log in** or **Use token**.
 
 #### Saving a page
 
 - **Opening the popup** on a web page sends that page's address to your server
-  (`GET /api/links/lookup`), so the popup can say whether it is already saved.
-  It also asks for your list of hubs.
+  (`GET /api/links/lookup`) to show whether it is saved, and asks for your hubs.
 - **Save** in the popup sends the page's address and title, and your note and
   hub if you filled them in.
 - **`Alt+Shift+K`** (`Control+Shift+K` on a Mac) sends the page's address and
   title.
 
-Only `http://` and `https://` pages are ever sent: a local file, a browser page
-or anything else is not, not even to ask.
+Only `http://` and `https://` pages are ever sent.
 
 #### Saving a quote
 
-**Save quote to bukmark**, in the right-click menu of selected text, or its
-shortcut, sends the text you selected with the page's address and title
-(`POST /api/quotes`). The text goes to the server you logged in to, and
-nowhere else. Your server saves the page too if it isn't saved yet. Nothing is
-sent when nothing is selected.
+**Save quote to bukmark** (right-click menu or shortcut) sends the selected
+text with the page's address and title (`POST /api/quotes`) to your server,
+which saves the page too if needed. Nothing is sent when nothing is selected.
 
 #### Your bookmarks
 
 The extension has no access to your bookmarks until you click Import or turn on
-sync: the click asks your browser for it (and, in Firefox, whether it may share
-them with your server).
+sync. The browser asks you then (Firefox also asks whether it may share them
+with your server).
 
-**Import all bookmarks** on the settings page sends every bookmark whose
+**Import all bookmarks** sends every bookmark whose
 address starts with `http://` or `https://`: its address, title and folder.
 It then asks your server to look up preview images for them.
 
-**Sync with your browser's bookmarks**, while it is on, sends what you change
-in the **bukmark** folder as you change it:
+**Sync with your browser's bookmarks**, while on, sends what you change in the
+**bukmark** folder as you change it:
 
 | When you | It sends |
 | -- | -- |
@@ -72,63 +61,52 @@ in the **bukmark** folder as you change it:
 | Turn sync on | The bookmarks already in the folder that your server lacks |
 
 Every 5 minutes, when the browser starts and after a save, it asks your server
-what changed (`GET /api/links/changes`) and updates the folder to match. Only
+what changed (`GET /api/links/changes`) and updates the folder. Only
 `http://` and `https://` bookmarks are sent. In Firefox, taking back the
-permission to share bookmarks with your server, in `about:addons`, turns sync
-off, and nothing more is sent.
+permission to share bookmarks, in `about:addons`, turns sync off.
 
 Import reads all your bookmarks. Sync reads and changes only the bukmark
-folder, and sends nothing about bookmarks outside it: it looks outside only to
-find the folder in Other bookmarks, and to see whether a bookmark your browser
-reports as changed is in it. Bookmarks are read at no other time.
+folder, and sends nothing about bookmarks outside it; it looks outside only to
+find the folder and to check whether a changed bookmark is in it. Bookmarks are
+read at no other time.
 
 #### Logging in and out
 
-- **Log in** opens your server's own login page in a browser window or tab. You
-  type your password there, on your server's page, never into the extension.
-  The extension then trades a one-time code for an access token with your
-  server.
-- With **Use an access token instead**, the token you paste is sent to your
-  server to check it.
-- **Log out** asks your server to revoke the token. So does saving a different
-  server address while logged in, or a new login that replaces an old one.
+- **Log in** opens your server's login page. You type your password there,
+  never into the extension, which then trades a one-time code for a token.
+- **Use an access token instead** sends the pasted token to your server.
+- **Log out**, changing the server address, or a new login asks your server to
+  revoke the old token.
 
-The access token goes only to the server that issued it. For a server that is
-not on your own computer, use an `https://` address: over plain `http://`,
-everything the extension sends, the token included, crosses the network
-unencrypted. See [HTTPS](/docs/install/#https).
+The token goes only to the server that issued it. For a server not on your own
+computer, use `https://`: over `http://`, everything, the token included, is
+sent unencrypted. See [HTTPS](/docs/install/#https).
 
 ### What it keeps in your browser
 
-- The server address, in `storage.sync`. If you use browser sync, it follows you
-  to your other devices. Where there is no sync storage, it stays in
-  `storage.local`.
-- The access token, in `storage.local` on this device. Log out deletes it.
+- The server address, in `storage.sync` (it follows you through browser sync),
+  or `storage.local` where there is no sync storage.
+- The access token, in `storage.local`. Log out deletes it.
 - With bookmark sync on, the address and title of each link in the bukmark
   folder and which bookmarks hold it, in `storage.local`, with changes waiting
-  to be sent. Turning sync off drops the waiting changes and keeps the list, so
-  that turning it on again finds the same bookmarks.
-- Short-lived state, such as a login in progress, the last error message and
-  the folder changes a sync is making, in `storage.session`, which the browser
-  empties when it closes.
+  to be sent. Turning sync off drops the waiting changes and keeps the list.
+- Short-lived state, such as a login in progress, the last error and
+  the folder changes a sync is making, in `storage.session`, emptied when the
+  browser closes.
 
-Apart from bookmark sync's list, it keeps no history and no list of what you saved.
+Apart from sync's list, it keeps no history.
 
 ### What it never does
 
 It has no content scripts: it never reads, changes or runs code in the pages you
-visit. The one exception is saving a quote: when you choose
-**Save quote to bukmark** or press its shortcut, it runs one line in that tab
-that reads the text you selected and whether each frame of the page has the
-focus, to tell which frame you selected it in, and nothing else. It sees the address and
-title of the tab you are on only when you open the popup, press a shortcut or
-choose that menu item, which is what `activeTab` allows.
+visit. The one exception is saving a quote: it runs one line in that tab to read
+the selected text and which frame has the focus. It sees the current tab's
+address and title only when you open the popup, press a shortcut or choose the
+quote item (`activeTab`).
 
-In Chrome, Edge and Firefox it has no `tabs` permission, so it sees no other tab's
-address at all. When a login finishes in a tab, it sees that tab's address
-because the page is on your server, which you gave it access to. Safari's build
-keeps the `tabs` permission so that its logins, which always run in a tab, can
-follow theirs. It keeps and sends nothing about any other tab.
+In Chrome, Edge and Firefox it has no `tabs` permission and sees no other tab's
+address, except a login tab on your server. Safari's build has `tabs` to follow
+its logins. It keeps and sends nothing about any other tab.
 
 ### Permissions
 
@@ -143,98 +121,89 @@ follow theirs. It keeps and sends nothing about any other tab.
 | `storage` | Keeping the server address, the token, sync's state and short-lived login state. |
 | `identity` | Opening your server's login page in the browser's login window. No Google or other account is involved. |
 | `http://localhost/*` | Reaching a server on your own computer, such as the default `http://localhost:3000`. |
-| `http://*/*`, `https://*/*` | Optional, and not granted at install. When you enter another server address, your browser asks you to allow that one address. The extension never asks for every site. |
+| `http://*/*`, `https://*/*` | Optional, and not granted at install. Your browser asks you to allow each server address you enter. Never every site. |
 
-Safari's build has no `bookmarks` or `identity` permission, since Safari has
-neither API, and no `alarms`, since without bookmarks there is nothing to sync.
+Safari's build has no `bookmarks`, `identity` or `alarms` permission.
 
 ### Limited Use
 
-bukmark capture's use of the data it handles follows the Chrome Web Store User
-Data Policy, including the Limited Use requirements. It uses that data only to
-save pages to your server and keep the bukmark folder in sync with it. It never
-sells it, uses it for ads, or passes it to anyone else.
+bukmark capture's use of data follows the Chrome Web Store User Data Policy,
+including the Limited Use requirements. It uses the data only to save pages to
+your server and keep the bukmark folder in sync. It never sells it, uses it for
+ads, or passes it to anyone else.
 
 ## Your bukmark server
 
-Your server keeps what you save in its Postgres database:
-
-- each link's address, title, note and hubs
-- when and how it was saved
-- the folder an imported bookmark came from
-- a preview image address
-- the page text described below
+Your server keeps in its Postgres database each link's address, title, note and
+hubs, when and how it was saved, the folder an imported bookmark came from, a
+preview image address, and the page text below.
 
 Your password, access tokens and sign-in sessions are stored only as hashes. The
 first 12 characters of each token are kept too, to tell tokens apart.
 
 ### Reading saved pages
 
-When you save a page, the server fetches the top of it once, to find its
-preview image.
+When you save a page, the server fetches the top of it once, to find its preview image.
 
 By default it also fetches each saved page in the background, about 20 a
-minute, and again every 30 days. It keeps the page's text, for search and as a
-copy, and marks pages that are gone as broken. It fetches only public
-addresses. The sites you save see these requests come from your server, which
-names itself as bukmark.
+minute, and again every 30 days. It keeps the page's text for search and as a
+copy, and marks gone pages as broken. It fetches only public addresses. Sites see
+the requests come from your server, which names itself as bukmark.
 
-Setting `BUKMARK_CHECK_PAGES=false` stops the background checks
+`BUKMARK_CHECK_PAGES=false` stops the background checks
 ([Install](/docs/install/#environment-variables)). The server then fetches pages
-only when asked: when you save one, for its preview image; after an import from
-the extension, for the preview image of every link that has not had one looked
-up yet; and when a check or a preview-image lookup is requested through the
-[API](/docs/api/#post-apilinkscheck).
+only when asked: when you save one, for its preview image; after an extension
+import, for missing preview images; and when a check or preview lookup is
+requested through the [API](/docs/api/#post-apilinkscheck).
 
 ### Logs
 
-The server logs each request to its console: the time, the IP address it came
-from, and the address requested. For the popup's check, that
-address includes the page's address. Tokens and cookies are left out. Under
-Docker, this output is kept like any container's; bukmark stores it nowhere else.
+The server logs each request to its console: the time, the IP address and the
+address requested. For the popup's check, that address includes the page's
+address. Tokens and cookies are left out. Docker keeps this output like any container's;
+bukmark stores it nowhere else.
 
 ### The web app
 
 The web app keeps you signed in with one cookie, `bukmark_session`, for 30 days.
 It loads its fonts from Google Fonts (`fonts.googleapis.com` and
-`fonts.gstatic.com`). It loads each link's preview image from wherever the saved
-page keeps it, without telling that server which page showed it.
+`fonts.gstatic.com`), and each link's preview image from the saved page's site,
+without telling that site which page showed it.
 
 ### MCP clients
 
-If you sort with an [MCP client](/docs/sorting/), what it reads from your server
-(addresses, titles, notes, folder hints and hubs) goes to that client, and to
-whoever runs the AI model behind it.
+An [MCP client](/docs/sorting/) you sort with receives what it reads from your
+server (addresses, titles, notes, folder hints and hubs), and so does whoever
+runs its AI model.
 
 ## Deleting your data
 
 - **The extension's login:** click **Log out** on the extension's settings page.
   It deletes the token from your browser and asks your server to revoke it. If
-  the server can't be reached, revoke **bukmark capture** in the web app under
+  the server can't be reached, revoke **bukmark capture** under
   **Settings → Access tokens**. Removing the extension deletes everything it
-  kept in that browser. The bukmark folder stays, as ordinary bookmarks.
-- **A link:** open its **Edit** dialog in the web app, click **Delete…**, then
-  **Delete**. Its title, note, hubs and saved text go with it. The server keeps
-  only a SHA-256 hash of its address, so that importing the same bookmarks again
-  doesn't bring it back, and the link's random id with the time it was deleted,
-  so that a browser syncing its bookmarks removes it too.
-- **Everything:** `bukmark uninstall --delete-data` stops bukmark and deletes its
-  database volume, with every link, hub, token and session in it, along with
-  its settings in `~/.bukmark`. From source, `docker compose down -v` in the
-  checkout deletes the database volume.
+  kept in that browser; the bukmark folder stays as ordinary bookmarks.
+- **A link:** in its **Edit** dialog, click **Delete…**, then **Delete**. Its
+  title, note, hubs and saved text go with it. The server keeps only a SHA-256
+  hash of its address, so a re-import doesn't bring it back, and the link's
+  random id with the time it was deleted, so that a browser syncing its
+  bookmarks removes it too.
+- **Everything:** `bukmark uninstall --delete-data` deletes the database volume,
+  with every link, hub, token and session, and the settings in `~/.bukmark`.
+  From source, `docker compose down -v` in the checkout deletes the database
+  volume.
 
 ## This website
 
-bukmark.it is a static site. It has no accounts and no cookies. One service
-sees your visit:
+bukmark.it is a static site with no accounts and no cookies.
 
 - **Cloudflare Pages** hosts it and, like any web host, receives your IP address
   and the pages you request.
-- **Cloudflare Web Analytics** counts visits so we can see which pages people
-  read. Its script, from `static.cloudflareinsights.com`, sets no cookies and
-  stores nothing in your browser; it reports the page, the referring site, your
-  browser and your country, not who you are. It never runs inside the bukmark
-  app or the extension, only on this website.
+- **Cloudflare Web Analytics** counts visits. Its script, from
+  `static.cloudflareinsights.com`, sets no cookies and stores nothing in your
+  browser; it reports the page, the referring site, your browser and your
+  country, not who you are. It runs only on this website, never in the bukmark
+  app or the extension.
 
 Its fonts come from bukmark.it too, so no font service sees your visit.
 
@@ -247,6 +216,6 @@ If what the extension sends changes, this page will say so before that version
 is released, with a new date at the top. Its history is in the
 [repository](https://github.com/xooxoxxo/bukmark).
 
-Questions: open an issue at
+Questions: open a public issue at
 [github.com/xooxoxxo/bukmark/issues](https://github.com/xooxoxxo/bukmark/issues).
-Issues are public, so leave out anything private.
+Leave out anything private.

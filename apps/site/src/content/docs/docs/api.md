@@ -5,28 +5,25 @@ sidebar:
   order: 7
 ---
 
-Every REST endpoint your bukmark server serves, with its parameters, responses
-and errors. [Start here](#start-here) takes you from an access token to a saved
-link with `curl`; the rest of the page is reference.
+Every REST endpoint your bukmark server serves.
 
 ## Start here
 
 1. In the web app, open **Settings → Access tokens**, type a name and click
-   **Create token**.
-2. Click **Copy**. The token is shown only once.
-3. Put it in a shell variable:
+   **Create token**, then **Copy**. The token is shown only once.
+2. Put it in a shell variable:
 
    ```bash
    export BUKMARK_TOKEN='bkm_…'
    ```
 
-4. List your links:
+3. List your links:
 
    ```bash
    curl -H "Authorization: Bearer $BUKMARK_TOKEN" http://localhost:3000/api/links
    ```
 
-5. Save a page. The answer has `"outcome": "created"` and the new link.
+4. Save a page. The answer has `"outcome": "created"` and the new link.
 
    ```bash
    curl -H "Authorization: Bearer $BUKMARK_TOKEN" -H "Content-Type: application/json" \
@@ -35,7 +32,7 @@ link with `curl`; the rest of the page is reference.
 
 Use your server's address in place of `http://localhost:3000`.
 
-## Quick Reference
+## Quick reference
 
 | Method | Path | Description |
 | -- | -- | -- |
@@ -76,37 +73,26 @@ Use your server's address in place of `http://localhost:3000`.
 
 ## Authentication
 
-Every `/api` endpoint needs credentials except the public ones listed below:
-either the session cookie the web app gets when you sign in, or an access token
-sent as a bearer token. Without them the server answers `401`.
+Every `/api` endpoint except the public ones below needs the web app's session
+cookie or a bearer token. Without one, the server answers `401`.
 
 ### Public endpoints
 
-These need no credentials:
+These need no credentials: `GET /healthz`, `GET /api/auth/status`,
+`POST /api/auth/setup`, `POST /api/auth/login`, `POST /api/auth/token`,
+`GET /authorize`, `POST /authorize` (authorization code flow with PKCE, `S256`
+only) and `GET /authorize/done`.
 
-- `GET /healthz` — liveness check
-- `GET /api/auth/status` — whether the server is set up, and whether this request is signed in
-- `POST /api/auth/setup` — create the owner password (first run only)
-- `POST /api/auth/login` — sign in with the owner password
-- `POST /api/auth/token` — exchange an authorization code for an access token (the browser extension's login)
-- `GET /authorize`, `POST /authorize` — the sign-in and Allow page the extension
-  opens in a window (authorization code flow with PKCE, `S256` only); an HTML
-  page for people, not a JSON API
-- `GET /authorize/done` — where a login in a browser tab lands; a static HTML page
-
-Setup, login and `POST /authorize` also require a same-host `Origin` header
-([403](#403-cross-site-request-refused)). They are rate-limited, and so is the
-token exchange ([429](#429-too-many-requests)).
+Setup, login and `POST /authorize` require a same-host `Origin` header
+([403](#403-cross-site-request-refused)). They and the token exchange are
+rate-limited ([429](#429-too-many-requests)).
 
 ### Bearer tokens
 
-Create a token under **Settings → Access tokens**, as in
-[Start here](#start-here), and send it in the `Authorization` header as
-`Bearer <token>`.
-
-A token is valid only on the server that issued it. A request that carries a
-bearer header is judged by that token alone: a valid session cookie next to a
-wrong token does not help. A revoked token gets `401` with `unauthenticated`.
+Send `Authorization: Bearer <token>` (create a token as in
+[Start here](#start-here)). A token works only on the server that issued it.
+With a bearer header, only the token counts, not any cookie. A revoked token
+gets `401` with `unauthenticated`.
 
 ### Session cookies
 
@@ -114,23 +100,21 @@ wrong token does not help. A revoked token gets `401` with `unauthenticated`.
 cookie. A session lasts 30 days and is extended when used, at most once a day.
 The cookie is:
 
-- `HttpOnly` (not readable by JavaScript)
-- `Path=/` (sent to all routes)
-- `SameSite=Lax` (not sent on cross-site POSTs, but sent on navigations from links)
-- `Secure` only when the request arrived over HTTPS — behind a proxy that
-  terminates TLS, the server can tell only with `TRUST_PROXY=true`. On
-  plain-HTTP installs the cookie is sent without it, so logging in over a LAN
-  or tailnet address works.
+- `HttpOnly`
+- `Path=/`
+- `SameSite=Lax`
+- `Secure` only when the request arrived over HTTPS (behind a TLS proxy, only
+  with `TRUST_PROXY=true`)
 - `Max-Age=2592000` (30 days)
 
-A POST, PUT, PATCH or DELETE authenticated by the cookie must also carry a
-matching `Origin` header. Browsers send it on their own.
+A POST, PUT, PATCH or DELETE authenticated by the cookie needs a matching
+`Origin` header. Browsers send it.
 
 ### Error responses
 
 #### 401 Unauthenticated
 
-No valid credentials, or the token or session has expired or been revoked.
+No valid credentials, or they expired or were revoked.
 
 ```json
 {
@@ -139,13 +123,11 @@ No valid credentials, or the token or session has expired or been revoked.
 }
 ```
 
-The `error` text names the cause (`Invalid token`, `Session expired`); match on
-`code`.
+The `error` text varies (`Invalid token`, `Session expired`); match on `code`.
 
 #### 401 Setup required
 
-Every protected endpoint returns this until the owner password is set (first
-run). Open the web app to set it.
+Every protected endpoint returns this until the owner password is set.
 
 ```json
 {
@@ -163,18 +145,15 @@ run). Open the web app to set it.
 }
 ```
 
-Returned when the `Origin` header is missing, or its host (port included)
-differs from the `Host` header, on:
+The `Origin` header is missing, or its host (port included) differs from
+`Host`, on:
 
 - `POST /api/auth/setup` and `POST /api/auth/login`, always;
 - any POST, PUT, PATCH or DELETE authenticated by the session cookie.
 
-`POST /authorize` makes the same check and answers with an HTML error page.
-Requests authenticated by a bearer token are exempt.
-
-Browsers send `Origin` themselves. From curl or a script, add it, for example
-`-H 'Origin: http://localhost:3000'`. Behind a reverse proxy, the proxy must
-forward the original `Host` header or every browser sign-in gets this error; see
+`POST /authorize` answers with an HTML error page instead. Bearer-token requests
+are exempt. From curl, add `-H 'Origin: http://localhost:3000'`. Behind a
+reverse proxy, forward the original `Host` header; see
 [Behind a reverse proxy](/docs/install/#behind-a-reverse-proxy).
 
 #### 429 Too many requests
@@ -188,11 +167,9 @@ forward the original `Host` header or every browser sign-in gets this error; see
 ```
 
 The `error` text names what was tried (`Too many setup attempts`,
-`Too many token exchange attempts`). The response also carries a `Retry-After`
-header with the same number of seconds.
-
-Limits count per client IP (per `/64` for IPv6) over a 15-minute window that
-starts with the first attempt. They live in memory, so a restart clears them.
+`Too many token exchange attempts`). A `Retry-After` header gives the same
+seconds. Limits count per client IP (per `/64` for IPv6) over 15 minutes from
+the first attempt, and reset on restart.
 
 | Endpoint | Allowed per 15 minutes |
 | -- | -- |
@@ -200,14 +177,13 @@ starts with the first attempt. They live in memory, so a restart clears them.
 | `POST /api/auth/setup` | 10 attempts |
 | `POST /api/auth/token` | 30 attempts |
 
-Behind a reverse proxy the server sees the proxy's address for every client
-unless `TRUST_PROXY=true`, so all clients share one count.
+Behind a reverse proxy without `TRUST_PROXY=true`, all clients share one count.
 
 ## Endpoints
 
 ### GET /healthz
 
-Liveness check. Returns immediately with no database access.
+Liveness check, without database access.
 
 ```json
 { "ok": true }
@@ -215,13 +191,13 @@ Liveness check. Returns immediately with no database access.
 
 ### GET /api/links
 
-List links, with optional full-text search and filters.
+List links, with search and filters.
 
 **Query parameters** (all optional)
 
 | Name | Type | Meaning |
 | -- | -- | -- |
-| `q` | string | Full-text search. It matches the title, URL and note, and the text of the page itself once the page has been checked. |
+| `q` | string | Full-text search over title, URL, note and, once checked, the page's text |
 | `hub` | UUID | Only links in this hub |
 | `unassigned` | boolean | If true, only links with no hub |
 | `status` | string | `active` or `archived`; defaults to `active` |
@@ -258,25 +234,19 @@ List links, with optional full-text search and filters.
 }
 ```
 
-- `quoteCount` is how many quotes are saved from the link.
-- `httpStatus` and `checkError` come from the page's last check (both `null`
-  until the first).
-- `snippet` is set only with `q`, and only when the words matched inside the
-  page's text: about 25 words around the match, with each matched word between
-  `⸢` (U+2E22) and `⸣` (U+2E23).
-- `groupHint` (string or null) is the browser bookmark folder path or import
-  source grouping. `POST /api/links` responses omit it, due to response schema
-  validation.
+- `quoteCount`: quotes saved from the link.
+- `httpStatus`, `checkError`: from the page's last check; `null` before the first.
+- `snippet`: only with `q`, when the page's text matched: about 25 words around
+  the match, each matched word between `⸢` (U+2E22) and `⸣` (U+2E23).
+- `groupHint` (string or null): the browser folder path or import grouping.
+  Not in `POST /api/links` responses.
 
 ### GET /api/links/lookup
 
-What bukmark already holds for a page, before saving it: the page itself and
-the hubs it is in, and how the rest of its site is filed. The extension's popup
-shows this above the save form.
+What bukmark holds for a page and its site. The extension's popup shows this.
 
-**Query parameter:** `url` (string, required), the page's address. It is
-normalized the way `POST /api/links` normalizes it, so
-`https://www.Example.com/a?utm_source=x` finds `https://example.com/a`.
+**Query parameter:** `url` (string, required), normalized as `POST /api/links`
+does: `https://www.Example.com/a?utm_source=x` finds `https://example.com/a`.
 
 **Response**
 
@@ -294,11 +264,10 @@ normalized the way `POST /api/links` normalizes it, so
 }
 ```
 
-- `saved` is `null` when the page isn't saved. A saved page in no hub has
-  `"hubs": []`.
-- `domain.links` counts the other active links with the same host (a leading
-  `www.` is ignored; subdomains count separately). `domain.hubs` names up to
-  three hubs they are in, most links first.
+- `saved`: `null` when the page isn't saved; `"hubs": []` when it is in no hub.
+- `domain.links`: other active links on the same host (`www.` ignored,
+  subdomains separate). `domain.hubs`: up to three hubs they are in, most links
+  first.
 
 **Errors**
 
@@ -309,12 +278,9 @@ normalized the way `POST /api/links` normalizes it, so
 
 ### GET /api/links/changes
 
-The links that changed since a given time, and the links deleted since then.
-The extension's bookmark sync pulls this.
-
-A link counts as changed when its URL, title, note or status changes, when it
-joins or leaves a hub, and when one of its hubs is renamed or archived. Page
-checks and preview images don't count.
+Links changed or deleted since a time. Bookmark sync pulls this. A change is a
+new URL, title, note or status, joining or leaving a hub, or one of its hubs
+renamed or archived. Page checks and preview images don't count.
 
 **Query parameters** (all optional)
 
@@ -346,30 +312,17 @@ checks and preview images don't count.
 }
 ```
 
-- `items` — links changed at or after `since`, archived ones included, oldest
-  first. `hubs` names the hubs the link is in, leaving out archived hubs.
-- `deleted` — links deleted for good at or after `since` (archiving is a change,
-  not a deletion).
-- `cursor` — the time of the last change in the response. Send it back as
-  `since` for the next page or the next sync. It is `null` only on a first sync
-  with nothing to return; with nothing new, it is `since`.
-- `more` — `true` when another page follows now.
+- `items`: links changed at or after `since`, archived ones included, oldest
+  first. `hubs` leaves out archived hubs.
+- `deleted`: links deleted for good at or after `since`. Archiving is a change.
+- `cursor`: the time of the last change (UTC, microseconds). Send it back
+  unchanged as `since`. It is `null` only on an empty first sync; with nothing
+  new, it is `since`.
+- `more`: `true` when another page follows.
 
-<details>
-<summary>How the cursor and pages work</summary>
-
-Times are UTC with microseconds. Pass `cursor` back as it is: cut to
-milliseconds, it sends changes again; rounded up, it can skip some.
-
-`since` is inclusive. Changes stamped exactly at `since` come back again, so
-writes that share a timestamp are never lost between two pulls; drop the ones
-you already have. A page never splits changes that share a timestamp, and the
-ones at `since` don't count toward `limit`, so a page can hold more than `limit`.
-
-A change made in a transaction that is still open when you pull waits for the
-next pull, so the cursor never moves past a write that has yet to appear.
-
-</details>
+`since` is inclusive: changes at exactly `since` come back again, so drop the
+ones you have. A page never splits changes that share a timestamp, so it can
+hold more than `limit`.
 
 **Errors**
 
@@ -406,23 +359,20 @@ One link, with everything bukmark holds for it.
 }
 ```
 
-- `contentText` is the page's text from the last check that could read it, up
-  to 100,000 characters. A later check that finds the page gone keeps it.
-- `checkError` says why a check got no answer: `dns` (the domain no longer
-  exists), `timeout`, `network`, `redirects`, or `blocked` (the address is not
-  public, so it is never fetched).
+- `contentText`: the page's text from the last check that could read it, up to
+  100,000 characters. Kept when a later check finds the page gone.
+- `checkError`: why a check got no answer: `dns` (the domain no longer exists),
+  `timeout`, `network`, `redirects`, or `blocked` (not a public address, never
+  fetched).
 
 **Errors:** `404` with `{ "error": "link not found" }` when there is no such link.
 
 ### POST /api/links/check
 
-Checks the links most in need of it now, instead of waiting for the background
-checks (see `BUKMARK_CHECK_PAGES` in
-[Install](/docs/install/#environment-variables)): never-checked first, then
-those last checked over 30 days ago. Archived links are never checked.
-
-Each check records the page's status, keeps its readable text, and fills in a
-missing preview image.
+Check the links most in need of it now: never-checked first, then those checked
+over 30 days ago. Archived links are skipped. Each check records the page's
+status, keeps its text and fills in a missing preview image. See
+`BUKMARK_CHECK_PAGES` in [Install](/docs/install/#environment-variables).
 
 **Body**
 
@@ -440,8 +390,8 @@ missing preview image.
 
 ### POST /api/links
 
-Create a new link or update an existing one. If the URL is normalized to an
-existing link, the outcome is `updated` or `resurrected` instead of `created`.
+Create a link. If the normalized URL already exists, the outcome is `updated` or
+`resurrected` instead of `created`.
 
 **Body**
 
@@ -483,8 +433,6 @@ existing link, the outcome is `updated` or `resurrected` instead of `created`.
 }
 ```
 
-`outcome` is `created`, `updated`, or `resurrected`.
-
 **Errors**
 
 | Status | Body | When |
@@ -494,9 +442,9 @@ existing link, the outcome is `updated` or `resurrected` instead of `created`.
 
 ### POST /api/links/import
 
-Import a batch of links, typically a browser's bookmarks: the web app's
-[file import](/docs/export/#import) and the extension's **Import all bookmarks**
-send them here. Import creates no hubs.
+Import a batch of links. The web app's [file import](/docs/export/#import) and
+the extension's **Import all bookmarks** use it. Import creates no hubs. The
+body is limited to 4 MiB.
 
 **Body**
 
@@ -525,12 +473,12 @@ send them here. Import creates no hubs.
 
 | Name | Type | Meaning |
 | -- | -- | -- |
-| `items` | array, required | Up to 200 links to import. May be empty only when `orphanQuotes` is not; a request with neither is a `400` |
+| `items` | array, required | Up to 200 links. May be empty only when `orphanQuotes` is not; a request with neither is a `400` |
 | `items[].url` | string, required | |
 | `items[].title` | string, optional | |
-| `items[].folderPath` | string, optional | Browser bookmark folder path, kept as a sorting hint (`groupHint`); it never becomes a hub |
-| `items[].quotes` | array, optional | Up to 200 quotes to attach to that link, created or already here. Each is `text` (1–10000 characters), optional `note` (up to 10000 characters), optional `createdAt` (ISO 8601, kept as the quote's saved date). The quote's source address and title are the link's. A text the link already has (same text, ignoring case and extra whitespace) is skipped, not an error |
-| `orphanQuotes` | array, optional | Up to 1000 quotes that belong to no link, from a [JSON backup](/docs/export/#quotes-in-a-backup). Each is `text`, `sourceUrl` (required), optional `sourceTitle`, `note` and `createdAt`. Skipped when the same `sourceUrl` and text are already saved as a quote with no link |
+| `items[].folderPath` | string, optional | Browser folder path, kept as a sorting hint (`groupHint`); never becomes a hub |
+| `items[].quotes` | array, optional | Up to 200 quotes for that link. Each is `text` (1–10000 characters), optional `note` (up to 10000 characters), optional `createdAt` (ISO 8601, the quote's saved date). Source address and title are the link's. A text the link already has (ignoring case and extra whitespace) is skipped |
+| `orphanQuotes` | array, optional | Up to 1000 quotes that belong to no link, from a [JSON backup](/docs/export/#quotes-in-a-backup). Each is `text`, `sourceUrl` (required), optional `sourceTitle`, `note` and `createdAt`. Skipped when the same `sourceUrl` and text already exist as a quote with no link |
 
 **Response**
 
@@ -549,26 +497,17 @@ send them here. Import creates no hubs.
 }
 ```
 
-- `created` (integer) — new links created
-- `updated` (integer) — existing links updated (same URL, title preserved if
-  already set)
-- `skippedDeleted` (integer) — URLs that were previously deleted and skipped on
-  reimport
-- `invalid` (array) — URLs that could not be normalized, with the reason for
-  each: `unparseable url` or `non-http url`
-- `quotes` (object) — `added` quotes stored; `alreadyHere` quotes that were
-  saved before (same text on the same page); `invalid` quotes that cannot be
-  stored (blank text, or on an unreadable url). All are `0` when the request had
-  no quotes. Quotes of a link that stays deleted are not lost: they are stored
-  as quotes with no link, keeping that item's address and title
-
-The request body is limited to 4 MiB.
+- `updated`: existing links; a title already set is kept.
+- `skippedDeleted`: links you deleted before, skipped.
+- `invalid`: unreadable URLs, with `unparseable url` or `non-http url`.
+- `quotes.alreadyHere`: same text on the same page. `quotes.invalid`: blank
+  text or an unreadable url. Quotes of a link that stays deleted are kept with
+  no link.
 
 ### POST /api/links/og-backfill
 
-Look up the preview image (the page's Open Graph image) for links whose image
-has never been looked up. A lookup that finds nothing, or fails, still counts,
-so each link is tried once.
+Look up the preview image (Open Graph image) of links never looked up. Each link
+is tried once, found or not.
 
 **Body**
 
@@ -576,7 +515,7 @@ so each link is tried once.
 { "limit": 20 }
 ```
 
-`limit` (integer, optional): number of links to look up, 1–50; defaults to 20.
+`limit` (integer, optional): links to look up, 1–50; defaults to 20.
 
 **Response**
 
@@ -587,17 +526,13 @@ so each link is tried once.
 }
 ```
 
-- `processed` (integer) — links fetched for their preview image in this call
-- `remaining` (integer) — links still waiting (those that have never been
-  attempted)
+`remaining` counts links never attempted.
 
 ### POST /api/links/:id/refresh
 
-Re-fetch the preview image (og:image) for a single link now. `id` is the link's UUID.
-
-Fetches the page and takes its Open Graph image. When the page has none, or cannot be
-reached, the link keeps the image it had. The title is not touched. The web app's
-**Update preview** button in the Edit dialog calls this.
+Re-fetch one link's preview image (og:image) now. The Edit dialog's
+**Update preview** button calls this. If none is found, the old image stays.
+The title is not touched.
 
 **Body**
 
@@ -624,8 +559,6 @@ No body parameters.
 }
 ```
 
-`imageUrl` is the new image, or the previous one when none was found.
-
 **Errors**
 
 | Status | Body | When |
@@ -634,7 +567,7 @@ No body parameters.
 
 ### POST /api/links/assign
 
-Assign multiple links to hubs in a single request.
+Assign links to hubs in one request.
 
 **Body**
 
@@ -667,16 +600,11 @@ Assign multiple links to hubs in a single request.
 }
 ```
 
-- `assigned` (integer) — link-to-hub assignments that succeeded
-- `hubsCreated` (string array) — hubs created during this call (did not exist
-  before)
-- `unknownLinkIds` (string array) — link IDs from the request that do not exist
-  in the database
+`unknownLinkIds` lists link IDs that don't exist.
 
 ### PATCH /api/links/:id
 
-Update the title, note, status, relevance or hubs of a single link. `id` is the
-link's UUID.
+Update one link. All fields are optional; they change together or not at all.
 
 **Body**
 
@@ -690,21 +618,17 @@ link's UUID.
 }
 ```
 
-All fields are optional; they change together or not at all.
-
 | Name | Meaning |
 | -- | -- |
 | `title`, `note` | New text |
 | `status` | `active` or `archived` |
 | `relevance` | 1–5, or `null` to clear it |
-| `hubs` | Up to 100 hub names. They replace the hubs the link is in: a missing hub is created, an archived one is made active again, and `[]` takes the link out of every hub. Archived hubs you leave out keep the link, since sync never shows them. |
-| `addHubs`, `removeHubs` | Up to 100 hub names each, instead of `hubs`. See below. |
+| `hubs` | Up to 100 hub names, replacing the link's hubs. A missing hub is created, an archived one made active again, and `[]` takes the link out of every hub. Archived hubs you leave out keep the link. |
+| `addHubs`, `removeHubs` | Up to 100 hub names each, instead of `hubs`. |
 
-`addHubs` puts the link into those hubs (created or made active as with `hubs`)
-and `removeHubs` takes it out of those, and it stays in every other hub. A name
-in both ends up added. An archived hub keeps the link even when named in
-`removeHubs`, as archiving a hub keeps its links. Bookmark sync sends these, so
-that a hub the link got on the server since the browser's last sync is kept.
+`addHubs` adds the link to those hubs (as `hubs` does); `removeHubs` takes it
+out of those; other hubs stay. A name in both is added. An archived hub keeps
+the link even when named in `removeHubs`. Bookmark sync sends these.
 
 ```json
 { "addHubs": ["rust"], "removeHubs": ["reading"] }
@@ -736,7 +660,7 @@ that a hub the link got on the server since the browser's last sync is kept.
 
 ### POST /api/links/bulk
 
-Apply one action to multiple links in a single request.
+Apply one action to many links.
 
 **Body**
 
@@ -775,10 +699,10 @@ Apply one action to multiple links in a single request.
 
 ### POST /api/quotes
 
-Save a passage from a page. If the page is not saved yet it is saved too,
-unsorted; if it is, the page is left as it is, so this is not a re-save and does
-not raise its seen count. The same passage (ignoring case and extra whitespace)
-from the same page is one quote: saving it again returns the existing one.
+Save a passage from a page. An unsaved page is saved too, unsorted; a saved
+page is left as it is, and its seen count doesn't change. The same passage
+(ignoring case and extra whitespace) from the same page returns the existing
+quote.
 
 **Body**
 
@@ -816,11 +740,11 @@ from the same page is one quote: saving it again returns the existing one.
 }
 ```
 
-- `sourceUrl` is the normalized address. `sourceTitle` is `title`, or else the
-  saved page's title; both stay with the quote if the link is deleted.
-- `linkId` is `null` for a quote whose link was deleted.
-- `link.created` is `true` when this call saved the page (or brought back one
-  you had deleted), `false` when the page was already saved.
+- `sourceUrl`: the normalized address. `sourceTitle`: `title`, or else the
+  saved page's title. Both stay with the quote if the link is deleted.
+- `linkId`: `null` once the link is deleted.
+- `link.created`: `true` when this call saved the page (or brought back a
+  deleted one).
 
 **Errors**
 
@@ -835,8 +759,7 @@ from the same page is one quote: saving it again returns the existing one.
 
 ### GET /api/quotes
 
-List quotes, newest first, from every page, including quotes whose page was
-deleted.
+List quotes, newest first, including those whose page was deleted.
 
 | Name | Type | Meaning |
 | -- | -- | -- |
@@ -851,10 +774,9 @@ deleted.
 { "items": [ { "id": "uuid", "text": "The quoted passage." } ], "nextCursor": null }
 ```
 
-Each item has the fields shown for `POST /api/quotes`. To page, send the
-`nextCursor` of one response as `cursor` of the next, with the same `q`,
-`linkId` and `limit`, until it is `null`. It is an opaque string: keep it as it
-came.
+Items have the fields shown for `POST /api/quotes`. To page, send `nextCursor`
+back unchanged as `cursor`, with the same `q`, `linkId` and `limit`, until it is
+`null`.
 
 **Errors**
 
@@ -866,7 +788,7 @@ came.
 
 ### PATCH /api/quotes/:id
 
-Edit a quote. Send `text`, `note`, or both. `text` follows the rules for
+Edit a quote. Send `text`, `note`, or both; `text` follows the rules of
 `POST /api/quotes`. Returns `200` with `{ "quote": { … } }`.
 
 **Errors**
@@ -910,7 +832,7 @@ List all hubs with their link counts.
 
 ### POST /api/hubs
 
-Create a new hub.
+Create a hub.
 
 **Body**
 
@@ -944,7 +866,9 @@ this name.
 
 ### PATCH /api/hubs/:id
 
-Update a hub's name, description, or status. `id` is the hub's UUID.
+Update a hub. All fields are optional. `status` is `active`, `dormant`, or
+`archived`. Renaming or archiving a hub changes each of its links in
+[`GET /api/links/changes`](#get-apilinkschanges).
 
 **Body**
 
@@ -955,11 +879,6 @@ Update a hub's name, description, or status. `id` is the hub's UUID.
   "status": "archived"
 }
 ```
-
-All fields are optional. `status` is `active`, `dormant`, or `archived`.
-
-Renaming or archiving a hub counts as a change to each of its links in
-[`GET /api/links/changes`](#get-apilinkschanges).
 
 **Response**
 
@@ -983,7 +902,7 @@ Renaming or archiving a hub counts as a change to each of its links in
 
 ### DELETE /api/hubs/:id
 
-Delete a hub. This does not delete the links in it. `id` is the hub's UUID.
+Delete a hub. Its links are kept.
 
 **Response**
 
@@ -997,8 +916,8 @@ Delete a hub. This does not delete the links in it. `id` is the hub's UUID.
 
 ### GET /api/stats
 
-Aggregate counts: total links, active links, archived links, hub count,
-unassigned links, broken links, active links not yet checked, and quotes (all of them, including those whose page was deleted).
+Counts: all, active and archived links, hubs, unassigned links, broken links,
+active links not yet checked, and quotes (including those of deleted pages).
 
 **Response**
 
@@ -1017,18 +936,18 @@ unassigned links, broken links, active links not yet checked, and quotes (all of
 
 ### GET /api/export
 
-Export links as HTML (Netscape bookmark format), JSON, or CSV, as a file
-attachment. [Import & Export](/docs/export/) covers when to use which.
+Export links as a file: HTML (Netscape bookmark format), JSON or CSV. See
+[Import & Export](/docs/export/).
 
-The JSON file is `{ "version": 1, "exportedAt", "count", "links": [...], "orphanQuotes": [...] }`.
-Each link carries `quotes`, oldest first, as `{ "text", "note", "createdAt" }`.
-`orphanQuotes` holds quotes whose link was deleted, as `{ "text", "note",
-"sourceUrl", "sourceTitle", "createdAt" }`; it is filled only for an unfiltered
-export (`status=all`, or the default with no `q`, `hub`, `unassigned` or
-`broken`) and is `[]` otherwise. HTML and CSV do not include quotes.
-
-The HTML file holds one `bukmark` folder with a folder per hub inside, plus
-`Unsorted` for links in no hub: the layout bookmark sync keeps in the browser.
+- **JSON:** `{ "version": 1, "exportedAt", "count", "links": [...], "orphanQuotes": [...] }`.
+  Each link carries `quotes`, oldest first, as `{ "text", "note", "createdAt" }`.
+  `orphanQuotes` holds quotes whose link was deleted, as `{ "text", "note",
+  "sourceUrl", "sourceTitle", "createdAt" }`, only in an unfiltered export
+  (`status=all`, or the default with no `q`, `hub`, `unassigned` or `broken`);
+  otherwise `[]`.
+- **HTML:** one `bukmark` folder with a folder per hub, plus `Unsorted` for
+  links in no hub.
+- HTML and CSV do not include quotes.
 
 **Query parameters**
 
@@ -1043,8 +962,8 @@ The HTML file holds one `bukmark` folder with a folder per hub inside, plus
 
 **Response**
 
-A file with a `Content-Disposition: attachment` header that carries its
-filename, and this Content-Type:
+A file (`Content-Disposition: attachment`, with its filename) with this
+Content-Type:
 
 | `format` | Content-Type |
 | -- | -- |
@@ -1059,11 +978,7 @@ The filename is `bukmark-<scope>-<YYYY-MM-DD>.<ext>`, where `<scope>` is:
 - `unsorted` if `unassigned=true`
 - `all` otherwise
 
-**Examples**
-
-These need an access token in `BUKMARK_TOKEN` ([Start here](#start-here)).
-`-f` makes curl fail on an error status instead of writing the error body into
-the file.
+**Examples** (with a token in `BUKMARK_TOKEN`, see [Start here](#start-here))
 
 ```bash
 # Export all active links as CSV
@@ -1080,8 +995,7 @@ curl -f -H "Authorization: Bearer $BUKMARK_TOKEN" "http://localhost:3000/api/exp
 
 ### GET /api/auth/status
 
-Whether the server has a configured owner, and whether the current request is
-authenticated.
+Whether the owner password is set and the request is signed in.
 
 **Response**
 
@@ -1093,21 +1007,16 @@ authenticated.
 }
 ```
 
-- `setupComplete` (boolean) — whether the owner password has been set
-- `authenticated` (boolean) — whether the request has valid credentials. With
-  an `Authorization: Bearer` header, whether that token is valid; the
-  extension checks a pasted token this way.
-- `redirectKinds` (string array) — the kinds of `redirect_uri`
-  [`/authorize`](#get-authorize-post-authorize) accepts. The extension calls
-  this endpoint before it opens a login window, and asks you to update the
-  server when the kind it needs is missing.
+- `authenticated`: the request's credentials (with a bearer header, the token)
+  are valid.
+- `redirectKinds`: the `redirect_uri` kinds
+  [`/authorize`](#get-authorize-post-authorize) accepts.
 
 ### POST /api/auth/setup
 
-Create the owner password on first run. This endpoint is public until the owner
-is set; afterward it returns `409`. Like login, it needs an `Origin` header whose
-host matches `Host` ([403](#403-cross-site-request-refused)), and it is
-rate-limited.
+Create the owner password on first run. Afterwards it returns `409`. Needs an
+`Origin` header whose host matches `Host`
+([403](#403-cross-site-request-refused)), and is rate-limited.
 
 **Body**
 
@@ -1117,8 +1026,8 @@ rate-limited.
 }
 ```
 
-`password` (string, required): 12–1024 characters, counted in Unicode
-characters, so an emoji counts once.
+`password` (string, required): 12–1024 Unicode characters (an emoji counts
+once).
 
 **Response (201)**
 
@@ -1128,7 +1037,7 @@ characters, so an emoji counts once.
 }
 ```
 
-It sets a `bukmark_session` cookie and signs in the user who set the password.
+Sets a `bukmark_session` cookie and signs you in.
 
 **Errors**
 
@@ -1160,7 +1069,7 @@ Log in with the owner password. Needs an `Origin` header whose host matches
 }
 ```
 
-It sets a `bukmark_session` cookie and signs in the user.
+Sets a `bukmark_session` cookie and signs you in.
 
 **Errors**
 
@@ -1173,9 +1082,9 @@ It sets a `bukmark_session` cookie and signs in the user.
 
 ### POST /api/auth/token
 
-Exchange a one-time authorization code from
-[`/authorize`](#get-authorize-post-authorize) for an access token. The browser
-extension does this when you log in; you only need it to write another client.
+Exchange a one-time code from [`/authorize`](#get-authorize-post-authorize) for
+an access token. The extension does this at login; you need it only to write
+another client.
 
 **Body**
 
@@ -1195,8 +1104,7 @@ extension does this when you log in; you only need it to write another client.
 | `code_verifier` | string, required | The PKCE verifier whose S256 hash was sent as `code_challenge`: 43–128 characters of `A–Z a–z 0–9 - . _ ~` |
 | `redirect_uri` | string, required | The same `redirect_uri` the authorization request used |
 
-The same exchange serves every [redirect kind](#get-authorize-post-authorize):
-a login in a tab sends `"redirect_uri": "<server>/authorize/done"`.
+A login in a tab sends `"redirect_uri": "<server>/authorize/done"`.
 
 **Response**
 
@@ -1208,8 +1116,8 @@ a login in a tab sends `"redirect_uri": "<server>/authorize/done"`.
 }
 ```
 
-The token is named after the authorization request's `client_name` and appears
-under **Settings → Access tokens** like any other.
+The token is named after the request's `client_name` and listed under
+**Settings → Access tokens**.
 
 **Errors**
 
@@ -1218,15 +1126,14 @@ under **Settings → Access tokens** like any other.
 | `400` | `{ "error": "Invalid or expired authorization code", "code": "invalid_grant" }` | Any failure (below) |
 | `429` | `rate_limited` | After 30 attempts in 15 minutes; see [429](#429-too-many-requests) |
 
-Every failure gets this same `400` — unknown, used or expired code, wrong
-verifier, different `redirect_uri`, malformed body — so a failed exchange does
-not reveal which part was wrong. The first exchange that presents a valid code
-uses it up, even if its verifier or `redirect_uri` is wrong.
+Every failure gets the same `400`: unknown, used or expired code, wrong
+verifier, different `redirect_uri`, or malformed body. The first exchange with
+a valid code uses it up, even if the rest is wrong.
 
 ### GET /authorize, POST /authorize
 
 The page the extension opens with `chrome.identity.launchWebAuthFlow`:
-server-rendered HTML with no JavaScript, not a JSON API.
+server-rendered HTML with no JavaScript.
 
 ```
 GET /authorize?response_type=code&redirect_uri=…&state=…&code_challenge=…&code_challenge_method=S256&client_name=…
@@ -1245,51 +1152,40 @@ GET /authorize?response_type=code&redirect_uri=…&state=…&code_challenge=…&
 | `firefox` | A Firefox add-on's redirect URL, `https://<40 lowercase hex>.extensions.allizom.org/<path>`, where the hex is the SHA-1 of the add-on ID |
 | `tab` | This server's own [`/authorize/done`](#get-authorizedone), exactly `<scheme>://<host>/authorize/done` with the host (and port) this request was sent to; `https` when the request came over HTTPS |
 
-What the page does:
-
-1. An invalid request gets an error page with status `400` and is never
-   redirected.
-2. Otherwise the page asks for the owner password if this browser has no
-   session.
-3. Then it says who is asking — the extension ID, the start of the Firefox
-   hash, or "the bukmark extension in this browser" for a `tab` redirect — with
-   **Allow** and **Deny** buttons.
-4. Allow redirects with `303` to `redirect_uri?code=…&state=…`, and Deny to
+1. An invalid request gets an error page with status `400`, never a redirect.
+2. Without a session in this browser, the page asks for the owner password.
+3. It names who is asking (the extension ID, the start of the Firefox hash, or
+   "the bukmark extension in this browser" for `tab`), with **Allow** and
+   **Deny** buttons.
+4. Allow redirects with `303` to `redirect_uri?code=…&state=…`; Deny to
    `redirect_uri?error=access_denied&state=…`.
 
-`POST /authorize` receives those forms. It needs a same-host `Origin` (the
-browser sends it), and its password attempts share the login rate limit
-(beyond it, the page comes back with status `429`).
+`POST /authorize` receives those forms. It needs a same-host `Origin`, and its
+password attempts share the login rate limit (status `429` beyond it).
 
-When the server has `BUKMARK_EXTENSION_IDS` set (Chrome IDs and Firefox hashes,
-comma-separated) and the client is not in it, or by default for a Firefox add-on
-other than the official one, both pages add a warning; nothing is blocked.
+With `BUKMARK_EXTENSION_IDS` set and the client not in it, or by default for a
+Firefox add-on other than the official one, the page shows a warning; nothing
+is blocked.
 
 ### GET /authorize/done
 
-Where Allow and Deny send a login whose `redirect_uri` is of the `tab` kind.
-Browsers without an extension login window (Safari, Firefox for Android) open
-`/authorize` in an ordinary tab, and the extension reads `code` and `state`
-from this page's URL, then exchanges the code at
+Where Allow and Deny send a `tab` login (Safari, Firefox for Android). The
+extension reads `code` and `state` from its URL and exchanges the code at
 [`POST /api/auth/token`](#post-apiauthtoken).
 
-The page is static HTML with no script or subresources, and never repeats
-`code` or `state`. With `error=access_denied` it reads "Access denied — you can
-close this tab"; otherwise "Signed in — you can close this tab". It is sent
-with `Cache-Control: no-store`, `Referrer-Policy: no-referrer`,
+Static HTML with no script or subresources; it never repeats `code` or `state`.
+It reads "Access denied — you can close this tab" with `error=access_denied`,
+otherwise "Signed in — you can close this tab". Sent with
+`Cache-Control: no-store`, `Referrer-Policy: no-referrer`,
 `X-Frame-Options: DENY` and a `default-src 'none'` Content Security Policy.
 
-The server logs its path without the query. A reverse proxy in front of it logs
-the query too unless told not to; see
-[Behind a reverse proxy](/docs/install/#behind-a-reverse-proxy).
+The server logs its path without the query. Keep the query out of your proxy's
+log too; see [Behind a reverse proxy](/docs/install/#behind-a-reverse-proxy).
 
 ### POST /api/auth/logout
 
-Log out and invalidate the session cookie or token.
-
-- With a session cookie: deletes the session and clears the `bukmark_session`
-  cookie.
-- With a bearer token: deletes that token from the database.
+Log out: with a session cookie, deletes the session and clears the
+`bukmark_session` cookie; with a bearer token, deletes that token.
 
 **Response**
 
@@ -1322,19 +1218,15 @@ List all access tokens, newest first.
 }
 ```
 
-- `id` (UUID) — token ID, used for revocation
-- `name` (string) — token name (e.g., "Claude Code", "bukmark capture")
-- `prefix` (string) — first 12 characters of the token (for identification)
-- `createdAt` (ISO string) — when the token was created
-- `lastUsedAt` (ISO string or null) — last time this token was used for an API
-  request
-- `current` (boolean) — true if this token made the current request
+- `prefix`: the token's first 12 characters.
+- `lastUsedAt`: when it last made an API request, or `null`.
+- `current`: `true` for the token making this request.
 
 **Errors:** `401` `unauthenticated` ([401](#401-unauthenticated)).
 
 ### POST /api/auth/tokens
 
-Create a new access token.
+Create an access token.
 
 **Body**
 
@@ -1358,12 +1250,9 @@ Create a new access token.
 }
 ```
 
-The plaintext `token` is returned only once. Save it immediately.
-
-- `id`, `name`, `prefix`, `createdAt` — as in
-  [`GET /api/auth/tokens`](#get-apiauthtokens)
-- `token` (string) — the full token (47 characters: `bkm_` + 43 base64url
-  chars)
+`token` is the full token (47 characters: `bkm_` + 43 base64url characters),
+returned only this once. The other fields are as in
+[`GET /api/auth/tokens`](#get-apiauthtokens).
 
 **Errors**
 
@@ -1375,7 +1264,7 @@ The plaintext `token` is returned only once. Save it immediately.
 
 ### DELETE /api/auth/tokens/:id
 
-Revoke an access token by ID. `id` is the token's UUID.
+Revoke an access token. `id` is the token's UUID.
 
 **Response**
 

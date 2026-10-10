@@ -27,7 +27,7 @@ export default defineConfig({
       components: { PageFrame: './src/components/PageFrame.astro' },
       // Fetched with the page rather than found later inside the stylesheet,
       // so the first paint already has them (see the @font-face rules).
-      head: ['bricolage-grotesque-latin', 'geist-latin'].map((font) => ({
+      head: ['geist-latin'].map((font) => ({
         tag: 'link',
         attrs: { rel: 'preload', href: `/fonts/${font}.woff2`, as: 'font', type: 'font/woff2', crossorigin: '' },
       })),

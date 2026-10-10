@@ -7,16 +7,9 @@
 /* Fonts are served from this site, not Google: one fewer host sees a visit,
    and the files are preloaded (astro.config.mjs, pages/index.astro), so a
    docs page opens in its own faces instead of swapping them in after the
-   first paint. Latin cuts of the variable fonts, both SIL Open Font License
-   1.1; Bricolage keeps its optical-size axis (12..96). */
-@font-face {
-  font-family: 'Bricolage Grotesque';
-  font-style: normal;
-  font-weight: 400 800;
-  font-display: swap;
-  src: url('/fonts/bricolage-grotesque-latin.woff2') format('woff2');
-}
-
+   first paint. Geist, latin cut of the variable font, SIL Open Font License
+   1.1. Headings use the system grotesque (--bk-font-display), so they need
+   no file. */
 @font-face {
   font-family: 'Geist';
   font-style: normal;
@@ -52,10 +45,9 @@
   --bk-accent: #fd441d;           /* logo orange (exact) */
 
   /* Typography */
-  --bk-font-display: 'Bricolage Grotesque', sans-serif;
-  /* The landing page's face since launch, and the wordmark's on every page,
-     so the header reads the same moving from the landing page to the docs. */
-  --bk-font-brand: Helvetica, Arial, sans-serif;
+  --bk-font-display: Helvetica, Arial, sans-serif;
+  /* Kept as its own name: the wordmark's face, which is also the display face. */
+  --bk-font-brand: var(--bk-font-display);
   --bk-font-body: 'Geist', system-ui, sans-serif;
   --bk-font-mono: 'Menlo', 'Courier New', monospace;
 
@@ -181,7 +173,7 @@ header.header {
   color: var(--bk-ink) !important;
   font-family: var(--bk-font-brand);
   font-size: var(--bk-text-lg);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
@@ -218,7 +210,7 @@ header.header {
 .sidebar-content .group-label {
   color: var(--bk-ink);
   font-family: var(--bk-font-display);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.01em;
   text-transform: none;
 }
@@ -251,7 +243,7 @@ header.header {
   margin-top: 0;
   color: var(--bk-ink);
   font-family: var(--bk-font-display);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.025em;
   line-height: 1;
 }
@@ -261,7 +253,6 @@ header.header {
    blocks, and running text a step softer than the headings. Notes and
    details are boxed off so they read as asides, not as more body text. */
 .sl-markdown-content {
-  counter-reset: bk-section;
   color: var(--bk-text);
   font-size: var(--bk-text-base);
   line-height: 1.7;
@@ -281,8 +272,8 @@ header.header {
 .sl-markdown-content :is(h1, h2, h3, h4) {
   color: var(--bk-ink);
   font-family: var(--bk-font-display);
-  font-weight: 800;
-  letter-spacing: -0.025em;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   text-wrap: balance;
 }
 
@@ -292,26 +283,18 @@ header.header {
   line-height: 0.94;
 }
 
-/* The section rule belongs on the wrapper: Starlight renders the h2 itself
-   inline, beside its anchor link, so a border on the h2 spans only the words
-   and reads as a stray stub rather than a section break. The wrapper also
-   carries the section's number. */
+/* The section rule belongs on the wrapper: Starlight renders the h2 inside
+   it, so a border on the h2 itself would span only the words. */
 .sl-markdown-content .sl-heading-wrapper.level-h2 {
-  counter-increment: bk-section;
   margin-top: var(--bk-space-xl);
   padding-top: var(--bk-space-md);
   border-top: 2px solid var(--bk-ink);
 }
 
-.sl-markdown-content .sl-heading-wrapper.level-h2::before {
-  content: counter(bk-section, decimal-leading-zero);
-  display: block;
-  margin-bottom: var(--bk-space-xs);
-  color: var(--bk-accent);
-  font-family: var(--bk-font-mono);
-  font-size: var(--bk-text-xs);
-  font-weight: 700;
-  letter-spacing: 0.12em;
+/* Headings are linked from the table of contents; the chain icon beside each
+   one was noise. */
+.sl-markdown-content .sl-anchor-link {
+  display: none;
 }
 
 .sl-markdown-content h2 {
@@ -381,7 +364,7 @@ header.header {
   color: #0e0f13;
   font-family: var(--bk-font-display);
   font-size: var(--bk-text-xs);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -417,7 +400,7 @@ header.header {
 .sl-markdown-content summary {
   color: var(--bk-ink);
   font-family: var(--bk-font-display);
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -494,7 +477,7 @@ starlight-aside,
 .starlight-aside__title {
   font-family: var(--bk-font-display);
   font-size: var(--bk-text-xs);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }

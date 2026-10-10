@@ -5,17 +5,14 @@ sidebar:
   order: 5
 ---
 
-Bukmark's MCP (Model Context Protocol) server lets any MCP client (Claude Code,
-Cursor, Zed or another) read your unsorted bookmarks and file them into your hubs
-(categories), with your approval. By the end, your client is connected and has
-sorted a first batch.
+The bukmark MCP server lets any MCP client (Claude Code, Cursor, Zed or another)
+read your unsorted bookmarks and file them into hubs, with your approval.
 
 ## Setup
 
-1. Create a token: in the web app, open **Settings → Access tokens**, enter a
-   name under *New token* (e.g. "Claude Code") and click **Create token**, then
-   **Copy**. Paste it into your MCP client config right away: the page shows it
-   only once.
+1. In the web app, open **Settings → Access tokens**, enter a name under
+   *New token* (e.g. "Claude Code") and click **Create token**, then **Copy**.
+   The token is shown only once.
 2. In Claude Code, copy `.mcp.json.example` to `.mcp.json` at the repo root and
    fill in your token. For another client, see
    [Other MCP clients](#other-mcp-clients).
@@ -24,33 +21,19 @@ sorted a first batch.
    cp .mcp.json.example .mcp.json
    ```
 
-3. Restart your MCP client so it picks up the server.
+3. Restart your MCP client.
 
-## Using It
+## Using it
 
 1. Ask your MCP client to *"sort my unsorted bukmark links"*.
-2. Review its proposal: it lists what's unsorted along with your existing hubs,
-   then proposes assignments for each link.
+2. Review the hubs it proposes for each link.
 3. Approve. It applies them in one batch.
 
 ## Configuration
 
-The MCP server runs this command:
-
-```bash
-pnpm exec tsx apps/mcp/src/index.ts
-```
-
-It requires two environment variables:
-
-```bash
-BUKMARK_API_URL=http://localhost:3000
-BUKMARK_API_TOKEN=<your token>
-```
-
-### Claude Code example
-
-The `.mcp.json` file at the repo root is Claude Code's configuration format:
+The MCP server runs `pnpm exec tsx apps/mcp/src/index.ts` with
+`BUKMARK_API_URL` and `BUKMARK_API_TOKEN` set. For Claude Code, in `.mcp.json`
+at the repo root:
 
 ```json
 {
@@ -69,27 +52,20 @@ The `.mcp.json` file at the repo root is Claude Code's configuration format:
 
 ### Other MCP clients
 
-Other clients take the same command, args, and environment variables in their
-own configuration format. See your client's MCP documentation; the
-[Model Context Protocol docs](https://modelcontextprotocol.io) cover popular
-clients.
+Put the same command, args and environment variables in your client's MCP
+config. See [modelcontextprotocol.io](https://modelcontextprotocol.io).
 
-## Available Tools
+## Available tools
 
 | Tool | What your client can do with it |
 | -- | -- |
 | `add_bookmarks` | Add new links to your hubs. |
-| `list_unsorted` | See what needs sorting. For an imported link it also shows the browser folder it came from, as a hint. |
-| `list_hubs` | See your existing categories. |
+| `list_unsorted` | See what needs sorting, with the browser folder an imported link came from. |
+| `list_hubs` | See your existing hubs. |
 | `assign_hubs` | Assign links to one or more hubs. |
 
 ## Troubleshooting
 
-<details>
-<summary>Every tool call fails with a 401</summary>
-
-Without a valid token, every tool call fails with "bukmark rejected the request
-(401)". Set `BUKMARK_API_TOKEN` to a token from **Settings → Access tokens**
-and restart your client.
-
-</details>
+If every tool call fails with "bukmark rejected the request (401)", set
+`BUKMARK_API_TOKEN` to a token from **Settings → Access tokens** and restart
+your client.
