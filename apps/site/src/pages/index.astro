@@ -2,6 +2,7 @@
 // The landing page is intentionally independent from Starlight's docs layout.
 import '../styles/custom.css';
 import DemoApp from '../components/DemoApp.astro';
+import StudioBar from '../components/StudioBar.astro';
 
 // What a shared link to the landing page shows: the promise, then what it is.
 const SHARE = {
@@ -215,6 +216,7 @@ const CHANNEL = CHANNELS.find((c) => c.live)!;
 				</div>
 			</div>
 		</footer>
+		<StudioBar />
 
 		<script>
 			document.documentElement.classList.add('js');

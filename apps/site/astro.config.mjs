@@ -23,6 +23,8 @@ export default defineConfig({
         { icon: 'github', label: 'GitHub', href: 'https://github.com/xooxoxxo/bukmark' },
       ],
       customCss: ['./src/styles/custom.css'],
+      // The default page frame plus the studio bar (src/components/StudioBar.astro).
+      components: { PageFrame: './src/components/PageFrame.astro' },
       // Fetched with the page rather than found later inside the stylesheet,
       // so the first paint already has them (see the @font-face rules).
       head: ['bricolage-grotesque-latin', 'geist-latin'].map((font) => ({
