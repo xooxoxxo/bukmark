@@ -176,3 +176,6 @@ quotes were **restored**, how many were **already here**, and how many were
 **not restored**, which are the few the file held that could not be read. A
 quote whose page you deleted comes back too, on no page, still showing where it
 was saved from. The HTML and CSV exports don't include quotes.
+
+Highlights from an [Omnivore export](/docs/export/#omnivore-exports) come in
+the same way: each becomes a quote on its link, with its note.

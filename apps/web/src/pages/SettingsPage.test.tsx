@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { strToU8, zipSync } from 'fflate';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
 import { MemoryRouter } from 'react-router-dom';
@@ -195,6 +196,34 @@ describe('SettingsPage', () => {
     await waitFor(() => expect(client.importLinks).toHaveBeenCalledTimes(1));
     expect(vi.mocked(client.importLinks).mock.calls[0]?.[0]).toEqual([]);
     expect(await screen.findByRole('status')).toHaveTextContent('1 quote restored');
+  });
+
+  it('imports an Omnivore export ZIP, its highlights as quotes', async () => {
+    vi.mocked(client.importLinks).mockResolvedValue({
+      created: 1, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 2, alreadyHere: 0, invalid: 0 },
+    });
+    renderSettings();
+    const zip = zipSync({
+      'metadata_0_to_1.json': strToU8(JSON.stringify([
+        { slug: 'post', url: 'https://a.com/post', title: 'Post', labels: ['rust'], state: 'Archived', savedAt: '2024-05-01T10:00:00Z' },
+      ])),
+      'content/post.html': strToU8('<p>page</p>'),
+      'highlights/post.md': strToU8('> First. \n\n> Second. \n\nMy note.'),
+    });
+    await userEvent.upload(
+      screen.getByTestId('import-file'),
+      new File([zip], 'omnivore-export.zip', { type: 'application/zip' }),
+    );
+    await waitFor(() => expect(client.importLinks).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(client.importLinks).mock.calls[0]?.[0]).toEqual([
+      {
+        url: 'https://a.com/post',
+        title: 'Post',
+        folderPath: 'tags: rust',
+        quotes: [{ text: 'First.' }, { text: 'Second.', note: 'My note.' }],
+      },
+    ]);
+    expect(await screen.findByRole('status')).toHaveTextContent('1 added, 2 quotes restored');
   });
 
   it('says nothing about quotes when none were restored', async () => {

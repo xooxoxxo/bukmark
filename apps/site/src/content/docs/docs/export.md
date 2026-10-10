@@ -12,8 +12,9 @@ file, or saved an export from the web app or with `curl`.
 ## Import
 
 1. Get a bookmarks file: HTML exported from a browser (Chrome, Edge, Firefox,
-   Safari), a CSV export from Raindrop, Pocket or Instapaper, or a JSON backup
-   from bukmark itself.
+   Safari), a CSV export from Raindrop, Pocket or Instapaper, an
+   [Omnivore export](#omnivore-exports) (the ZIP, or one of its
+   `metadata_*.json` files), or a JSON backup from bukmark itself.
 2. In the web app's sidebar, open **Settings → Import bookmarks…** and choose
    the file.
 3. Read the result line. It counts each case [below](#duplicates-and-skips), so
@@ -35,6 +36,30 @@ case.
 | `tags`, `labels` or `keywords` | Added to that hint. |
 
 Other columns, notes and excerpts included, are not imported.
+
+### Omnivore exports
+
+Omnivore closed in November 2024; the export ZIP it emailed you still imports.
+Choose the ZIP itself, as downloaded. It is read in your browser, and only its
+link list and highlights are opened: the saved page copies in its `content`
+folder are not uploaded.
+
+| In the export | Comes over as |
+| -- | -- |
+| Each saved item's address and title | A link. Only `http` and `https` addresses; anything else counts as **not web links**. |
+| Labels | A hint for sorting, like a CSV's tags. |
+| Highlights (`highlights/*.md`) | [Quotes](/docs/quotes/) on that link, each with its note when it had one. They count in the result line as **quotes restored**, like a backup's. |
+| Archived items | Links like the others: an import never archives a link here. |
+
+Not imported: the saved page copies, descriptions, authors, thumbnails, reading
+progress, the saved and published dates, the labels on single highlights, and
+notes on a whole page (a page note written after a highlight is read as part of
+that highlight's note, since the export does not tell them apart). A highlight
+over 10,000 characters can't be saved and is counted as **not restored**.
+
+A single `metadata_*.json` file from the unzipped export imports too, with the
+links and labels but no highlights, since those are in the separate
+`highlights` folder.
 
 ### Duplicates and skips
 

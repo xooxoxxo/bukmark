@@ -52,6 +52,17 @@ if (typeof Blob.prototype.text !== 'function') {
     });
   };
 }
+// Same for arrayBuffer(), which the import flow uses to read a ZIP.
+if (typeof Blob.prototype.arrayBuffer !== 'function') {
+  Blob.prototype.arrayBuffer = function (this: Blob): Promise<ArrayBuffer> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(this);
+    });
+  };
+}
 
 // Radix Select relies on pointer-capture and scrolling APIs that jsdom omits.
 HTMLElement.prototype.hasPointerCapture = () => false;

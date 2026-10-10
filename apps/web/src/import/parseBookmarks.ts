@@ -1,3 +1,4 @@
+import { unzipSync } from 'fflate';
 import { chunkBySize } from '../api/importSize';
 import type { ImportItem, ImportOrphanQuote, ImportQuote } from '../api/client';
 
@@ -124,6 +125,31 @@ export function parseNetscapeHtml(html: string): ParsedFile {
   return { items: [...byUrl.values()], nonWeb, duplicates };
 }
 
+/**
+ * A link's quotes ride on its item, up to the per-item cap and a byte budget;
+ * the rest go as further items with the same url, which the server merges
+ * (a text it already has is skipped, so nothing doubles).
+ */
+function withQuotes(
+  byUrl: Map<string, ImportItem>,
+  quotesByUrl: Map<string, ImportQuote[]>,
+): ImportItem[] {
+  const items: ImportItem[] = [];
+  for (const [url, item] of byUrl) {
+    const [first = [], ...rest] = chunkBySize(quotesByUrl.get(url) ?? [], QUOTES_PER_ITEM);
+    items.push({ ...item, ...(first.length === 0 ? {} : { quotes: first }) });
+    for (const chunk of rest) {
+      items.push({
+        url,
+        ...(item.title === undefined ? {} : { title: item.title }),
+        ...(item.folderPath === undefined ? {} : { folderPath: item.folderPath }),
+        quotes: chunk,
+      });
+    }
+  }
+  return items;
+}
+
 interface BackupLink {
   url?: unknown;
   title?: unknown;
@@ -149,9 +175,13 @@ export function parseBackupJson(text: string): ParsedFile {
     throw new UnsupportedFileError('That file is not valid JSON.');
   }
 
+  // A bare metadata_<n>_to_<m>.json from an Omnivore export: links and labels,
+  // no highlights (those are in the ZIP's highlights/ folder).
+  if (isOmnivoreMetadata(data)) return parseOmnivoreItems(data, new Map());
+
   const links = (data as { links?: unknown })?.links;
   if (!Array.isArray(links)) {
-    throw new UnsupportedFileError('That JSON file has no "links" array — is it a bukmark backup?');
+    throw new UnsupportedFileError('That JSON file has no "links" array — is it a bukmark backup or an Omnivore export?');
   }
 
   const byUrl = new Map<string, ImportItem>();
@@ -193,22 +223,7 @@ export function parseBackupJson(text: string): ParsedFile {
     });
   }
 
-  // A link's quotes ride on its item, up to the per-item cap and a byte budget;
-  // the rest go as further items with the same url, which the server merges
-  // (a text it already has is skipped, so nothing doubles).
-  const items: ImportItem[] = [];
-  for (const [url, item] of byUrl) {
-    const [first = [], ...rest] = chunkBySize(quotesByUrl.get(url) ?? [], QUOTES_PER_ITEM);
-    items.push({ ...item, ...(first.length === 0 ? {} : { quotes: first }) });
-    for (const chunk of rest) {
-      items.push({
-        url,
-        ...(item.title === undefined ? {} : { title: item.title }),
-        ...(item.folderPath === undefined ? {} : { folderPath: item.folderPath }),
-        quotes: chunk,
-      });
-    }
-  }
+  const items = withQuotes(byUrl, quotesByUrl);
 
   const rawOrphans = (data as { orphanQuotes?: unknown }).orphanQuotes;
   const orphanQuotes = Array.isArray(rawOrphans)
@@ -351,12 +366,220 @@ export function parseCSV(text: string): ParsedFile {
   return { items: [...byUrl.values()], nonWeb, duplicates };
 }
 
+/*
+ * Omnivore exports.
+ *
+ * Omnivore (shut down November 2024) exported a ZIP, written by
+ * packages/api/src/jobs/export.ts in omnivore-app/omnivore (and before that by
+ * packages/export-handler):
+ *   metadata_<from>_to_<to>.json   an array of up to 20 items each:
+ *     { id, slug, title, description, author, url, state, readingProgress,
+ *       thumbnail, labels: string[], savedAt, updatedAt, publishedAt }
+ *     state is 'Archived' | 'Active' | 'Unknown' (older exports:
+ *     'archived' | 'active')
+ *   content/<slug>.html or .pdf    the saved page, not read here
+ *   highlights/<slug>.md           the item's highlights, see below
+ */
+
+interface OmnivoreItem {
+  url?: unknown;
+  title?: unknown;
+  slug?: unknown;
+  labels?: unknown;
+}
+
+function isOmnivoreMetadata(data: unknown): data is OmnivoreItem[] {
+  if (!Array.isArray(data) || data.length === 0) return false;
+  return data.every(
+    (o) =>
+      typeof o === 'object' &&
+      o !== null &&
+      'url' in o &&
+      ('savedAt' in o || 'slug' in o),
+  );
+}
+
+/**
+ * One item's highlights file, as Omnivore's highlightToMarkdown wrote it: the
+ * highlights joined by a blank line, each one
+ *
+ *   > quote text, its later lines NOT prefixed, a blank line inside it as "> "
+ *   (blank line) #label #label        when the highlight had labels
+ *   (blank line) the note             when it had one; may run several paragraphs
+ *
+ * and a page note (no quote) as its bare text. The format has no delimiter
+ * between a highlight's note and a following page note, so a page note that
+ * comes after a highlight is read as part of that highlight's note; one before
+ * every highlight is dropped (bukmark's import takes no link notes).
+ */
+export function parseOmnivoreHighlights(markdown: string): ImportQuote[] {
+  const lines = markdown.replace(/\r\n?/g, '\n').split('\n');
+  const quotes: { text: string; notes: string[]; sawLabels: boolean }[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i]!;
+    if (line.startsWith('>')) {
+      // A quote runs until the first blank line: Omnivore turned blank lines
+      // inside it into "> ", so a real blank line is where it ends.
+      const quoteLines: string[] = [];
+      for (; i < lines.length && lines[i]!.trim() !== ''; i++) {
+        const l = lines[i]!;
+        if (quoteLines.length === 0) quoteLines.push(l.replace(/^>\s?/, ''));
+        else quoteLines.push(/^>\s*$/.test(l) ? '' : l);
+      }
+      quotes.push({ text: quoteLines.join('\n').trim(), notes: [], sawLabels: false });
+      continue;
+    }
+    if (line.trim() === '') {
+      i++;
+      continue;
+    }
+    // A paragraph after a quote: its labels line, or (part of) its note.
+    const para: string[] = [];
+    for (; i < lines.length && lines[i]!.trim() !== '' && !lines[i]!.startsWith('>'); i++) {
+      para.push(lines[i]!);
+    }
+    const current = quotes[quotes.length - 1];
+    if (!current) continue; // a page note before any highlight
+    const text = para.join('\n').trim();
+    if (current.notes.length === 0 && !current.sawLabels && para.length === 1 && /^#[^\s#]/.test(text)) {
+      current.sawLabels = true; // Omnivore's highlight labels, not the reader's words
+      continue;
+    }
+    current.notes.push(text);
+  }
+
+  return quotes.map(({ text, notes }) => ({
+    text,
+    ...(notes.length === 0 ? {} : { note: notes.join('\n\n') }),
+  }));
+}
+
+function parseOmnivoreItems(
+  data: OmnivoreItem[],
+  highlightsBySlug: Map<string, string>,
+): ParsedFile {
+  const byUrl = new Map<string, ImportItem>();
+  const quotesByUrl = new Map<string, ImportQuote[]>();
+  let nonWeb = 0;
+  let duplicates = 0;
+  let quotesNotRestored = 0;
+
+  const readHighlights = (slug: unknown): ImportQuote[] => {
+    const md = typeof slug === 'string' ? highlightsBySlug.get(slug) : undefined;
+    if (md === undefined) return [];
+    const raw = parseOmnivoreHighlights(md);
+    const ok = raw.map(readQuote).filter((q): q is ImportQuote => q !== null);
+    quotesNotRestored += raw.length - ok.length;
+    return ok;
+  };
+
+  for (const raw of data) {
+    const url = typeof raw?.url === 'string' ? raw.url.trim() : '';
+    if (!isWebUrl(url)) {
+      nonWeb += 1;
+      continue;
+    }
+    if (byUrl.has(url)) {
+      duplicates += 1;
+      quotesByUrl.get(url)!.push(...readHighlights(raw.slug));
+      continue;
+    }
+    const title = typeof raw.title === 'string' ? raw.title.trim() : '';
+    const labels = Array.isArray(raw.labels)
+      ? raw.labels.filter((l): l is string => typeof l === 'string' && l.trim() !== '')
+      : [];
+    quotesByUrl.set(url, readHighlights(raw.slug));
+    byUrl.set(url, {
+      url,
+      ...(title === '' ? {} : { title }),
+      // Labels are tags, so they become the same sorting hint a CSV's tags do.
+      ...(labels.length === 0 ? {} : { folderPath: `tags: ${labels.join(', ')}` }),
+    });
+  }
+
+  return {
+    items: withQuotes(byUrl, quotesByUrl),
+    nonWeb,
+    duplicates,
+    ...(quotesNotRestored === 0 ? {} : { quotesNotRestored }),
+  };
+}
+
+const METADATA_FILE = /(?:^|\/)metadata_\d+_to_\d+\.json$/;
+const HIGHLIGHTS_FILE = /(?:^|\/)highlights\/([^/]+)\.md$/;
+
+/**
+ * An Omnivore export ZIP. Only the metadata and highlights entries are
+ * inflated: content/ holds every saved page, often most of the archive's size,
+ * and nothing in it is imported. Entries may sit under a top-level folder, as
+ * when the export was unzipped and zipped again.
+ */
+export function parseOmnivoreZip(bytes: Uint8Array): ParsedFile {
+  let entries: Record<string, Uint8Array>;
+  try {
+    entries = unzipSync(bytes, {
+      filter: (f) => METADATA_FILE.test(f.name) || HIGHLIGHTS_FILE.test(f.name),
+    });
+  } catch {
+    throw new UnsupportedFileError('That ZIP file could not be read.');
+  }
+
+  const decoder = new TextDecoder();
+  const items: OmnivoreItem[] = [];
+  const highlightsBySlug = new Map<string, string>();
+  let metadataFiles = 0;
+  // Sorted so metadata_0_to_20 comes before metadata_20_to_40.
+  const names = Object.keys(entries).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+  for (const name of names) {
+    const text = decoder.decode(entries[name]);
+    const highlight = HIGHLIGHTS_FILE.exec(name);
+    if (highlight) {
+      highlightsBySlug.set(highlight[1]!, text);
+      continue;
+    }
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new UnsupportedFileError(`${name} in that ZIP is not valid JSON.`);
+    }
+    if (!Array.isArray(data)) {
+      throw new UnsupportedFileError(`${name} in that ZIP is not an Omnivore item list.`);
+    }
+    metadataFiles += 1;
+    items.push(...(data as OmnivoreItem[]));
+  }
+
+  if (metadataFiles === 0) {
+    throw new UnsupportedFileError(
+      'That ZIP has no metadata_*.json files — is it an Omnivore export?',
+    );
+  }
+  return parseOmnivoreItems(items, highlightsBySlug);
+}
+
 export function parseImportFile(filename: string, text: string): ParsedFile {
   const name = filename.toLowerCase();
   if (name.endsWith('.json')) return parseBackupJson(text);
   if (name.endsWith('.html') || name.endsWith('.htm')) return parseNetscapeHtml(text);
   if (name.endsWith('.csv')) return parseCSV(text);
   throw new UnsupportedFileError(
-    'Choose a bookmarks HTML file, a CSV file, or a bukmark JSON backup.',
+    'Choose a bookmarks HTML file, a CSV file, a bukmark JSON backup, or an Omnivore export ZIP.',
   );
+}
+
+export function isZipFile(filename: string): boolean {
+  return filename.toLowerCase().endsWith('.zip');
+}
+
+/**
+ * The entry point for a file read as bytes: a ZIP (an Omnivore export) is
+ * unpacked; any other file is decoded as UTF-8 text and parsed as
+ * parseImportFile would.
+ */
+export function parseImportBytes(filename: string, bytes: Uint8Array): ParsedFile {
+  if (isZipFile(filename)) return parseOmnivoreZip(bytes);
+  return parseImportFile(filename, new TextDecoder().decode(bytes));
 }

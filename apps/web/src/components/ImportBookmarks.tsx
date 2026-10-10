@@ -1,7 +1,12 @@
 import { useRef, useState, type ChangeEvent } from 'react';
 import { errorMessage } from '../api/client';
 import { useImportLinks } from '../api/queries';
-import { UnsupportedFileError, parseImportFile } from '../import/parseBookmarks';
+import {
+  UnsupportedFileError,
+  isZipFile,
+  parseImportBytes,
+  parseImportFile,
+} from '../import/parseBookmarks';
 
 interface Status {
   kind: 'reading' | 'importing' | 'done' | 'error';
@@ -26,8 +31,10 @@ export function ImportBookmarks({ buttonClass, statusClass, errorClass }: {
 
     setStatus({ kind: 'reading', message: `Reading ${file.name}…` });
     try {
-      const text = await file.text();
-      const parsed = parseImportFile(file.name, text);
+      // A ZIP (an Omnivore export) is read as bytes; every other format is text.
+      const parsed = isZipFile(file.name)
+        ? parseImportBytes(file.name, new Uint8Array(await file.arrayBuffer()))
+        : parseImportFile(file.name, await file.text());
       if (parsed.items.length === 0 && !parsed.orphanQuotes?.length) {
         setStatus({ kind: 'error', message: 'No web links in that file.' });
         return;
@@ -71,7 +78,7 @@ export function ImportBookmarks({ buttonClass, statusClass, errorClass }: {
       <input
         ref={fileInput}
         type="file"
-        accept=".html,.htm,.json,.csv,text/html,application/json,text/csv"
+        accept=".html,.htm,.json,.csv,.zip,text/html,application/json,text/csv,application/zip"
         hidden
         onChange={onFileChosen}
         data-testid="import-file"
