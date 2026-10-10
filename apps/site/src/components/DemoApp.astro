@@ -2,61 +2,15 @@
 // A working miniature of the web app for the landing page, in place of a
 // screenshot: same tokens, same sidebar-and-list shape, sample links from the
 // demo seed (apps/server/scripts/seedDemo.ts). It filters and switches views in
-// the browser; nothing is saved and nothing talks to a server.
+// the browser; nothing is saved and nothing talks to a server. The landing
+// page's Claude box drives it through two events on the root: `demo:show`
+// (detail: a hub to filter to) and `demo:assign` (detail: { url, hub }).
 //
 // Every item is rendered here at build time, so without JavaScript the full
 // list still shows -- the script only hides and reveals what is already there.
 
-interface DemoLink {
-	url: string;
-	title: string;
-	note: string;
-	hub?: string;
-}
+import { HUBS, LINKS } from './demoLinks';
 
-const LINKS: DemoLink[] = [
-	{ url: 'https://doc.rust-lang.org/book/', title: 'The Rust Programming Language', note: 'The book. Start at ch. 4 for ownership.', hub: 'rust' },
-	{ url: 'https://rust-lang.github.io/api-guidelines/', title: 'Rust API Guidelines', note: 'Naming conventions I keep forgetting.', hub: 'rust' },
-	{ url: 'https://tokio.rs/tokio/tutorial', title: 'Tokio Tutorial', note: 'Async runtime, worth doing end to end.', hub: 'rust' },
-	{ url: 'https://without.boats/blog/', title: 'without.boats', note: 'Async Rust design history from the inside.', hub: 'rust' },
-	{ url: 'https://doc.rust-lang.org/rust-by-example/', title: 'Rust by Example', note: 'Quick syntax lookups.', hub: 'rust' },
-	{ url: 'https://doc.rust-lang.org/nomicon/', title: 'The Rustonomicon', note: 'Unsafe Rust. Read slowly.', hub: 'rust' },
-	{ url: 'https://tailscale.com/kb/1017/install/', title: 'Tailscale install docs', note: 'Tailnet setup for the homelab.', hub: 'homelab' },
-	{ url: 'https://docs.docker.com/compose/compose-file/', title: 'Compose file reference', note: 'Healthcheck syntax, every single time.', hub: 'homelab' },
-	{ url: 'https://pve.proxmox.com/wiki/Main_Page', title: 'Proxmox VE Wiki', note: 'VM passthrough notes.', hub: 'homelab' },
-	{ url: 'https://wiki.archlinux.org/title/Systemd', title: 'systemd — ArchWiki', note: 'Unit files, the good reference.', hub: 'homelab' },
-	{ url: 'https://caddyserver.com/docs/caddyfile', title: 'Caddyfile docs', note: 'Reverse proxy config.', hub: 'homelab' },
-	{ url: 'https://docs.pi-hole.net/', title: 'Pi-hole documentation', note: 'DNS for the whole network.', hub: 'homelab' },
-	{ url: 'https://restic.readthedocs.io/en/stable/', title: 'restic documentation', note: 'Backups offsite, and the prune policy.', hub: 'homelab' },
-	{ url: 'https://www.home-assistant.io/docs/', title: 'Home Assistant docs', note: 'Automations, in YAML.', hub: 'homelab' },
-	{ url: 'https://docs.syncthing.net/', title: 'Syncthing docs', note: 'Ignore patterns.', hub: 'homelab' },
-	{ url: 'https://www.postgresql.org/docs/current/indexes.html', title: 'PostgreSQL: Indexes', note: 'Partial indexes section is the useful bit.', hub: 'postgres' },
-	{ url: 'https://use-the-index-luke.com/', title: 'Use The Index, Luke!', note: 'Best SQL indexing explainer there is.', hub: 'postgres' },
-	{ url: 'https://www.postgresql.org/docs/current/textsearch.html', title: 'PostgreSQL: Full Text Search', note: 'tsvector and ranking.', hub: 'postgres' },
-	{ url: 'https://github.com/pgvector/pgvector', title: 'pgvector', note: 'Embeddings in Postgres, no extra service.', hub: 'postgres' },
-	{ url: 'https://explain.depesz.com/', title: 'explain.depesz.com', note: 'Paste a plan, see where the time goes.', hub: 'postgres' },
-	{ url: 'https://practicaltypography.com/', title: "Butterick's Practical Typography", note: 'Read the summary of key rules.', hub: 'design' },
-	{ url: 'https://www.refactoringui.com/', title: 'Refactoring UI', note: 'Spacing and hierarchy, mostly.', hub: 'design' },
-	{ url: 'https://inclusive-components.design/', title: 'Inclusive Components', note: 'Accessible patterns worth copying.', hub: 'design' },
-	{ url: 'https://www.nngroup.com/articles/ten-usability-heuristics/', title: 'Ten Usability Heuristics', note: 'The checklist that still holds up.', hub: 'design' },
-	{ url: 'https://every-layout.dev/', title: 'Every Layout', note: 'Layouts without breakpoints.', hub: 'design' },
-	{ url: 'https://type-scale.com/', title: 'Type Scale', note: 'Pick a ratio, stop guessing.', hub: 'design' },
-	{ url: 'https://danluu.com/', title: 'Dan Luu', note: 'Long posts, high signal.', hub: 'reading' },
-	{ url: 'https://www.joelonsoftware.com/2000/04/06/things-you-should-never-do-part-i/', title: 'Things You Should Never Do, Part I', note: 'On rewrites. Reread before proposing one.', hub: 'reading' },
-	{ url: 'https://www.hillelwayne.com/post/', title: 'Hillel Wayne', note: 'Formal methods, made approachable.', hub: 'reading' },
-	{ url: 'https://apenwarr.ca/log/', title: 'apenwarr', note: 'Networking and org design.', hub: 'reading' },
-	{ url: 'https://lethain.com/', title: 'Irrational Exuberance', note: 'Engineering strategy, written down.', hub: 'reading' },
-	// Unsorted on purpose: this pile is what the section is about.
-	{ url: 'https://modelcontextprotocol.io/docs', title: 'Model Context Protocol', note: 'Tool schema reference.' },
-	{ url: 'https://orm.drizzle.team/docs/overview', title: 'Drizzle ORM', note: 'Migration workflow.' },
-	{ url: 'https://fastify.dev/docs/latest/', title: 'Fastify docs', note: 'Plugin encapsulation rules.' },
-	{ url: 'https://astro.build/blog/', title: 'Astro Blog', note: 'Content layer changes.' },
-	{ url: 'https://developers.cloudflare.com/pages/', title: 'Cloudflare Pages', note: 'Direct upload with wrangler.' },
-	{ url: 'https://sqlite.org/whentouse.html', title: 'When To Use SQLite', note: 'Honest about its limits.' },
-	{ url: 'https://jvns.ca/', title: 'Julia Evans', note: 'Debugging zines.' },
-];
-
-const HUBS = ['rust', 'homelab', 'postgres', 'design', 'reading'];
 const count = (hub?: string) => LINKS.filter((l) => l.hub === hub).length;
 const host = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 ---
@@ -103,7 +57,7 @@ const host = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 		<ul class="demo__items">
 			{
 				LINKS.map((l) => (
-					<li class="demo__item" data-hub={l.hub ?? 'unsorted'} data-text={`${l.title} ${l.note} ${host(l.url)}`.toLowerCase()}>
+					<li class="demo__item" data-url={l.url} data-hub={l.hub ?? 'unsorted'} data-text={`${l.title} ${l.note} ${host(l.url)}`.toLowerCase()}>
 						<a href={l.url} target="_blank" rel="noopener noreferrer">
 							{l.title}
 						</a>
@@ -123,9 +77,8 @@ const host = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 <script>
 	for (const root of document.querySelectorAll<HTMLElement>('[data-demo]')) {
 		const items = [...root.querySelectorAll<HTMLElement>('.demo__item')];
-		const hubButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-hub]')].filter(
-			(el) => el.tagName === 'BUTTON',
-		);
+		const hubList = root.querySelector<HTMLUListElement>('.demo__hubs')!;
+		const hubButtons = () => [...hubList.querySelectorAll<HTMLButtonElement>('button[data-hub]')];
 		const viewButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-view-btn]')];
 		const search = root.querySelector<HTMLInputElement>('[data-search]')!;
 		const countEl = root.querySelector<HTMLElement>('[data-count]')!;
@@ -142,16 +95,42 @@ const host = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 				if (match) shown += 1;
 			}
 			countEl.textContent = `${shown} ${shown === 1 ? 'link' : 'links'}`;
+			empty.textContent = hub === 'unsorted' && q === '' ? 'Nothing left to sort.' : 'No links match.';
 			empty.hidden = shown !== 0;
 		};
 
-		for (const btn of hubButtons) {
-			btn.addEventListener('click', () => {
-				hub = btn.dataset.hub!;
-				for (const b of hubButtons) b.setAttribute('aria-pressed', String(b === btn));
-				apply();
-			});
-		}
+		const select = (name: string) => {
+			hub = name;
+			for (const b of hubButtons()) b.setAttribute('aria-pressed', String(b.dataset.hub === name));
+			apply();
+		};
+
+		const recount = () => {
+			for (const b of hubButtons()) {
+				const name = b.dataset.hub;
+				const n = name === 'all' ? items.length : items.filter((i) => i.dataset.hub === name).length;
+				b.querySelector('span')!.textContent = String(n);
+			}
+		};
+
+		// A hub the sort creates gets its own button, like any other. Cloned, not
+		// built, so it carries the attributes Astro's scoped styles match on.
+		const ensureHub = (name: string) => {
+			if (hubButtons().some((b) => b.dataset.hub === name)) return;
+			const li = hubList.lastElementChild!.cloneNode(true) as HTMLLIElement;
+			const btn = li.querySelector('button')!;
+			const count = btn.querySelector('span')!;
+			btn.dataset.hub = name;
+			btn.setAttribute('aria-pressed', 'false');
+			btn.replaceChildren(`${name} `, count);
+			li.classList.add('is-new');
+			hubList.append(li);
+		};
+
+		hubList.addEventListener('click', (event) => {
+			const btn = (event.target as Element).closest<HTMLButtonElement>('button[data-hub]');
+			if (btn) select(btn.dataset.hub!);
+		});
 		for (const btn of viewButtons) {
 			btn.addEventListener('click', () => {
 				root.dataset.view = btn.dataset.viewBtn!;
@@ -159,6 +138,38 @@ const host = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 			});
 		}
 		search.addEventListener('input', apply);
+
+		root.addEventListener('demo:show', (event) => select((event as CustomEvent<string>).detail));
+		root.addEventListener('demo:assign', (event) => {
+			const { url, hub: to } = (event as CustomEvent<{ url: string; hub: string }>).detail;
+			const item = items.find((i) => i.dataset.url === url);
+			if (!item) return;
+			ensureHub(to);
+			item.dataset.hub = to;
+			const tag = item.querySelector('.demo__tag')!;
+			tag.textContent = to;
+			tag.classList.remove('demo__tag--open');
+			item.classList.add('is-moved');
+			recount();
+			// Let the new tag show for a moment before the filter takes it away.
+			setTimeout(apply, 650);
+		});
+
+		// The page scrolls past the demo until all of it is on screen; only then
+		// do its sidebar and list take the wheel. Otherwise a scroll that passes
+		// over it gets stuck in the list.
+		if ('IntersectionObserver' in window) {
+			root.classList.add('is-held');
+			const thresholds = Array.from({ length: 21 }, (_, i) => i / 20).concat(0.98, 0.99);
+			new IntersectionObserver(
+				([entry]) => {
+					const needed = Math.min(entry.boundingClientRect.height, window.innerHeight) - 4;
+					root.classList.toggle('is-held', entry.intersectionRect.height < needed);
+				},
+				{ threshold: thresholds },
+			).observe(root);
+		}
+
 		root.classList.add('is-live');
 	}
 </script>
@@ -322,6 +333,24 @@ const host = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 	.demo a:focus-visible {
 		outline: 2px solid var(--bk-accent);
 		outline-offset: 2px;
+	}
+
+	.demo.is-held :is(.demo__side, .demo__items) {
+		overflow-y: hidden;
+		overscroll-behavior: auto;
+	}
+
+	/* A link the sort just filed, and a hub it just made. */
+	.demo__item.is-moved .demo__tag,
+	.demo__hubs .is-new button {
+		animation: demo-filed 1.4s var(--bk-ease-out);
+	}
+
+	@keyframes demo-filed {
+		from {
+			border-color: var(--bk-accent);
+			background: color-mix(in srgb, var(--bk-accent) 18%, transparent);
+		}
 	}
 
 	/* ---- Items: list ---- */

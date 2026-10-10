@@ -2,6 +2,7 @@
 // The landing page is intentionally independent from Starlight's docs layout.
 import '../styles/custom.css';
 import DemoApp from '../components/DemoApp.astro';
+import { HUBS, LINKS } from '../components/demoLinks';
 import StudioBar from '../components/StudioBar.astro';
 
 // What a shared link to the landing page shows: the promise, then what it is.
@@ -41,6 +42,14 @@ const CHANNELS = [
 ];
 // The hero shows one way in: the quickest one that works today.
 const CHANNEL = CHANNELS.find((c) => c.live)!;
+
+// What the Claude box proposes: every unsorted demo link and where it goes.
+const PROPOSALS = LINKS.filter((l) => l.sortTo).map((l) => ({
+	url: l.url,
+	title: l.title,
+	hub: l.sortTo!,
+	isNew: !HUBS.includes(l.sortTo!),
+}));
 ---
 
 <!doctype html>
@@ -175,6 +184,23 @@ const CHANNEL = CHANNELS.find((c) => c.live)!;
 				<div class="frame">
 					<header class="product-view__intro">
 						<h2>unsorted is a feature.</h2>
+						<div class="install-command ask" data-ask>
+							<div class="install__bar">
+								<span class="install__label">Claude Code</span>
+								<button type="button" class="ask__play" aria-label="Run: sort my unsorted links" data-ask-play>
+									<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+										<path d="M4.5 2.75v10.5L13 8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+									</svg>
+								</button>
+							</div>
+							<pre class="install__code ask__log"><code><span class="install__line"><span class="install__prompt" aria-hidden="true">&gt; </span>sort my unsorted bukmark links<span class="ask__caret" aria-hidden="true"></span></span><span class="ask__hint" aria-hidden="true"><span class="ask__hint-key">press ↵ to send</span><span class="ask__hint-tap">tap ▷ to send</span></span>
+<span class="ask__step" data-step="500"><span class="ask__dot">⏺</span> bukmark · list_unsorted</span><span class="ask__step ask__out" data-step="700">  └ {PROPOSALS.length} links</span><span class="ask__step" data-step="300"><span class="ask__dot">⏺</span> bukmark · list_hubs</span><span class="ask__step ask__out" data-step="600">  └ {HUBS.join(', ')}</span>
+<span class="ask__step" data-step="500">Here's where they fit:</span>{PROPOSALS.map((p) => (
+	<span class="ask__step ask__row" data-step="140" data-url={p.url} data-hub={p.hub}><span class="ask__title">{p.title}</span><span class="ask__to"><span class="ask__arrow">→</span> {p.hub}{p.isNew && <span class="ask__new"> new</span>}</span></span>
+))}
+<span class="ask__step" data-step="400">File all {PROPOSALS.length}?</span><span class="ask__step install__line" data-step="700"><span class="install__prompt" aria-hidden="true">&gt; </span>yes</span>
+<span class="ask__step" data-step="400" data-assign><span class="ask__dot">⏺</span> bukmark · assign_hubs</span><span class="ask__step ask__out" data-step="300" role="status">  └ ✓ {PROPOSALS.length} links sorted</span></code></pre>
+						</div>
 					</header>
 					<DemoApp />
 				</div>
@@ -239,6 +265,60 @@ const CHANNEL = CHANNELS.find((c) => c.live)!;
 			}
 			const targets = document.querySelectorAll<HTMLElement>('.reveal');
 			const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+			// Claude box: a scripted run of the MCP sort. Enter (once, while the box
+			// is on screen and nothing else has focus) or the play button starts it;
+			// the demo app below files the links as Claude does.
+			const ask = document.querySelector<HTMLElement>('[data-ask]');
+			const demo = document.querySelector<HTMLElement>('[data-demo]');
+			if (ask && demo) {
+				const steps = [...ask.querySelectorAll<HTMLElement>('[data-step]')];
+				const rows = steps.filter((step) => step.dataset.url);
+				const play = ask.querySelector<HTMLButtonElement>('[data-ask-play]')!;
+				const wait = (ms: number) => new Promise((done) => setTimeout(done, reducedMotion ? 0 : ms));
+				let onScreen = false;
+				let started = false;
+
+				const run = async () => {
+					if (started) return;
+					started = true;
+					document.removeEventListener('keydown', onKey);
+					ask.dataset.state = 'running';
+					play.disabled = true;
+					demo.dispatchEvent(new CustomEvent('demo:show', { detail: 'unsorted' }));
+					for (const step of steps) {
+						await wait(Number(step.dataset.step));
+						step.classList.add('is-shown');
+						if (step.dataset.assign === undefined) continue;
+						for (const row of rows) {
+							await wait(260);
+							demo.dispatchEvent(
+								new CustomEvent('demo:assign', { detail: { url: row.dataset.url, hub: row.dataset.hub } }),
+							);
+						}
+					}
+					ask.dataset.state = 'done';
+				};
+
+				const onKey = (event: KeyboardEvent) => {
+					if (!onScreen || event.key !== 'Enter' || event.repeat || event.isComposing || event.defaultPrevented) return;
+					if ((event.target as Element).closest('a, button, input, textarea, select, summary, [contenteditable]')) return;
+					event.preventDefault();
+					void run();
+				};
+
+				play.addEventListener('click', () => void run());
+				document.addEventListener('keydown', onKey);
+				if ('IntersectionObserver' in window) {
+					new IntersectionObserver(
+						([entry]) => {
+							onScreen = entry.isIntersecting;
+						},
+						{ threshold: 0.6 },
+					).observe(ask);
+				}
+				ask.classList.add('is-live');
+			}
 			if (reducedMotion || !('IntersectionObserver' in window)) {
 				targets.forEach((target) => target.classList.add('is-visible'));
 			} else {
@@ -448,6 +528,55 @@ const CHANNEL = CHANNELS.find((c) => c.live)!;
 			.install__copy:hover { background: transparent; color: #0e0f13; }
 			.install__copy[data-copied] { background: #fbf7f3; color: #0e0f13; }
 			.install__copy:focus-visible { outline: 2px solid #0e0f13; outline-offset: 2px; }
+			/* The Claude box: the install card's frame around a scripted Claude Code
+			   session. Without JavaScript the whole transcript shows. */
+			.product-view .product-view__intro h2 { grid-column: 1 / 7; }
+			.ask { grid-column: 7 / -1; }
+			.ask__play {
+				display: grid;
+				place-items: center;
+				width: 2.5rem;
+				height: 2.5rem;
+				padding: 0;
+				border: 0;
+				background: none;
+				color: #0e0f13;
+				opacity: 0.6;
+				cursor: pointer;
+				transition: opacity var(--bk-dur-micro) var(--bk-ease-out);
+			}
+			.ask__play:hover { opacity: 1; }
+			.ask__play:focus-visible { outline: 2px solid #0e0f13; outline-offset: 2px; }
+			.ask__play:disabled { visibility: hidden; }
+			.ask__log { min-height: 0; }
+			.ask__step,
+			.ask__hint { display: block; }
+			.ask__out,
+			.ask__hint { color: var(--bk-muted); }
+			.ask__dot,
+			.ask__arrow { color: var(--bk-accent); }
+			.ask__row { display: grid; grid-template-columns: minmax(0, 24ch) auto; justify-content: start; gap: var(--bk-space-md); padding-left: 2ch; }
+			.ask__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+			.ask__new { color: var(--bk-muted); }
+			.ask__caret {
+				display: inline-block;
+				width: 0.55em;
+				height: 1.1em;
+				margin-left: 0.15em;
+				vertical-align: -0.2em;
+				background: var(--bk-accent);
+				animation: ask-blink 1.1s steps(1) infinite;
+			}
+			@keyframes ask-blink { 50% { opacity: 0; } }
+			.ask__hint-tap { display: none; }
+			@media (hover: none) {
+				.ask__hint-key { display: none; }
+				.ask__hint-tap { display: inline; }
+			}
+			.ask:not(.is-live) :is(.ask__hint, .ask__play, .ask__caret) { display: none; }
+			.ask.is-live .ask__step:not(.is-shown) { visibility: hidden; }
+			.ask[data-state] .ask__caret { display: none; }
+			.ask[data-state] .ask__hint { visibility: hidden; }
 			.workflow,
 			.product-view,
 			.closing { padding: clamp(5rem, 10vw, 10rem) clamp(1.25rem, 4vw, 4rem); }
@@ -549,6 +678,7 @@ const CHANNEL = CHANNELS.find((c) => c.live)!;
 				.site-footer__grid { display: block; }
 				.hero__intro,
 				.install-command,
+				.ask,
 				.section-heading h2,
 				.product-view__intro h2,
 				.workflow__item h3,
@@ -562,6 +692,7 @@ const CHANNEL = CHANNELS.find((c) => c.live)!;
 				.button-row { flex-direction: column; }
 				.section-heading h2,
 				.product-view__intro h2 { font-size: clamp(3rem, 15vw, 5.25rem); }
+				.ask { margin-top: var(--bk-space-2xl); }
 				.workflow__item h3 { margin-bottom: var(--bk-space-xl); font-size: clamp(2.75rem, 13vw, 4.5rem); }
 				.closing h2 { margin-bottom: var(--bk-space-2xl); font-size: clamp(3rem, 14vw, 5rem); }
 				.site-footer__details { align-items: flex-start; margin-top: var(--bk-space-2xl); text-align: left; }
@@ -570,6 +701,7 @@ const CHANNEL = CHANNELS.find((c) => c.live)!;
 			@media (prefers-reduced-motion: reduce) {
 				html { scroll-behavior: auto; }
 				*, *::before, *::after { transition-duration: 0.01ms !important; }
+				.ask__caret { animation: none; }
 				.js .reveal { opacity: 1; transform: none; }
 			}
 			/* Printing never scrolls, so the observer that clears .reveal never
