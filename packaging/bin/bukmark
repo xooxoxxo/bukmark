@@ -10,7 +10,7 @@
 # Docs: https://bukmark.it/docs/install/
 set -eu
 
-BUKMARK_CLI_VERSION=0.4.0
+BUKMARK_CLI_VERSION=0.4.1
 
 DEFAULT_IMAGE=ghcr.io/xooxoxxo/bukmark
 DB_IMAGE=pgvector/pgvector:pg17
@@ -725,10 +725,13 @@ cmd_rollback() {
   dc up -d --wait db ||
     die "The database did not start, so it was not restored. bukmark is stopped; start it again: bukmark start"
   say "Restoring the database from $dump..."
-  # An emptied schema first: pg_restore into tables the newer version changed
-  # would fail or mix the two. --exit-on-error stops at the first problem.
+  # Emptied schemas first: pg_restore into tables the newer version changed
+  # would fail or mix the two. That includes drizzle, where the server records
+  # the migrations it applied: the dump brings back the older list, so the
+  # newer version's migrations run again on the next update.
+  # --exit-on-error stops at the first problem.
   # shellcheck disable=SC2016 # expands inside the container
-  if ! dc exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -q -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"' ||
+  if ! dc exec -T db sh -c 'PGOPTIONS="-c client_min_messages=warning" psql -v ON_ERROR_STOP=1 -q -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "DROP SCHEMA IF EXISTS drizzle CASCADE; DROP SCHEMA public CASCADE; CREATE SCHEMA public;"' ||
     ! dc exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --exit-on-error' <"$dump"; then
     die "Restoring the database failed (see above). bukmark is stopped, so nothing more is changed. The backup is still in $dump"
   fi

@@ -555,7 +555,7 @@ logs -f" ]
   cmp "$FAKE_LOG.restored" "$dump"
   run compose_calls
   calls=$(printf '%s|' "${lines[@]}")
-  [[ $calls == *"|stop app|up -d --wait db|exec -T db sh -c psql -v ON_ERROR_STOP=1 -q -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"DROP SCHEMA public CASCADE; CREATE SCHEMA public;\"|exec -T db sh -c pg_restore -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --no-owner --exit-on-error|up -d --remove-orphans|"* ]]
+  [[ $calls == *"|stop app|up -d --wait db|exec -T db sh -c PGOPTIONS=\"-c client_min_messages=warning\" psql -v ON_ERROR_STOP=1 -q -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"DROP SCHEMA IF EXISTS drizzle CASCADE; DROP SCHEMA public CASCADE; CREATE SCHEMA public;\"|exec -T db sh -c pg_restore -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --no-owner --exit-on-error|up -d --remove-orphans|"* ]]
   # The older image is fetched before anything is stopped.
   [[ $calls == "pull|"*"stop app"* ]]
   grep -q '^curl .*/healthz$' "$FAKE_LOG"
