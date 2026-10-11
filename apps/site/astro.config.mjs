@@ -23,8 +23,12 @@ export default defineConfig({
         { icon: 'github', label: 'GitHub', href: 'https://github.com/xooxoxxo/bukmark' },
       ],
       customCss: ['./src/styles/custom.css'],
-      // The default page frame plus the studio bar (src/components/StudioBar.astro).
-      components: { PageFrame: './src/components/PageFrame.astro' },
+      // The default page frame plus the studio bar (src/components/StudioBar.astro),
+      // and the landing page's light/dark toggle in place of the theme menu.
+      components: {
+        PageFrame: './src/components/PageFrame.astro',
+        ThemeSelect: './src/components/ThemeToggle.astro',
+      },
       // Fetched with the page rather than found later inside the stylesheet,
       // so the first paint already has them (see the @font-face rules).
       head: ['geist-latin'].map((font) => ({

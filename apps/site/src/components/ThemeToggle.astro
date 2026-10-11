@@ -1,0 +1,153 @@
+---
+// The light/dark switch, on the landing page and in the docs header (where it
+// replaces Starlight's theme menu). A square thumb slides across a square
+// track and flips from sun to moon. Its position comes from <html
+// data-theme>, which a head script sets before the first paint, so it never
+// animates on load. It writes Starlight's own key, so both halves agree.
+
+const sun = (
+	'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>'
+);
+const moon = '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/>';
+---
+
+<button type="button" class="theme-toggle" role="switch" aria-checked="false" aria-label="Dark theme" data-theme-toggle>
+	<span class="theme-toggle__hint theme-toggle__hint--sun" aria-hidden="true">
+		<svg viewBox="0 0 24 24" set:html={sun} />
+	</span>
+	<span class="theme-toggle__hint theme-toggle__hint--moon" aria-hidden="true">
+		<svg viewBox="0 0 24 24" set:html={moon} />
+	</span>
+	<span class="theme-toggle__thumb" aria-hidden="true">
+		<span class="theme-toggle__flip">
+			<span class="theme-toggle__face"><svg viewBox="0 0 24 24" set:html={sun} /></span>
+			<span class="theme-toggle__face theme-toggle__face--back"><svg viewBox="0 0 24 24" set:html={moon} /></span>
+		</span>
+	</span>
+</button>
+
+<script>
+	const root = document.documentElement;
+	const toggles = [...document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]')];
+	const show = () => {
+		for (const t of toggles) t.setAttribute('aria-checked', String(root.dataset.theme === 'dark'));
+	};
+	for (const toggle of toggles) {
+		toggle.addEventListener('click', () => {
+			const theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+			root.dataset.theme = theme;
+			try {
+				localStorage.setItem('starlight-theme', theme);
+			} catch {
+				// Private mode: the choice lasts for this page only.
+			}
+			show();
+		});
+	}
+	show();
+</script>
+
+<style>
+	.theme-toggle {
+		--h: 2.75rem;
+		--w: 4.75rem;
+		--gap: 4px;
+		position: relative;
+		flex-shrink: 0;
+		width: var(--w);
+		height: var(--h);
+		padding: 0;
+		border: 2px solid var(--bk-ink);
+		background: var(--bk-paper);
+		color: var(--bk-ink);
+		cursor: pointer;
+		transition: border-color var(--bk-dur-micro) var(--bk-ease-out);
+	}
+
+	.theme-toggle:hover {
+		border-color: var(--bk-accent);
+	}
+
+	.theme-toggle:focus-visible {
+		outline: 2px solid var(--bk-accent);
+		outline-offset: 3px;
+	}
+
+	svg {
+		display: block;
+		width: 1.05rem;
+		height: 1.05rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: square;
+		stroke-linejoin: miter;
+	}
+
+	/* Both icons sit faintly in the track; the thumb covers the current one. */
+	.theme-toggle__hint {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		display: grid;
+		place-items: center;
+		width: calc(var(--h) - 4px);
+		color: var(--bk-neutral);
+	}
+
+	.theme-toggle__hint--sun {
+		left: 0;
+	}
+
+	.theme-toggle__hint--moon {
+		right: 0;
+	}
+
+	.theme-toggle__thumb {
+		position: absolute;
+		top: var(--gap);
+		left: var(--gap);
+		width: calc(var(--h) - 4px - 2 * var(--gap));
+		height: calc(var(--h) - 4px - 2 * var(--gap));
+		perspective: 12rem;
+		transition: transform 320ms var(--bk-ease-out);
+	}
+
+	.theme-toggle__flip {
+		position: relative;
+		display: block;
+		width: 100%;
+		height: 100%;
+		transform-style: preserve-3d;
+		transition: transform 320ms var(--bk-ease-out);
+	}
+
+	.theme-toggle__face {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		background: var(--bk-ink);
+		color: var(--bk-paper);
+		backface-visibility: hidden;
+	}
+
+	.theme-toggle__face--back {
+		transform: rotateY(180deg);
+	}
+
+	:global(:root[data-theme='dark']) .theme-toggle__thumb {
+		transform: translateX(calc(var(--w) - var(--h)));
+	}
+
+	:global(:root[data-theme='dark']) .theme-toggle__flip {
+		transform: rotateY(180deg);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.theme-toggle__thumb,
+		.theme-toggle__flip {
+			transition: none;
+		}
+	}
+</style>
