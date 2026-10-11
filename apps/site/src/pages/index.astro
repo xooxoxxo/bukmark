@@ -231,7 +231,7 @@ const GROUPS = [...new Set(PROPOSALS.map((p) => p.hub))].map((hub) => ({
 					<p>Self-hosted bookmark triage. Open source and built to leave.</p>
 				</div>
 				<div class="site-footer__details">
-					<p>Postgres · Docker · MCP</p>
+					<StudioCredit />
 					<p>
 						<a href="https://github.com/xooxoxxo/bukmark">GitHub</a>
 						<a href="https://github.com/xooxoxxo/bukmark/blob/main/LICENSE">MIT license</a>
@@ -239,9 +239,6 @@ const GROUPS = [...new Set(PROPOSALS.map((p) => p.hub))].map((hub) => ({
 						<a href="/docs/privacy/">Privacy</a>
 					</p>
 				</div>
-			</div>
-			<div class="frame site-footer__credit">
-				<StudioCredit />
 			</div>
 		</footer>
 
@@ -668,7 +665,6 @@ const GROUPS = [...new Set(PROPOSALS.map((p) => p.hub))].map((hub) => ({
 			.site-footer { padding: clamp(3rem, 6vw, 6rem) clamp(1.25rem, 4vw, 4rem); }
 			.site-footer__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--bk-space-2xl); }
 			.brand--footer { margin-bottom: var(--bk-space-lg); }
-			.site-footer__credit { margin-top: var(--bk-space-2xl); }
 			.site-footer p { margin: 0; max-width: 42ch; color: var(--bk-muted); font-size: var(--bk-text-sm); }
 			.site-footer__details { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; text-align: right; }
 			.site-footer__details p:last-child { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--bk-space-lg); }
