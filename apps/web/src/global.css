@@ -98,26 +98,39 @@
 
 * {
   box-sizing: border-box;
-  scrollbar-color: var(--bk-accent) transparent;
-  scrollbar-width: thin;
+}
+
+/* Scrollbars: a square accent block, flush with its edge. Chromium (121+)
+   drops the ::-webkit-scrollbar rules below for its own thin, rounded overlay
+   thumb as soon as scrollbar-width or scrollbar-color is set, so those two are
+   only for browsers without the pseudo-elements (Firefox). */
+:root {
+  --bk-scrollbar-size: 0.875rem;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-color: var(--bk-accent) transparent;
+    scrollbar-width: auto;
+  }
 }
 
 *::-webkit-scrollbar {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: var(--bk-scrollbar-size);
+  height: var(--bk-scrollbar-size);
 }
 
 *::-webkit-scrollbar-track,
 *::-webkit-scrollbar-corner {
+  border-radius: 0;
   background: transparent;
 }
 
 *::-webkit-scrollbar-thumb {
   min-height: 2.5rem;
-  border: 2px solid transparent;
+  border: 0;
   border-radius: 0;
   background: var(--bk-accent);
-  background-clip: padding-box;
   box-shadow: inset -2px -2px 0 var(--bk-ink);
 }
 

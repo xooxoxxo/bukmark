@@ -20,7 +20,13 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 0 clamp(1rem, 2.5vw, 2.5rem);
+  /* The page scrollers run out through this padding to the window edge, so
+     their scrollbars sit on it. They keep a gutter for the scrollbar and pad
+     the rest, so their content ends where this padding does, scrollbar or not. */
+  --scroll-bleed: clamp(1rem, 2.5vw, 2.5rem);
+  --scroll-pad: calc(var(--scroll-bleed) - var(--bk-scrollbar-size));
+  --scroll-gutter: stable;
+  padding: 0 var(--scroll-bleed);
 }
 
 @media (max-width: 56rem) {
@@ -38,6 +44,9 @@
   }
 
   .content {
+    --scroll-bleed: 0px;
+    --scroll-pad: 0px;
+    --scroll-gutter: auto;
     min-height: 60dvh;
     padding-inline: var(--bk-space-md);
   }

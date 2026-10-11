@@ -2,6 +2,11 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Out to the window edge, so the scrollbar sits on it; the content keeps
+     its inset. The variables are set by Layout's .content. */
+  margin-right: calc(-1 * var(--scroll-bleed, 0px));
+  padding-right: var(--scroll-pad, 0px);
+  scrollbar-gutter: var(--scroll-gutter, auto);
 }
 
 .virtualRow {

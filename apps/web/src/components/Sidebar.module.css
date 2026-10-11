@@ -40,10 +40,14 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  /* Room for the items' active border, which sits 2px left of the column. */
-  margin: var(--bk-space-xs) 0 0 -2px;
-  padding: var(--bk-space-xs) 0 0 2px;
-  border-top: 1px solid var(--bk-rule);
+  /* Room for the items' active border, which sits 2px left of the column.
+     On the right it runs out through the sidebar's padding to its border, so
+     the scrollbar sits on that edge, in a gutter kept for it; the rule on top
+     is drawn as a background so it still stops where the column does. */
+  margin: var(--bk-space-xs) calc(-1 * var(--bk-space-md)) 0 -2px;
+  padding: calc(var(--bk-space-xs) + 1px) calc(var(--bk-space-md) - var(--bk-scrollbar-size)) 0 2px;
+  scrollbar-gutter: stable;
+  background: linear-gradient(var(--bk-rule), var(--bk-rule)) top left / calc(100% - var(--bk-space-md)) 1px no-repeat border-box;
   list-style: none;
 }
 
@@ -164,6 +168,10 @@
     display: grid;
     flex: none;
     overflow: visible;
+    margin-right: 0;
+    padding-right: 0;
+    scrollbar-gutter: auto;
+    background-size: 100% 1px;
     grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
     gap: 0 var(--bk-space-xs);
   }
