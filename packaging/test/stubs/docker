@@ -9,6 +9,12 @@
 #   FAKE_PULL_FAILS     docker compose pull fails
 #   FAKE_PULL_NEW       docker compose pull brings a new app image
 #   FAKE_NO_IMAGES      no image is on this machine
+#   FAKE_DUMP_FAILS     pg_dump in the db container fails
+#   FAKE_DUMP_EMPTY     pg_dump writes a dump pg_restore cannot read
+#   FAKE_RESTORE_FAILS  pg_restore in the db container fails
+# FAKE_APP_VERSION is the app image's version label (default 0.3.0; set it
+# empty for an image without one). A restore copies its input to
+# $FAKE_LOG.restored.
 printf 'docker %s\n' "$*" >>"${FAKE_LOG:?}"
 # The CLI must hand compose its .env alone, not the caller's environment.
 if [ -n "${PORT+x}" ] || [ -n "${POSTGRES_PASSWORD+x}" ]; then
@@ -31,9 +37,10 @@ case ${1:-} in
   volume)
     [ "${FAKE_OLD_VOLUME:-}" = 1 ] || exit 1
     ;;
-  image)
+  image | inspect)
     [ "${FAKE_NO_IMAGES:-}" != 1 ] || exit 1
     case "$*" in
+      *image.version*) echo "${FAKE_APP_VERSION-0.3.0}" ;;
       *--format*) if [ -f "$image_id" ]; then cat "$image_id"; else echo sha256:1111; fi ;;
     esac
     ;;
@@ -57,6 +64,21 @@ case ${1:-} in
         case "$*" in
           *-q*) if [ "${FAKE_RUNNING:-}" = 1 ]; then echo 0123456789ab; fi ;;
           *) echo "NAME            IMAGE     SERVICE   STATUS" ;;
+        esac
+        ;;
+      exec)
+        case "$*" in
+          *pg_dump*)
+            [ "${FAKE_DUMP_FAILS:-}" != 1 ] || { echo "pg_dump: error: connection failed" >&2; exit 1; }
+            if [ "${FAKE_DUMP_EMPTY:-}" = 1 ]; then printf 'junk\n'; else printf 'PGDMP fake dump\n'; fi
+            ;;
+          *'pg_restore --list'*)
+            if grep -q PGDMP; then printf ';\n; Archive\n1; 2615 2200 SCHEMA - public\n'; else exit 1; fi
+            ;;
+          *pg_restore*)
+            cat >"$FAKE_LOG.restored"
+            [ "${FAKE_RESTORE_FAILS:-}" != 1 ] || { echo "pg_restore: error: could not execute query" >&2; exit 1; }
+            ;;
         esac
         ;;
       pull)

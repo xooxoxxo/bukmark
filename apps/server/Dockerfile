@@ -23,7 +23,9 @@ LABEL org.opencontainers.image.source="https://github.com/xooxoxxo/bukmark" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="${VERSION}"
 WORKDIR /app
-ENV NODE_ENV=production PORT=3000
+# The version the in-app update check compares against; "dev" means a
+# development build, which is never offered an update.
+ENV NODE_ENV=production PORT=3000 BUKMARK_APP_VERSION=${VERSION}
 # pnpm uses relative symlinks inside node_modules/.pnpm, so copying the whole
 # tree in one layer keeps them intact. The files stay owned by root and
 # read-only to the app: it writes nothing under /app (tsx caches in /tmp).

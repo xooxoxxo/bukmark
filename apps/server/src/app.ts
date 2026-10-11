@@ -12,6 +12,9 @@ import { linkRoutes } from './routes/links.js';
 import { hubRoutes } from './routes/hubs.js';
 import { quoteRoutes } from './routes/quotes.js';
 import { exportRoutes } from './routes/export.js';
+import { updateRoutes } from './routes/updates.js';
+import { startUpdateChecks } from './updates/check.js';
+import type { UpdatesEnv } from './updates/feed.js';
 import { fetchOgImage as defaultFetchOgImage } from './og/fetchOgImage.js';
 import { checkPage as defaultCheckPage, startPageChecks, type CheckPage } from './og/checkLinks.js';
 import { RateLimiter } from './auth/rateLimit.js';
@@ -53,6 +56,10 @@ export async function buildApp(
     checkPage?: CheckPage;
     /** Check links in the background. Off unless asked for, so tests never go online. */
     checkPages?: boolean;
+    /** Version, install method, feed and fetch for update checks; tests pass their own. */
+    updates?: Partial<UpdatesEnv>;
+    /** Check for a new release in the background. Defaults to config, which is on unless the feed is off. */
+    checkUpdates?: boolean;
   } = {},
 ): Promise<FastifyInstance> {
   const app = Fastify({
@@ -85,6 +92,15 @@ export async function buildApp(
   const checkPage = opts.checkPage ?? defaultCheckPage;
   if (opts.checkPages) startPageChecks(app, checkPage);
 
+  const updatesEnv: UpdatesEnv = {
+    version: config.appVersion,
+    install: config.installMethod,
+    feed: config.updateFeed,
+    fetch: globalThis.fetch,
+    ...opts.updates,
+  };
+  if (opts.checkUpdates ?? config.checkUpdates) startUpdateChecks(app, updatesEnv);
+
   const rateLimiter = new RateLimiter();
   app.decorate('rateLimiter', rateLimiter);
   app.addHook('onClose', () => { rateLimiter.close(); });
@@ -115,6 +131,7 @@ export async function buildApp(
       await api.register(hubRoutes);
     await api.register(quoteRoutes);
     await api.register(exportRoutes);
+    await api.register(updateRoutes, { env: updatesEnv });
   }, { prefix: '/api' });
 
   const webDist = opts.webDist ?? join(import.meta.dirname, '../../web/dist');

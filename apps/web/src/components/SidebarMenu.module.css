@@ -27,3 +27,27 @@
   background: var(--bk-accent);
   color: var(--bk-paper);
 }
+
+/* A new release is out: a small square in the accent, white on the filled
+   hover and current states so it stays visible. */
+.dot {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: var(--bk-space-xs);
+  background: var(--bk-accent);
+}
+
+.trigger:hover .dot,
+.trigger[aria-current='page'] .dot {
+  background: var(--bk-paper);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

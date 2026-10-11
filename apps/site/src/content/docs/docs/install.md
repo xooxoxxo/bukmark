@@ -80,7 +80,8 @@ commands:
 | `bukmark restart` | Restarts bukmark, applying changes to `.env`. |
 | `bukmark status` | Exits 0 when bukmark is running, 3 when it is stopped or not set up, 1 when it runs but does not answer. |
 | `bukmark logs` | Shows the server's logs. `-f` keeps following them. |
-| `bukmark update` | Downloads the newest image and restarts. Data is kept. |
+| `bukmark update` | Backs up the database, downloads the newest image and restarts. Data is kept. `--latest` follows new releases again after a rollback. |
+| `bukmark rollback` | Goes back to the version and database from before the last update. `--yes` skips the confirmation. |
 | `bukmark open` | Opens bukmark in your browser. |
 | `bukmark uninstall` | Removes the containers, keeping data. `--delete-data` deletes it too; `--yes` skips the confirmation. |
 | `bukmark version` | Prints the command's version. |
@@ -117,9 +118,22 @@ Change settings in `.env`, not in your shell, then run `bukmark restart`.
 
 ### Update
 
+**Settings → Updates** in the web app says when a new release is out, with
+its notes and the command to run:
+
 ```bash
 bukmark update
 ```
+
+It backs up the database to `~/.bukmark/backups` first. To undo the last
+update:
+
+```bash
+bukmark rollback
+```
+
+This restores that backup and stays on the version you had. To follow new
+releases again: `bukmark update --latest`.
 
 To stay on one release, set `BUKMARK_VERSION` first. To update the command
 itself: `brew upgrade bukmark`, or rerun the install script.
@@ -147,6 +161,7 @@ CORS_ORIGINS=
 TRUST_PROXY=false
 BUKMARK_EXTENSION_IDS=
 BUKMARK_CHECK_PAGES=true
+BUKMARK_UPDATE_FEED=
 ```
 
 - **`POSTGRES_PASSWORD`**: change it before you publish the database beyond
@@ -159,6 +174,8 @@ BUKMARK_CHECK_PAGES=true
   [Unrecognised extension](/docs/extension/#unrecognised-extension).
 - **`BUKMARK_CHECK_PAGES`**: `false` stops reading saved pages in the
   background.
+- **`BUKMARK_UPDATE_FEED`**: `off` stops checking for new releases. Empty
+  checks bukmark's GitHub releases.
 
 ## Access tokens
 

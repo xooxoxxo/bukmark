@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
+import type { UpdatesStatus } from '../api/types';
 import { useFilters } from '../state/filters';
 import { makeWrapper } from '../test/utils';
 import { Sidebar } from './Sidebar';
@@ -20,6 +21,11 @@ function renderSidebar() {
   );
 }
 
+const UPDATES: UpdatesStatus = {
+  version: '0.3.0', development: false, install: 'installer', enabled: true, lockedByServer: false,
+  lastCheckedAt: null, error: null, latest: null, newer: [], skippedVersion: null, updateAvailable: false,
+};
+
 describe('Sidebar', () => {
   beforeEach(() => {
     useFilters.getState().reset();
@@ -30,6 +36,7 @@ describe('Sidebar', () => {
       hubs: 2,
       unassigned: 17, broken: 0, unchecked: 0, quotes: 0,
     });
+    vi.mocked(client.fetchUpdates).mockResolvedValue(UPDATES);
   });
 
   afterEach(() => {
@@ -118,5 +125,12 @@ describe('Sidebar', () => {
       .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
       .map((el) => el.textContent);
     expect(items.slice(0, 3)).toEqual(['All links', 'Quotes5', 'Unassigned0']);
+  });
+
+  it('marks Settings with a quiet dot when an update is available', async () => {
+    vi.mocked(client.fetchHubs).mockResolvedValue({ items: [] });
+    vi.mocked(client.fetchUpdates).mockResolvedValue({ ...UPDATES, updateAvailable: true });
+    renderSidebar();
+    expect(await screen.findByRole('link', { name: 'Settings update available' })).toBeInTheDocument();
   });
 });

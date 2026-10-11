@@ -11,7 +11,16 @@ import { SettingsPage } from './SettingsPage';
 
 vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof client>();
-  return { ...actual, importLinks: vi.fn(), logout: vi.fn() };
+  return {
+    ...actual,
+    importLinks: vi.fn(),
+    logout: vi.fn(),
+    fetchUpdates: vi.fn(async () => ({
+      version: '0.3.0', development: false, install: 'installer' as const, enabled: true,
+      lockedByServer: false, lastCheckedAt: null, error: null, latest: null, newer: [],
+      skippedVersion: null, updateAvailable: false,
+    })),
+  };
 });
 
 function renderSettings() {
@@ -57,10 +66,13 @@ describe('SettingsPage', () => {
   });
 
   it('is one visible link in the sidebar', () => {
+    const Wrapper = makeWrapper();
     render(
-      <MemoryRouter>
-        <SidebarMenu />
-      </MemoryRouter>,
+      <Wrapper>
+        <MemoryRouter>
+          <SidebarMenu />
+        </MemoryRouter>
+      </Wrapper>,
     );
     expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings');
   });

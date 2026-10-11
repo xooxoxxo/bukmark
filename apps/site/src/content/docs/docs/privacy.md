@@ -156,6 +156,15 @@ only when asked: when you save one, for its preview image; after an extension
 import, for missing preview images; and when a check or preview lookup is
 requested through the [API](/docs/api/#post-apilinkscheck).
 
+### Update checks
+
+Every 12 hours the server asks GitHub for bukmark's list of releases
+(`api.github.com/repos/xooxoxxo/bukmark/releases`), to show new ones under
+**Settings → Updates**. The request names itself as bukmark's update check and
+carries nothing else: no version, address or bookmark. Turn it off in
+**Settings → Updates**, or for the whole server with `BUKMARK_UPDATE_FEED=off`
+([Install](/docs/install/#environment-variables)).
+
 ### Logs
 
 The server logs each request to its console: the time, the IP address and the

@@ -70,6 +70,9 @@ Use your server's address in place of `http://localhost:3000`.
 | DELETE | `/api/hubs/:id` | Delete a hub |
 | GET | `/api/stats` | Get link, hub and quote counts |
 | GET | `/api/export` | Export links as HTML, JSON, or CSV |
+| GET | `/api/updates` | The running version and newer releases |
+| POST | `/api/updates/check` | Check for new releases now |
+| PATCH | `/api/updates` | Turn update checks on or off, or skip a version |
 
 ## Authentication
 
@@ -990,6 +993,68 @@ curl -f -H "Authorization: Bearer $BUKMARK_TOKEN" "http://localhost:3000/api/exp
 # Export unassigned links as JSON
 curl -f -H "Authorization: Bearer $BUKMARK_TOKEN" "http://localhost:3000/api/export?format=json&unassigned=true" -o unsorted.json
 ```
+
+### GET /api/updates
+
+The running version, and releases newer than it from bukmark's GitHub
+releases. The server checks every 12 hours; see
+[Privacy](/docs/privacy/#update-checks).
+
+**Response**
+
+```json
+{
+  "version": "0.3.0",
+  "development": false,
+  "install": "installer",
+  "enabled": true,
+  "lockedByServer": false,
+  "lastCheckedAt": "2026-11-03T09:00:00.000Z",
+  "error": null,
+  "latest": {
+    "tag": "v0.4.0",
+    "version": "0.4.0",
+    "name": "v0.4.0",
+    "body": "Release notes",
+    "publishedAt": "2026-11-02T12:00:00Z",
+    "url": "https://github.com/xooxoxxo/bukmark/releases/tag/v0.4.0",
+    "prerelease": false,
+    "requiresAttention": false
+  },
+  "newer": [],
+  "skippedVersion": null,
+  "updateAvailable": true
+}
+```
+
+`newer` lists the releases newer than `version`, newest first, in the same
+shape as `latest`. `install` is `installer` (the `bukmark` command), `source`
+(Docker Compose from a checkout) or `unknown`. `development` is `true` for a
+build without a release version; it never reports an update.
+
+### POST /api/updates/check
+
+Check for new releases now. A second check within 60 seconds returns the last
+result. Response: as `GET /api/updates`.
+
+**Errors:** `409` with `{ "error": "update checks are off" }` when checks are
+off.
+
+### PATCH /api/updates
+
+```json
+{
+  "enabled": false,
+  "skippedVersion": "0.4.0"
+}
+```
+
+Both fields are optional. `enabled` turns the 12-hourly check on or off.
+`skippedVersion` hides that version and older ones from `updateAvailable`;
+`null` stops skipping. Response: as `GET /api/updates`.
+
+**Errors:** `409` when `BUKMARK_UPDATE_FEED` decides the checks, for a request
+that sets `enabled`.
 
 ## Authentication endpoints
 

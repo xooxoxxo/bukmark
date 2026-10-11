@@ -1,3 +1,6 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+# Never install a package version younger than 30 days (in minutes).
+minimumReleaseAge: 43200

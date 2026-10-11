@@ -18,7 +18,7 @@ teardown() {
 @test "help lists every command and exits 0" {
   bukmark help
   [ "$status" -eq 0 ]
-  for cmd in setup start stop restart status logs update open uninstall version help; do
+  for cmd in setup start stop restart status logs update rollback open uninstall version help; do
     [[ $output == *"  $cmd"* ]] || { echo "help misses $cmd"; return 1; }
   done
 }
@@ -92,7 +92,7 @@ teardown() {
 }
 
 @test "commands other than setup need setup first" {
-  for cmd in start stop restart logs update open; do
+  for cmd in start stop restart logs update rollback open; do
     bukmark "$cmd"
     [ "$status" -eq 1 ] || { echo "$cmd exited $status"; return 1; }
     [[ $stderr == *"not set up yet. Run: bukmark setup"* ]]
@@ -165,6 +165,8 @@ teardown() {
   for name in TRUST_PROXY BUKMARK_CHECK_PAGES BUKMARK_EXTENSION_IDS; do
     grep -qF "      $name: \${$name:-" "$compose" || { echo "no $name"; return 1; }
   done
+  # The app's Settings › Updates shows `bukmark update` for this install.
+  grep -qxF '      BUKMARK_INSTALL_METHOD: installer' "$compose"
   ! grep -q build: "$compose"
 }
 
@@ -426,13 +428,191 @@ logs -f" ]
   [ "$status" -eq 0 ]
   [[ $output == *"bukmark is up to date (ghcr.io/xooxoxxo/bukmark:latest)"* ]]
   run compose_calls
-  [ "${lines[0]}" = pull ]
-  [ "${lines[1]}" = "up -d --remove-orphans" ]
+  # The database is backed up before the pull; up to date, the dump goes.
+  [[ ${lines[*]} == *"exec -T db sh -c pg_dump"*" pull up -d --remove-orphans"* ]]
   ! grep -q ' down' "$FAKE_LOG"
+  [ -z "$(find "$BUKMARK_HOME/backups" -name '*.pgdump')" ]
+  [ ! -e "$BUKMARK_HOME/backups/last-update" ]
 
   FAKE_PULL_NEW=1 bukmark update
   [ "$status" -eq 0 ]
   [[ $output == *"bukmark is updated"* ]]
+}
+
+@test "update backs up the database before pulling and records the version it replaces" {
+  bukmark setup
+  : >"$FAKE_LOG"
+  FAKE_RUNNING=1 FAKE_PULL_NEW=1 bukmark update
+  [ "$status" -eq 0 ]
+  run compose_calls
+  dump_at=$(printf '%s\n' "${lines[@]}" | grep -n "pg_dump -Fc -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\"" | cut -d: -f1)
+  pull_at=$(printf '%s\n' "${lines[@]}" | grep -nx pull | cut -d: -f1)
+  [ -n "$dump_at" ] && [ "$dump_at" -lt "$pull_at" ]
+  # The database was running, so it was not started for the backup.
+  ! compose_calls | grep -q '^up -d --wait db'
+
+  dump=$(sed -n 's/^dump=//p' "$BUKMARK_HOME/backups/last-update")
+  [[ $dump == "$BUKMARK_HOME/backups/before-update-"*Z.pgdump ]]
+  grep -q PGDMP "$dump"
+  grep -qx 'version=0.3.0' "$BUKMARK_HOME/backups/last-update"
+  [ "$(file_mode "$BUKMARK_HOME/backups")" = 700 ]
+  [ "$(file_mode "$dump")" = 600 ]
+}
+
+@test "update prints the backup path and how to undo it" {
+  bukmark setup
+  FAKE_RUNNING=1 FAKE_PULL_NEW=1 bukmark update
+  [ "$status" -eq 0 ]
+  dump=$(sed -n 's/^dump=//p' "$BUKMARK_HOME/backups/last-update")
+  [[ $output == *"Backed up the database to $dump"* ]]
+  [[ $output == *"bukmark is updated"* ]]
+  [[ $output == *"To go back to 0.3.0 and that database: bukmark rollback"* ]]
+}
+
+@test "update starts a stopped database to back it up" {
+  bukmark setup
+  : >"$FAKE_LOG"
+  FAKE_PULL_NEW=1 bukmark update
+  [ "$status" -eq 0 ]
+  run compose_calls
+  [[ ${lines[*]} == *"up -d --wait db exec -T db sh -c pg_dump"* ]]
+  [ -f "$BUKMARK_HOME/backups/last-update" ]
+}
+
+@test "a failed backup stops the update before anything is pulled" {
+  bukmark setup
+  : >"$FAKE_LOG"
+  FAKE_RUNNING=1 FAKE_DUMP_FAILS=1 FAKE_PULL_NEW=1 bukmark update
+  [ "$status" -eq 1 ]
+  [[ $stderr == *"The database backup failed (see above), so nothing was updated"* ]]
+  ! compose_calls | grep -qx pull
+  ! compose_calls | grep -q '^up'
+  [ -z "$(find "$BUKMARK_HOME/backups" -name '*.pgdump')" ]
+  [ ! -e "$BUKMARK_HOME/backups/last-update" ]
+
+  # A dump pg_restore cannot read back counts as a failed backup too.
+  FAKE_RUNNING=1 FAKE_DUMP_EMPTY=1 bukmark update
+  [ "$status" -eq 1 ]
+  [[ $stderr == *"could not be read back"* ]]
+  ! compose_calls | grep -qx pull
+}
+
+@test "update keeps the 5 newest pre-update dumps" {
+  bukmark setup
+  mkdir -p "$BUKMARK_HOME/backups"
+  for day in 01 02 03 04 05 06; do
+    echo PGDMP >"$BUKMARK_HOME/backups/before-update-202601${day}T000000Z.pgdump"
+  done
+  touch "$BUKMARK_HOME/backups/notes.txt"
+  FAKE_RUNNING=1 FAKE_PULL_NEW=1 bukmark update
+  [ "$status" -eq 0 ]
+  run find "$BUKMARK_HOME/backups" -name 'before-update-*.pgdump'
+  [ "${#lines[@]}" -eq 5 ]
+  [ ! -e "$BUKMARK_HOME/backups/before-update-20260101T000000Z.pgdump" ]
+  [ ! -e "$BUKMARK_HOME/backups/before-update-20260102T000000Z.pgdump" ]
+  [ -e "$BUKMARK_HOME/backups/before-update-20260103T000000Z.pgdump" ]
+  [ -e "$(sed -n 's/^dump=//p' "$BUKMARK_HOME/backups/last-update")" ]
+  [ -f "$BUKMARK_HOME/backups/notes.txt" ]
+}
+
+@test "update --latest sets BUKMARK_VERSION=latest before pulling" {
+  BUKMARK_VERSION=0.3.0 bukmark setup
+  grep -qx 'BUKMARK_VERSION=0.3.0' "$BUKMARK_HOME/.env"
+  bukmark update
+  [[ $output == *"BUKMARK_VERSION is set to 0.3.0. To follow new releases again: bukmark update --latest"* ]]
+
+  # Even with another version in the caller's environment.
+  BUKMARK_VERSION=0.2.0 FAKE_PULL_NEW=1 bukmark update --latest
+  [ "$status" -eq 0 ]
+  grep -qx 'BUKMARK_VERSION=latest' "$BUKMARK_HOME/.env"
+  [ "$(grep -c '^BUKMARK_VERSION=' "$BUKMARK_HOME/.env")" -eq 1 ]
+  [[ $output == *"Set BUKMARK_VERSION=latest in $BUKMARK_HOME/.env"* ]]
+  [[ $output == *"bukmark is updated (ghcr.io/xooxoxxo/bukmark:latest)"* ]]
+  [ "$(file_mode "$BUKMARK_HOME/.env")" = 600 ]
+
+  bukmark update --now
+  [ "$status" -eq 2 ]
+  [[ $stderr == *"Unknown option for update: --now"* ]]
+}
+
+@test "rollback asks, pins the previous version and restores the dump into an emptied schema" {
+  bukmark setup
+  FAKE_RUNNING=1 FAKE_PULL_NEW=1 bukmark update
+  dump=$(sed -n 's/^dump=//p' "$BUKMARK_HOME/backups/last-update")
+  : >"$FAKE_LOG"
+
+  run --separate-stderr "$TEST_SH" "$CLI" rollback <<<"no"
+  [ "$status" -eq 1 ]
+  [[ $stderr == *"puts back bukmark 0.3.0"* ]]
+  [[ $stderr == *"Nothing was changed"* ]]
+  grep -qx 'BUKMARK_VERSION=latest' "$BUKMARK_HOME/.env"
+  [ ! -s "$FAKE_LOG" ]
+
+  run --separate-stderr "$TEST_SH" "$CLI" rollback <<<"y"
+  [ "$status" -eq 0 ]
+  grep -qx 'BUKMARK_VERSION=0.3.0' "$BUKMARK_HOME/.env"
+  [ "$(file_mode "$BUKMARK_HOME/.env")" = 600 ]
+  cmp "$FAKE_LOG.restored" "$dump"
+  run compose_calls
+  calls=$(printf '%s|' "${lines[@]}")
+  [[ $calls == *"|stop app|up -d --wait db|exec -T db sh -c psql -v ON_ERROR_STOP=1 -q -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"DROP SCHEMA public CASCADE; CREATE SCHEMA public;\"|exec -T db sh -c pg_restore -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --no-owner --exit-on-error|up -d --remove-orphans|"* ]]
+  # The older image is fetched before anything is stopped.
+  [[ $calls == "pull|"*"stop app"* ]]
+  grep -q '^curl .*/healthz$' "$FAKE_LOG"
+}
+
+@test "rollback --yes does not ask, and says how to follow releases again" {
+  bukmark setup
+  FAKE_RUNNING=1 FAKE_PULL_NEW=1 bukmark update
+  run --separate-stderr "$TEST_SH" "$CLI" rollback --yes </dev/null
+  [ "$status" -eq 0 ]
+  [[ $stderr != *"Roll back?"* ]]
+  [[ $output == *"bukmark is back on 0.3.0"* ]]
+  [[ $output == *"To follow new releases again: bukmark update --latest"* ]]
+  # Done: a second rollback has nothing to go back to.
+  bukmark rollback --yes
+  [ "$status" -eq 1 ]
+  [[ $stderr == *"Nothing to roll back to"* ]]
+}
+
+@test "rollback with no update recorded says there is nothing to roll back to" {
+  bukmark setup
+  : >"$FAKE_LOG"
+  bukmark rollback --yes
+  [ "$status" -eq 1 ]
+  [[ $stderr == *"Nothing to roll back to: no update has been recorded"* ]]
+  [ ! -s "$FAKE_LOG" ]
+  grep -qx 'BUKMARK_VERSION=latest' "$BUKMARK_HOME/.env"
+
+  bukmark rollback --now
+  [ "$status" -eq 2 ]
+}
+
+@test "rollback refuses when the version before the update is unknown or the dump is gone" {
+  bukmark setup
+  FAKE_APP_VERSION= FAKE_RUNNING=1 FAKE_PULL_NEW=1 bukmark update
+  [ "$status" -eq 0 ]
+  [[ $output == *"The version from before the update is unknown"* ]]
+  bukmark rollback --yes
+  [ "$status" -eq 1 ]
+  [[ $stderr == *"is unknown, so bukmark cannot go back to it"* ]]
+  grep -qx 'BUKMARK_VERSION=latest' "$BUKMARK_HOME/.env"
+
+  printf 'version=0.3.0\ndump=%s\n' "$BUKMARK_HOME/backups/gone.pgdump" >"$BUKMARK_HOME/backups/last-update"
+  bukmark rollback --yes
+  [ "$status" -eq 1 ]
+  [[ $stderr == *"is missing"* ]]
+}
+
+@test "a failed restore leaves bukmark stopped and does not start the older version" {
+  bukmark setup
+  FAKE_RUNNING=1 FAKE_PULL_NEW=1 bukmark update
+  : >"$FAKE_LOG"
+  FAKE_RESTORE_FAILS=1 bukmark rollback --yes
+  [ "$status" -eq 1 ]
+  [[ $stderr == *"Restoring the database failed"* ]]
+  ! compose_calls | grep -qx 'up -d --remove-orphans'
+  [ -f "$BUKMARK_HOME/backups/last-update" ]
 }
 
 @test "update fails when the published image cannot be downloaded" {

@@ -23,6 +23,9 @@ services:
       TRUST_PROXY: ${TRUST_PROXY:-false}
       BUKMARK_EXTENSION_IDS: ${BUKMARK_EXTENSION_IDS:-}
       BUKMARK_CHECK_PAGES: ${BUKMARK_CHECK_PAGES:-true}
+      # Settings › Updates shows the update command for a source checkout.
+      BUKMARK_INSTALL_METHOD: source
+      BUKMARK_UPDATE_FEED: ${BUKMARK_UPDATE_FEED:-}
     ports: ["${PORT:-3000}:3000"]
     depends_on:
       db: { condition: service_healthy }

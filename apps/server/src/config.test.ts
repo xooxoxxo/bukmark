@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseExtensionIds, parseTrustProxy } from './config.js';
+import { isFeedOff, parseExtensionIds, parseTrustProxy } from './config.js';
 
 describe('parseTrustProxy', () => {
   it('trusts only the nearest proxy for TRUST_PROXY=true, never every hop', () => {
@@ -28,5 +28,12 @@ describe('parseExtensionIds', () => {
   it('splits on commas, trims, and lowercases hex hashes to match redirect URLs', () => {
     expect(parseExtensionIds(' abcdefghijklmnopabcdefghijklmnop , 79D9F60576061D67A8A6A23EE099801CBDD1CEEF,'))
       .toEqual(['abcdefghijklmnopabcdefghijklmnop', '79d9f60576061d67a8a6a23ee099801cbdd1ceef']);
+  });
+});
+
+describe('isFeedOff', () => {
+  it('reads off, false, 0 and no as off; unset or a URL is not', () => {
+    for (const v of ['off', 'OFF', ' false ', '0', 'no']) expect(isFeedOff(v)).toBe(true);
+    for (const v of [undefined, '', 'https://example.test/releases']) expect(isFeedOff(v)).toBe(false);
   });
 });

@@ -10,6 +10,8 @@ import type {
   QuotePatch,
   QuotesQuery,
   Stats,
+  UpdatesPatch,
+  UpdatesStatus,
 } from './types';
 
 export class ApiError extends Error {
@@ -212,6 +214,20 @@ export function deleteQuote(id: string): Promise<void> {
 
 export function fetchStats(): Promise<Stats> {
   return http('/stats');
+}
+
+// Updates
+
+export function fetchUpdates(): Promise<UpdatesStatus> {
+  return http('/updates');
+}
+
+export function checkUpdates(): Promise<UpdatesStatus> {
+  return http('/updates/check', { method: 'POST' });
+}
+
+export function patchUpdates(body: UpdatesPatch): Promise<UpdatesStatus> {
+  return http('/updates', jsonInit('PATCH', body));
 }
 
 export function errorMessage(error: unknown): string {

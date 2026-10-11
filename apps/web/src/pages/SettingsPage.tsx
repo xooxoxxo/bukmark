@@ -18,6 +18,7 @@ import {
   type ThemeChoice,
 } from '../theme';
 import styles from './SettingsPage.module.css';
+import { UpdatesSection } from './UpdatesSection';
 
 const THEMES: [ThemeChoice, string][] = [
   ['auto', 'System'],
@@ -34,8 +35,6 @@ const EXPORTS: [ExportFormat, string, string][] = [
 export function SettingsPage() {
   const [theme, setTheme] = useState<ThemeChoice>(readThemeChoice);
   const [accent, setAccent] = useState(readAccent);
-  const [logoutError, setLogoutError] = useState('');
-  const logout = useLogout();
 
   const presets = new Set(ACCENTS.map(([hex]) => hex));
   const hardToRead =
@@ -55,17 +54,10 @@ export function SettingsPage() {
     setAccent(readAccent());
   }
 
-  async function handleLogout() {
-    setLogoutError('');
-    try {
-      await logout.mutateAsync();
-    } catch (error) {
-      setLogoutError(errorMessage(error));
-    }
-  }
-
   return (
     <div className={styles.page}>
+      <UpdatesSection />
+
       <section className={styles.section} aria-labelledby="appearance">
         <h2 id="appearance" className={styles.heading}>Appearance</h2>
         <p className={styles.hint}>Saved in this browser only.</p>
@@ -182,27 +174,50 @@ export function SettingsPage() {
             </Link>
           </div>
         </div>
-        <div className={styles.field}>
-          <div className={styles.row}>
-            <button
-              type="button"
-              className={styles.button}
-              disabled={logout.isPending}
-              onClick={() => void handleLogout()}
-            >
-              {logout.isPending ? 'Logging out…' : 'Log out'}
-            </button>
-            <a className={styles.linkButton} href={DOCS_URL} target="_blank" rel="noreferrer">
-              Documentation
-            </a>
-          </div>
-          {logoutError ? (
-            <p className={styles.error} role="alert">
-              {logoutError}
-            </p>
-          ) : null}
-        </div>
+        <LogOut />
       </section>
+    </div>
+  );
+}
+
+/**
+ * Its own component so the logout's state changes re-render only this row:
+ * logging out clears the cache, and a re-rendered query hook elsewhere on the
+ * page would put its query straight back.
+ */
+function LogOut() {
+  const [logoutError, setLogoutError] = useState('');
+  const logout = useLogout();
+
+  async function handleLogout() {
+    setLogoutError('');
+    try {
+      await logout.mutateAsync();
+    } catch (error) {
+      setLogoutError(errorMessage(error));
+    }
+  }
+
+  return (
+    <div className={styles.field}>
+      <div className={styles.row}>
+        <button
+          type="button"
+          className={styles.button}
+          disabled={logout.isPending}
+          onClick={() => void handleLogout()}
+        >
+          {logout.isPending ? 'Logging out…' : 'Log out'}
+        </button>
+        <a className={styles.linkButton} href={DOCS_URL} target="_blank" rel="noreferrer">
+          Documentation
+        </a>
+      </div>
+      {logoutError ? (
+        <p className={styles.error} role="alert">
+          {logoutError}
+        </p>
+      ) : null}
     </div>
   );
 }

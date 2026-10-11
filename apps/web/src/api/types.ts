@@ -104,3 +104,41 @@ export interface QuotePatch {
   text?: string;
   note?: string;
 }
+
+/** One release from the update feed (GET /updates). */
+export interface ReleaseNote {
+  tag: string;
+  version: string;
+  name: string | null;
+  body: string | null;
+  publishedAt: string | null;
+  url: string | null;
+  prerelease: boolean;
+  requiresAttention: boolean;
+}
+
+export type InstallMethod = 'installer' | 'source' | 'unknown';
+
+/** GET /updates: what runs here and whether a newer release is out. */
+export interface UpdatesStatus {
+  /** The running version, "dev" for a development build. */
+  version: string;
+  development: boolean;
+  install: InstallMethod;
+  enabled: boolean;
+  /** BUKMARK_UPDATE_FEED is set, so `enabled` cannot change from here. */
+  lockedByServer: boolean;
+  lastCheckedAt: string | null;
+  error: string | null;
+  /** Newest non-prerelease. */
+  latest: ReleaseNote | null;
+  /** Newer than the running version, newest first, no prereleases. */
+  newer: ReleaseNote[];
+  skippedVersion: string | null;
+  updateAvailable: boolean;
+}
+
+export interface UpdatesPatch {
+  enabled?: boolean;
+  skippedVersion?: string | null;
+}

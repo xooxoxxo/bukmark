@@ -4,12 +4,13 @@
 # Everything lives in one folder, $BUKMARK_HOME (default ~/.bukmark):
 #   compose.yml  written by this command on every run; do not edit it
 #   .env         your settings; `bukmark setup` writes it once, then it is yours
+#   backups/     database dumps `bukmark update` takes, for `bukmark rollback`
 # The server runs from the published image, so nothing is built here.
 #
 # Docs: https://bukmark.it/docs/install/
 set -eu
 
-BUKMARK_CLI_VERSION=0.3.0
+BUKMARK_CLI_VERSION=0.4.0
 
 DEFAULT_IMAGE=ghcr.io/xooxoxxo/bukmark
 DB_IMAGE=pgvector/pgvector:pg17
@@ -21,13 +22,20 @@ DIR=${BUKMARK_HOME:-$HOME/.bukmark}
 COMPOSE_YML=$DIR/compose.yml
 OVERRIDE_YML=$DIR/compose.override.yml
 ENV_FILE=$DIR/.env
+BACKUP_DIR=$DIR/backups
+# What the last update replaced: the version that ran before it and the dump
+# taken just before it. bukmark rollback goes back to both.
+LAST_UPDATE=$BACKUP_DIR/last-update
+# How many pre-update dumps to keep. A dump holds every bookmark, so a few
+# are worth the disk; dozens are not.
+KEEP_BACKUPS=5
 WAIT_SECONDS=${BUKMARK_WAIT_SECONDS:-120}
 
 # The server's settings come from $ENV_FILE and nowhere else. Compose lets the
 # shell's environment win over .env, so a PORT or POSTGRES_PASSWORD exported
 # for some other project would quietly change bukmark's. BUKMARK_VERSION and
 # BUKMARK_IMAGE still pass through, to pick an image for one run.
-unset POSTGRES_PASSWORD PORT BUKMARK_LISTEN TRUST_PROXY BUKMARK_EXTENSION_IDS BUKMARK_CHECK_PAGES \
+unset POSTGRES_PASSWORD PORT BUKMARK_LISTEN TRUST_PROXY BUKMARK_EXTENSION_IDS BUKMARK_CHECK_PAGES BUKMARK_UPDATE_FEED \
   COMPOSE_FILE COMPOSE_PROJECT_NAME COMPOSE_PROFILES COMPOSE_ENV_FILES
 
 say() { printf '%s\n' "$*"; }
@@ -58,7 +66,12 @@ Commands:
   restart            Restart bukmark, with any changes to .env.
   status             Show whether bukmark is running.
   logs [-f]          Show the server's logs. -f keeps following them.
-  update             Download the newest version and restart. Your data is kept.
+  update             Back up the database, download the newest version and
+                     restart. Your data is kept.
+    --latest         Follow new releases again after a rollback.
+  rollback           Undo the last update: the version and database from
+                     before it. Changes since that update are lost.
+    --yes            Roll back without asking.
   open               Open bukmark in your browser.
   uninstall          Remove bukmark's containers. Your data is kept.
     --delete-data    Also delete all bookmarks and settings, after asking.
@@ -229,6 +242,9 @@ services:
       TRUST_PROXY: ${TRUST_PROXY:-false}
       BUKMARK_EXTENSION_IDS: ${BUKMARK_EXTENSION_IDS:-}
       BUKMARK_CHECK_PAGES: ${BUKMARK_CHECK_PAGES:-true}
+      BUKMARK_UPDATE_FEED: ${BUKMARK_UPDATE_FEED:-}
+      # Tells the app's Settings › Updates which update command to show.
+      BUKMARK_INSTALL_METHOD: installer
     ports: ["${BUKMARK_LISTEN:-127.0.0.1}:${PORT:-3000}:3000"]
     depends_on:
       db: { condition: service_healthy }
@@ -285,6 +301,10 @@ BUKMARK_EXTENSION_IDS=
 # false stops the server fetching saved pages in the background.
 # See https://bukmark.it/docs/install/#environment-variables
 BUKMARK_CHECK_PAGES=true
+
+# off stops checking GitHub for new bukmark releases.
+# See https://bukmark.it/docs/privacy/#update-checks
+BUKMARK_UPDATE_FEED=
 
 # Server version to run: latest, or a release such as 0.3.0.
 # bukmark update downloads the newest image for it.
@@ -504,14 +524,134 @@ image_id() {
   docker image inspect --format '{{.Id}}' "$1" 2>/dev/null || true
 }
 
+db_running() {
+  [ -n "$(dc ps -q --status running db 2>/dev/null)" ]
+}
+
+# The id of the image the app runs now: its container's, or, when it is not
+# running, what the app's tag points at on this machine.
+running_image_id() {
+  cid=$(dc ps -q app 2>/dev/null || true)
+  if [ -n "$cid" ]; then
+    docker inspect --format '{{.Image}}' "$cid" 2>/dev/null || true
+  else
+    image_id "$(app_image)"
+  fi
+}
+
+# The release the app runs now, from the image's
+# org.opencontainers.image.version label; empty when that is unknown, as for
+# a build made on this machine. Asked before pulling, since a pull moves a
+# floating tag such as latest on to the next release.
+running_version() {
+  format='{{index .Config.Labels "org.opencontainers.image.version"}}'
+  cid=$(dc ps -q app 2>/dev/null || true)
+  if [ -n "$cid" ]; then
+    v=$(docker inspect --format "$format" "$cid" 2>/dev/null || true)
+  else
+    v=$(docker image inspect --format "$format" "$(app_image)" 2>/dev/null || true)
+  fi
+  # "dev" is a development build: there is no published image to go back to.
+  case $v in
+    '' | dev | '<no value>' | *[!A-Za-z0-9._-]*) v= ;;
+  esac
+  say "$v"
+}
+
+# Dumps the database to $1 in pg_dump's custom format, with the database
+# container's own pg_dump (it always matches the server), then reads it back
+# with pg_restore --list. $POSTGRES_USER and $POSTGRES_DB expand inside the
+# container, so a database renamed in compose.override.yml works too.
+backup_database() {
+  dump=$1
+  (umask 077 && mkdir -p "$BACKUP_DIR")
+  chmod 700 "$BACKUP_DIR"
+  if ! db_running; then
+    # A stopped bukmark still has its data. Start just the database to save it.
+    dc up -d --wait db || return 1
+  fi
+  say "Backing up the database..."
+  # shellcheck disable=SC2016 # expands inside the container
+  if ! (umask 077 && dc exec -T db sh -c 'pg_dump -Fc -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >"$dump"); then
+    rm -f "$dump"
+    return 1
+  fi
+  entries=$(dc exec -T db pg_restore --list <"$dump" 2>/dev/null | grep -vc '^;' || true)
+  if [ "${entries:-0}" -eq 0 ]; then
+    warn "The backup at $dump could not be read back."
+    rm -f "$dump"
+    return 1
+  fi
+}
+
+# Deletes all but the $KEEP_BACKUPS newest pre-update dumps. Their names hold
+# a UTC timestamp, so the glob lists them oldest first.
+prune_backups() {
+  set -- "$BACKUP_DIR"/before-update-*.pgdump
+  [ -e "$1" ] || return 0
+  extra=$(($# - KEEP_BACKUPS))
+  while [ "$extra" -gt 0 ]; do
+    rm -f "$1"
+    shift
+    extra=$((extra - 1))
+  done
+}
+
+# A value from $LAST_UPDATE.
+last_update_get() {
+  sed -n "s/^$1=//p" "$LAST_UPDATE" | tail -n 1
+}
+
 cmd_update() {
+  latest=false
+  for arg in "$@"; do
+    case $arg in
+      --latest) latest=true ;;
+      *) die_usage "Unknown option for update: $arg" ;;
+    esac
+  done
   require_setup
   require_docker
   write_compose
+  # What runs now, asked before --latest changes the tag.
+  before=$(running_image_id)
+  previous=$(running_version)
+  if $latest; then
+    # After a rollback BUKMARK_VERSION pins the older release; latest follows
+    # new ones again. Exported too, so a value in the caller's environment
+    # does not win over it for this run.
+    if [ "$(env_get BUKMARK_VERSION)" != latest ]; then
+      set_env BUKMARK_VERSION latest
+      say "Set BUKMARK_VERSION=latest in $ENV_FILE"
+    fi
+    BUKMARK_VERSION=latest
+    export BUKMARK_VERSION
+  fi
   image=$(app_image)
-  before=$(image_id "$image")
+
+  # Before the pull: the new version may change the database as it starts,
+  # and this dump is the way back from that.
+  dump=$BACKUP_DIR/before-update-$(date -u +%Y%m%dT%H%M%SZ).pgdump
+  backup_database "$dump" ||
+    die "The database backup failed (see above), so nothing was updated. Your data is as it was."
+  say "Backed up the database to $dump"
+
   pulled=true
   pull_images || pulled=false
+  changed=false
+  if $pulled && [ "$before" != "$(image_id "$image")" ]; then
+    changed=true
+    # Recorded before the new version starts, so a failed start can still be
+    # rolled back.
+    tmp=$BACKUP_DIR/.last-update.$$
+    printf 'version=%s\ndump=%s\n' "$previous" "$dump" >"$tmp"
+    mv -f "$tmp" "$LAST_UPDATE"
+    prune_backups
+  else
+    # Nothing changes, so nothing to roll back from; keep the record of the
+    # update that did change something.
+    rm -f "$dump"
+  fi
   dc up -d --remove-orphans
   wait_healthy
   if ! $pulled; then
@@ -523,11 +663,80 @@ cmd_update() {
     esac
     return 0
   fi
-  if [ "$before" = "$(image_id "$image")" ]; then
+  if ! $changed; then
     say "bukmark is up to date ($image), running at $(server_url)"
-  else
-    say "bukmark is updated ($image), running at $(server_url)"
+    pinned=${BUKMARK_VERSION:-$(env_get BUKMARK_VERSION)}
+    case ${pinned:-latest} in
+      latest) ;;
+      *) say "BUKMARK_VERSION is set to $pinned. To follow new releases again: bukmark update --latest" ;;
+    esac
+    return 0
   fi
+  say "bukmark is updated ($image), running at $(server_url)"
+  say "The database from before the update is in $dump"
+  if [ -n "$previous" ]; then
+    say "To go back to $previous and that database: bukmark rollback"
+  else
+    say "The version from before the update is unknown, so bukmark rollback cannot pin it."
+  fi
+}
+
+cmd_rollback() {
+  yes=false
+  for arg in "$@"; do
+    case $arg in
+      --yes | -y) yes=true ;;
+      *) die_usage "Unknown option for rollback: $arg" ;;
+    esac
+  done
+  require_setup
+  [ -f "$LAST_UPDATE" ] ||
+    die "Nothing to roll back to: no update has been recorded. bukmark update records one each time it installs a new version."
+  previous=$(last_update_get version)
+  dump=$(last_update_get dump)
+  [ -n "$dump" ] && [ -s "$dump" ] ||
+    die "Nothing to roll back to: the backup from the last update (${dump:-none recorded}) is missing."
+  [ -n "$previous" ] ||
+    die "The version that ran before the last update is unknown, so bukmark cannot go back to it. The database from before it is in $dump"
+
+  if ! $yes; then
+    printf 'This puts back bukmark %s and the database as it was before the last update (%s).\nAnything saved since that update is lost.\nRoll back? [y/N] ' "$previous" "$dump" >&2
+    answer=
+    read -r answer || true
+    case $answer in
+      y | Y | yes | YES | Yes) ;;
+      *) die "Nothing was changed." ;;
+    esac
+  fi
+
+  require_docker
+  write_compose
+  # Exported, so the caller's environment cannot pick another version.
+  BUKMARK_VERSION=$previous
+  export BUKMARK_VERSION
+  # Before anything is stopped: with no image for that version there is
+  # nothing to roll back to, and the running server should stay up.
+  pull_images || true
+  set_env BUKMARK_VERSION "$previous"
+  say "Set BUKMARK_VERSION=$previous in $ENV_FILE"
+
+  dc stop app
+  dc up -d --wait db ||
+    die "The database did not start, so it was not restored. bukmark is stopped; start it again: bukmark start"
+  say "Restoring the database from $dump..."
+  # An emptied schema first: pg_restore into tables the newer version changed
+  # would fail or mix the two. --exit-on-error stops at the first problem.
+  # shellcheck disable=SC2016 # expands inside the container
+  if ! dc exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -q -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"' ||
+    ! dc exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --exit-on-error' <"$dump"; then
+    die "Restoring the database failed (see above). bukmark is stopped, so nothing more is changed. The backup is still in $dump"
+  fi
+  dc up -d --remove-orphans
+  wait_healthy
+  # Done: a second rollback would restore the same dump over newer changes.
+  rm -f "$LAST_UPDATE"
+  say "bukmark is back on $previous, with the database from before the update, running at $(server_url)"
+  say "BUKMARK_VERSION stays at $previous, so bukmark update keeps it there. To follow new releases again: bukmark update --latest"
 }
 
 cmd_open() {
@@ -599,7 +808,8 @@ main() {
     restart) no_options "$@"; cmd_restart ;;
     status) no_options "$@"; cmd_status ;;
     logs) cmd_logs "$@" ;;
-    update) no_options "$@"; cmd_update ;;
+    update) cmd_update "$@" ;;
+    rollback) cmd_rollback "$@" ;;
     open) no_options "$@"; cmd_open ;;
     uninstall) cmd_uninstall "$@" ;;
     version | --version | -v) say "bukmark $BUKMARK_CLI_VERSION" ;;

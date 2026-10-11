@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-query';
 import * as api from './client';
 import { chunkBySize } from './importSize';
-import type { BulkAction, HubPatch, LinkPatch, LinkSort, QuotePatch } from './types';
+import type { BulkAction, HubPatch, LinkPatch, LinkSort, QuotePatch, UpdatesPatch } from './types';
 
 export const PAGE_SIZE = 200;
 
@@ -333,5 +333,38 @@ export function useDeleteToken() {
     mutationFn: (id: string) => api.deleteToken(id),
     // Also after a failure: a 404 means the row on screen is already stale.
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['auth-tokens'] }),
+  });
+}
+
+const UPDATES_KEY = ['updates'] as const;
+
+/**
+ * Whether a newer release is out. The server checks the feed on its own every
+ * 12 hours, so an hour-old answer is fresh enough for the page and the
+ * sidebar dot.
+ */
+export function useUpdates() {
+  return useQuery({
+    queryKey: UPDATES_KEY,
+    queryFn: api.fetchUpdates,
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
+/** Check now. The server answers with the new status, which replaces the cached one. */
+export function useCheckUpdates() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.checkUpdates(),
+    onSuccess: (data) => queryClient.setQueryData(UPDATES_KEY, data),
+  });
+}
+
+/** Turn checks on or off, skip a version (null: stop skipping). */
+export function useSetUpdates() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: UpdatesPatch) => api.patchUpdates(body),
+    onSuccess: (data) => queryClient.setQueryData(UPDATES_KEY, data),
   });
 }
