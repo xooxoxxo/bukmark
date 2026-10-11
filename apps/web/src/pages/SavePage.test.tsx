@@ -296,7 +296,10 @@ describe('SavePage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Updated — seen 3×');
     expect(window.close).not.toHaveBeenCalled();
 
-    await act(() => vi.advanceTimersByTimeAsync(1000));
+    // Three seconds to read it: still open just before, closed at.
+    await act(() => vi.advanceTimersByTimeAsync(2900));
+    expect(window.close).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(100));
     expect(window.close).toHaveBeenCalledTimes(1);
   });
 
@@ -479,7 +482,7 @@ describe('SavePage with shared text', () => {
     expect(outcome).toHaveTextContent('Quote saved');
     await waitFor(() => expect(outcome).toHaveFocus());
 
-    await act(() => vi.advanceTimersByTimeAsync(1000));
+    await act(() => vi.advanceTimersByTimeAsync(3000));
     expect(window.close).toHaveBeenCalledTimes(1);
   });
 });

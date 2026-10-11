@@ -10,7 +10,8 @@ import styles from './SavePage.module.css';
 /** Hub ids are UUIDs, so this option value cannot collide with one. */
 const UNASSIGNED = 'unassigned';
 
-const CLOSE_AFTER_MS = 1000;
+/** Long enough to read what the save did before the window closes itself. */
+const CLOSE_AFTER_MS = 3000;
 
 function outcomeMessage({ outcome, link }: SaveLinkResult): string {
   if (outcome === 'resurrected') return 'Restored — you had deleted this before';
