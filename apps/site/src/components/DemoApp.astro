@@ -161,12 +161,14 @@ const host = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 		if ('IntersectionObserver' in window) {
 			root.classList.add('is-held');
 			const thresholds = Array.from({ length: 21 }, (_, i) => i / 20).concat(0.98, 0.99);
+			// The landing page's header stays on screen, so what it covers is not in view.
+			const covered = document.querySelector<HTMLElement>('.site-header')?.offsetHeight ?? 0;
 			new IntersectionObserver(
 				([entry]) => {
-					const needed = Math.min(entry.boundingClientRect.height, window.innerHeight) - 4;
+					const needed = Math.min(entry.boundingClientRect.height, window.innerHeight - covered) - 4;
 					root.classList.toggle('is-held', entry.intersectionRect.height < needed);
 				},
-				{ threshold: thresholds },
+				{ threshold: thresholds, rootMargin: `-${covered}px 0px 0px 0px` },
 			).observe(root);
 		}
 
