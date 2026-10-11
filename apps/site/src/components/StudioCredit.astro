@@ -1,0 +1,86 @@
+---
+// Who makes bukmark: one quiet line at the foot of every page, with the
+// studio's name in the accent so it still catches the eye.
+interface Props {
+	/** In the docs it stands alone below the content and needs its own gutter. */
+	standalone?: boolean;
+}
+const { standalone = false } = Astro.props;
+---
+
+<div class:list={['studio-credit', { 'studio-credit--standalone': standalone }]}>
+	<p>Made by <a class="studio-credit__mark" href="https://xo.vision">XO Vision</a></p>
+	<a class="studio-credit__parent" href="https://jovian.company">a Jovian division <span aria-hidden="true">→</span></a>
+</div>
+
+<style>
+	.studio-credit {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--bk-space-sm) var(--bk-space-lg);
+		padding-top: var(--bk-space-lg);
+		border-top: 2px solid var(--bk-rule);
+		color: var(--bk-muted);
+		font-family: var(--bk-font-display);
+		font-size: var(--bk-text-sm);
+		font-weight: 700;
+	}
+
+	.studio-credit--standalone {
+		/* Above the docs' fixed table-of-contents pane, whose border would
+		   otherwise run through the line. */
+		position: relative;
+		z-index: 2;
+		/* Starlight's content gutter, so it lines up with the page text. */
+		padding: var(--bk-space-lg) var(--sl-content-pad-x, 1.5rem);
+		background: var(--bk-paper);
+	}
+
+	.studio-credit p {
+		margin: 0;
+	}
+
+	.studio-credit a {
+		text-decoration: underline;
+		text-decoration-color: transparent;
+		text-decoration-thickness: 2px;
+		text-underline-offset: 0.25em;
+		transition:
+			color var(--bk-dur-micro) var(--bk-ease-out),
+			text-decoration-color var(--bk-dur-micro) var(--bk-ease-out);
+	}
+
+	.studio-credit a:hover {
+		text-decoration-color: currentColor;
+	}
+
+	.studio-credit a:focus-visible {
+		outline: 2px solid var(--bk-accent);
+		outline-offset: 4px;
+	}
+
+	/* Large enough to count as large text, so the orange keeps its contrast. */
+	/* Doubled class: the landing page's global `.site-footer a` would win otherwise. */
+	.studio-credit .studio-credit__mark {
+		color: var(--bk-accent);
+		font-size: 1.25rem;
+		letter-spacing: -0.03em;
+	}
+
+	.studio-credit .studio-credit__parent {
+		color: var(--bk-muted);
+		white-space: nowrap;
+	}
+
+	.studio-credit .studio-credit__parent:hover {
+		color: var(--bk-accent);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.studio-credit a {
+			transition: none;
+		}
+	}
+</style>

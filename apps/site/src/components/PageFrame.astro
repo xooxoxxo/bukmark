@@ -1,13 +1,13 @@
 ---
-// Starlight's page frame, with the studio bar at the foot of the main area:
+// Starlight's page frame, with the studio credit at the foot of the main area:
 // full width beside the sidebar, below the content and the table of contents.
 import Default from '@astrojs/starlight/components/PageFrame.astro';
-import StudioBar from './StudioBar.astro';
+import StudioCredit from './StudioCredit.astro';
 ---
 
 <Default>
 	<slot name="header" slot="header" />
 	<slot name="sidebar" slot="sidebar" />
 	<slot />
-	<StudioBar />
+	<StudioCredit standalone />
 </Default>
