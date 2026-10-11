@@ -694,8 +694,9 @@ cmd_rollback() {
     die "Nothing to roll back to: no update has been recorded. bukmark update records one each time it installs a new version."
   previous=$(last_update_get version)
   dump=$(last_update_get dump)
-  [ -n "$dump" ] && [ -s "$dump" ] ||
+  if [ -z "$dump" ] || [ ! -s "$dump" ]; then
     die "Nothing to roll back to: the backup from the last update (${dump:-none recorded}) is missing."
+  fi
   [ -n "$previous" ] ||
     die "The version that ran before the last update is unknown, so bukmark cannot go back to it. The database from before it is in $dump"
 
