@@ -2,7 +2,7 @@
  * manifest.json for each browser build. The JavaScript is the same for every
  * target; vite.config.ts writes the manifest that differs.
  */
-import { SAVE_COMMAND, SAVE_QUOTE_COMMAND } from './lib/shortcut';
+import { SAVE_COMMAND, SAVE_QUOTE_COMMAND } from './lib/shortcut.ts';
 
 export type Target = 'chrome' | 'firefox' | 'safari';
 

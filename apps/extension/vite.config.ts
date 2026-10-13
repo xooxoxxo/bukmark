@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
-import { isTarget, manifestFor, type Target } from './src/manifest';
+import { isTarget, manifestFor, type Target } from './src/manifest.ts';
 
 /** Writes the target's manifest.json next to the bundle. */
 function manifest(target: Target): Plugin {
@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
       // Readable as shipped: about 80 KB of JavaScript, and store reviewers read
       // the code itself (Chrome's code-readability rule, Edge's obfuscation check).
       minify: false,
-      rollupOptions: {
+      rolldownOptions: {
         input: {
           popup: resolve(import.meta.dirname, 'popup.html'),
           options: resolve(import.meta.dirname, 'options.html'),

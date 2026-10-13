@@ -3,6 +3,9 @@
   "compilerOptions": {
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    // vite.config.ts and what it imports name their .ts files, as Vite's native
+    // config loader (Node type stripping) needs.
+    "allowImportingTsExtensions": true,
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["chrome", "node", "vite/client"]
   },
