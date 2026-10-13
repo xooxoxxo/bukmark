@@ -46,7 +46,7 @@ export function Sidebar() {
         to="/quotes"
         className={({ isActive }) => (isActive ? styles.active : styles.item)}
       >
-        Quotes
+        Quotes{' '}
         {stats ? <span className={styles.count}>{stats.quotes}</span> : null}
       </NavLink>
       <button
@@ -59,7 +59,7 @@ export function Sidebar() {
         }}
         aria-pressed={atRoot && unassigned}
       >
-        Unassigned
+        Unassigned{' '}
         {stats ? <span className={styles.count}>{stats.unassigned}</span> : null}
       </button>
       {stats && stats.broken > 0 ? (
@@ -73,7 +73,7 @@ export function Sidebar() {
           }}
           aria-pressed={atRoot && broken}
         >
-          Broken links
+          Broken links{' '}
           <span className={styles.count}>{stats.broken}</span>
         </button>
       ) : null}

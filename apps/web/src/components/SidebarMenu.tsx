@@ -8,7 +8,7 @@ export function SidebarMenu() {
   return (
     <div className={styles.wrap}>
       <NavLink to="/settings" className={styles.trigger}>
-        Settings
+        Settings{' '}
         {data?.updateAvailable ? (
           <span className={styles.dot} title="Update available">
             <span className={styles.srOnly}> update available</span>

@@ -124,7 +124,7 @@ describe('Sidebar', () => {
     const items = screen.getAllByRole('link').concat(screen.getAllByRole('button'))
       .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
       .map((el) => el.textContent);
-    expect(items.slice(0, 3)).toEqual(['All links', 'Quotes5', 'Unassigned0']);
+    expect(items.slice(0, 3)).toEqual(['All links', 'Quotes 5', 'Unassigned 0']);
   });
 
   it('marks Settings with a quiet dot when an update is available', async () => {
