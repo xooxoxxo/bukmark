@@ -485,7 +485,7 @@ starlight-aside,
 .card,
 .pagination-links a,
 site-search button,
-starlight-menu-button button {
+.sl-menu-button {
   border-radius: 0;
   box-shadow: none;
 }
@@ -502,7 +502,7 @@ starlight-menu-button button {
 }
 
 site-search button,
-starlight-menu-button button,
+.sl-menu-button,
 select {
   border: 1px solid var(--bk-rule);
   background: var(--bk-paper);
