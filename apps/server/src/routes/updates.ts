@@ -1,4 +1,4 @@
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import type { FastifyInstance } from 'fastify';
 import { buildStatus, currentCheck, effectiveFeed, type UpdatesEnv, type UpdatesSettings } from '../updates/feed.js';
 import { patchUpdates, readUpdates, runCheck } from '../updates/check.js';

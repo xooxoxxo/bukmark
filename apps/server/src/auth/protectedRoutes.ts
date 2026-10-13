@@ -1,4 +1,4 @@
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import { sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { apiTokens } from '../db/schema.js';

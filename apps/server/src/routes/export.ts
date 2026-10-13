@@ -1,4 +1,4 @@
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { hubs } from '../db/schema.js';
