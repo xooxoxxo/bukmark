@@ -42,6 +42,21 @@ export const LOG_REDACT = [
   'res.headers["set-cookie"]',
 ];
 
+/**
+ * Fastify 5.12.1 dropped the hop-count form of trustProxy (GHSA-3m5p-2c4r-xxw2):
+ * a number now trusts nothing, because a client that reaches the port directly
+ * can forge X-Forwarded-*. bukmark's TRUST_PROXY=true means one hop and the
+ * install guide requires the proxy to be the only way in, which is the
+ * advisory's own workaround, so a hop count becomes the same predicate Fastify
+ * used to build from it. An IP/CIDR list still passes through as-is.
+ */
+export function toFastifyTrustProxy(
+  value: boolean | number | string,
+): boolean | string | ((address: string, hop: number) => boolean) {
+  if (typeof value !== 'number') return value;
+  return (_address, hop) => hop < value;
+}
+
 export async function buildApp(
   opts: {
     databaseUrl?: string;
@@ -64,7 +79,7 @@ export async function buildApp(
 ): Promise<FastifyInstance> {
   const app = Fastify({
     logger: { redact: LOG_REDACT, ...(opts.logStream ? { stream: opts.logStream } : {}) },
-    trustProxy: opts.trustProxy ?? config.trustProxy,
+    trustProxy: toFastifyTrustProxy(opts.trustProxy ?? config.trustProxy),
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   const registeredRoutes: { method: string; url: string }[] = [];

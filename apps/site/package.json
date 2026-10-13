@@ -14,12 +14,12 @@
   "dependencies": {
     "@astrojs/starlight": "^0.41.6",
     "@resvg/resvg-js": "^2.6.2",
-    "astro": "^7.1.6",
+    "astro": "^7.3.2",
     "satori": "^0.33.5"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "vitest": "^3.2.7",
-    "wrangler": "^4.118.0"
+    "wrangler": "^4.131.1"
   }
 }
