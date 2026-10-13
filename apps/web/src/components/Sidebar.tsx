@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router';
 import { useCreateHub, useHubs, useStats } from '../api/queries';
 import { useFilters } from '../state/filters';
 import { SidebarMenu } from './SidebarMenu';

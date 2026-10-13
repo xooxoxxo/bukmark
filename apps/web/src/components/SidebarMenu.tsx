@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router';
 import { useUpdates } from '../api/queries';
 import styles from './SidebarMenu.module.css';
 
