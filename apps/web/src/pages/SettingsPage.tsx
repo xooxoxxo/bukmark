@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { errorMessage } from '../api/client';
 import { buildExportUrl, type ExportFormat } from '../api/exportUrl';
 import { useLogout } from '../api/queries';

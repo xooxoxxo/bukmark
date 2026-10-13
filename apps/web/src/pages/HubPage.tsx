@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useHubs } from '../api/queries';
 import { LinksView } from '../components/LinksView';
 import styles from './HubPage.module.css';

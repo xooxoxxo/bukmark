@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router';
 import styles from './Layout.module.css';
 import { AppToolbar } from './AppToolbar';
 import { Sidebar } from './Sidebar';

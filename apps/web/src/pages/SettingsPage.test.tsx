@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { strToU8, zipSync } from 'fflate';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { SidebarMenu } from '../components/SidebarMenu';
 import { makeWrapper } from '../test/utils';
 import { ACCENT_KEY, BRAND_ACCENT, THEME_KEY } from '../theme';

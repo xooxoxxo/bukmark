@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router';
 import { errorMessage, type CreateQuoteInput, type CreateQuoteResult, type SaveLinkResult } from '../api/client';
 import { useCreateQuote, useHubs, useSaveLink } from '../api/queries';
 import { Select } from '../components/ui/Select';

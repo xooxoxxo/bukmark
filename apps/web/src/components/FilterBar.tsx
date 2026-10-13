@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useHubs } from '../api/queries';
 import type { LinkSort } from '../api/types';
 import { useFilters } from '../state/filters';

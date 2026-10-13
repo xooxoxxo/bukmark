@@ -2,7 +2,7 @@ import { QueryClientProvider, useQuery, type QueryClient } from '@tanstack/react
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
 import { ApiError, type AuthStatus } from '../api/client';
