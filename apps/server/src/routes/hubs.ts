@@ -1,4 +1,4 @@
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import { asc, desc, eq, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { isBroken } from '../og/checkLinks.js';

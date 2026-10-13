@@ -1,4 +1,4 @@
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import { and, asc, desc, eq, inArray, ne, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { normalizeUrl, matchKey } from '@bukmark/shared';

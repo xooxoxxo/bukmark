@@ -158,10 +158,10 @@ export async function buildApp(
       // inside a frame, so any framable page, /save above all, could be laid
       // under a decoy and clickjacked. Also runs for reply.sendFile, so it
       // covers the SPA fallback below.
-      setHeaders: (res, path) => {
+      setHeaders: (reply, path) => {
         if (path.endsWith('.html')) {
-          res.setHeader('x-frame-options', 'DENY');
-          res.setHeader('content-security-policy', "frame-ancestors 'none'");
+          reply.header('x-frame-options', 'DENY');
+          reply.header('content-security-policy', "frame-ancestors 'none'");
         }
       },
     });

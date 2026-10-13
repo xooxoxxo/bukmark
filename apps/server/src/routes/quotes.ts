@@ -1,4 +1,4 @@
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import { and, desc, eq, ne, sql as dsql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { pgCode } from '../db/client.js';

@@ -662,7 +662,11 @@ describe('auth', () => {
   describe('storage and plumbing', () => {
     it('the owner table holds one row by construction', async () => {
       const app = await newApp();
-      await expect(app.db.execute(dsql`INSERT INTO owner (id, password_hash) VALUES (2, 'x')`)).rejects.toThrow(/owner_single_row/);
+      // drizzle wraps the driver's error ("Failed query: ..."); the violated
+      // constraint is named on the cause.
+      await expect(app.db.execute(dsql`INSERT INTO owner (id, password_hash) VALUES (2, 'x')`)).rejects.toMatchObject({
+        cause: expect.objectContaining({ message: expect.stringMatching(/owner_single_row/) }),
+      });
       await app.close();
     });
 
