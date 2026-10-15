@@ -101,7 +101,7 @@ export function manifestFor(target: Target): Manifest {
   const manifest: Manifest = {
     manifest_version: 3,
     name: 'bukmark capture',
-    version: '0.4.3',
+    version: '0.4.4',
     description: "Save the current tab to your own bukmark server, and import or sync your browser's bookmarks.",
     permissions: [...PERMISSIONS],
     optional_permissions: [...OPTIONAL_PERMISSIONS],
