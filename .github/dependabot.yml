@@ -1,9 +1,12 @@
 # Monthly, grouped, so updates arrive as a few pull requests rather than dozens.
+# The 30-day cooldown matches minimumReleaseAge in pnpm-workspace.yaml: a
+# release younger than that could not be installed anyway.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
     schedule: { interval: monthly }
+    cooldown: { default-days: 30 }
     open-pull-requests-limit: 5
     groups:
       minor-and-patch:
@@ -14,12 +17,14 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
+    cooldown: { default-days: 30 }
     groups:
       actions:
         patterns: ['*']
   - package-ecosystem: docker
     directory: /apps/server
     schedule: { interval: monthly }
+    cooldown: { default-days: 30 }
     # A new Node major is a deliberate upgrade (engines, CI, the image), not a
     # monthly bump.
     ignore:
