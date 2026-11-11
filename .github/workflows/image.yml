@@ -28,6 +28,7 @@ env:
 jobs:
   publish:
     name: Build and push
+    needs: sessions
     runs-on: ubuntu-latest
     timeout-minutes: 90
     outputs:
