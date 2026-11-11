@@ -623,7 +623,9 @@ cmd_update_local() {
   fi
   previous=$(running_version)
   before=$(running_image_id)
-  [ -n "$previous" ] && [ -n "$before" ] || die "Cannot identify the running version."
+  if [ -z "$previous" ] || [ -z "$before" ]; then
+    die "Cannot identify the running version."
+  fi
   previous_ref=$(BUKMARK_VERSION=$previous app_image)
   [ "$(image_id "$previous_ref")" = "$before" ] ||
     die "The previous version must be available locally for rollback."
