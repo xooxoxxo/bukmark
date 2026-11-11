@@ -55,6 +55,8 @@ Use your server's address in place of `http://localhost:3000`.
 | POST | `/api/links/check` | Check the links most in need of it now |
 | POST | `/api/links` | Create or update a link |
 | POST | `/api/links/import` | Import a batch of links |
+| POST | `/api/links/session-import` | Preview or import selected browser session tabs |
+| POST | `/api/links/session-import/verify` | Verify saved browser session occurrences |
 | POST | `/api/links/og-backfill` | Look up preview images not yet looked up |
 | POST | `/api/links/:id/refresh` | Re-fetch preview image for one link |
 | POST | `/api/links/assign` | Assign links to hubs in bulk |
@@ -506,6 +508,33 @@ body is limited to 4 MiB.
 - `quotes.alreadyHere`: same text on the same page. `quotes.invalid`: blank
   text or an unreadable url. Quotes of a link that stays deleted are kept with
   no link.
+
+### POST /api/links/session-import
+
+Send `preview: true` to check a selection, or `preview: false` to save it.
+Each request accepts 1–200 `items` and at most 800,000 bytes. Each item requires
+`snapshotId`, `occurrenceId`, `snapshotName`, and `url`. It can also include
+`title`, `groupName`, `profileName`, and `position`.
+
+The response counts `createdLinks`, `recorded`, `alreadyRecorded`,
+`alreadyLinked`, `existingProcessingEnabled`, `skippedDeleted`, and `invalid`.
+`createdLinks` and `recorded` describe the proposed additions in preview mode;
+preview writes nothing. Retry an interrupted
+import with the same occurrence IDs. Each pair of snapshot and occurrence IDs
+is recorded once.
+
+New session bookmarks skip automatic page checks, preview fetching, and browser
+bookmark sync. Existing bookmarks keep their settings. Pass
+`{"sessionProtected":false}` to `PATCH /api/links/:id` to enable processing for
+one bookmark. [CLI examples](/docs/export/#browser-session-archives)
+
+### POST /api/links/session-import/verify
+
+Send the same `items` used for session import. The response contains a
+`verified` array. Each entry has `snapshotId`, `occurrenceId`, and the SHA-256
+`urlHash` of the exact original URL. An occurrence is included only when its
+stored URL, title and source context match and its URL has no deletion marker.
+This endpoint reads existing data and does not import tabs or fetch pages.
 
 ### POST /api/links/og-backfill
 

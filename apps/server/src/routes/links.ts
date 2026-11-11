@@ -1,11 +1,12 @@
 import { Type } from 'typebox';
 import { and, asc, desc, eq, inArray, ne, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { normalizeUrl, matchKey } from '@bukmark/shared';
+import { normalizeUrl, matchKey, SESSION_IMPORT_MAX_ITEMS, SESSION_IMPORT_MAX_BYTES, type SessionImportItem } from '@bukmark/shared';
 import { pgCode } from '../db/client.js';
 import { deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 import { addLink } from '../links/addLink.js';
 import { importLinks, type ImportItem, type ImportOrphanQuote } from '../links/importLinks.js';
+import { importSession, verifySessionImport } from '../links/importSession.js';
 import { assignHubs } from '../links/assignHubs.js';
 import { changeLinkHubs, setLinkHubs } from '../links/setLinkHubs.js';
 import { backfillOg } from '../og/backfill.js';
@@ -54,6 +55,14 @@ const SORTS = {
 /** A quote in a bukmark backup. createdAt is read leniently: an unreadable one falls back to now. */
 /** Body limit of POST /links/import: 4 MiB (Fastify's default is 1 MiB). */
 const IMPORT_BODY_LIMIT = 4 * 1024 * 1024;
+
+const SessionImportItems = Type.Array(Type.Object({
+  snapshotId: Type.String({ minLength: 1, maxLength: 512 }),
+  occurrenceId: Type.String({ minLength: 1, maxLength: 512 }),
+  url: Type.String(), title: Type.Optional(Type.String()), snapshotName: Type.String(),
+  groupName: Type.Optional(Type.String()), profileName: Type.Optional(Type.String()),
+  position: Type.Optional(Type.Integer()),
+}, { additionalProperties: false }), { minItems: 1, maxItems: SESSION_IMPORT_MAX_ITEMS });
 
 const importQuote = Type.Object({
   text: Type.String({ minLength: 1, maxLength: 10000 }),
@@ -237,7 +246,7 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
           AND xact_start > now() - ${OPEN_TRANSACTION_WAIT}::interval
       ),
       changes AS (
-        SELECT id, updated_at AS at, false AS gone FROM links WHERE updated_at >= ${start}
+        SELECT id, updated_at AS at, false AS gone FROM links WHERE updated_at >= ${start} AND NOT session_protected
         UNION ALL
         SELECT link_id, deleted_at, true FROM link_deletions WHERE deleted_at >= ${start}
       ),
@@ -284,6 +293,7 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
         imageUrl: links.imageUrl, firstSeen: links.firstSeen, lastSeen: links.lastSeen,
         contentText: links.contentText, httpStatus: links.httpStatus, checkError: links.checkError,
         checkedAt: links.checkedAt, broken: dsql<boolean>`coalesce(${isBroken}, false)`,
+        sessionProtected: links.sessionProtected,
         quoteCount: dsql<number>`(SELECT count(*)::int FROM quotes q WHERE q.link_id = "links"."id")`,
         hubIds: dsql<string[]>`coalesce((SELECT array_agg(hl.hub_id) FROM hub_links hl WHERE hl.link_id = ${links.id}), '{}')`,
       })
@@ -372,6 +382,38 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
     return importLinks(req.server.db, items, undefined, orphanQuotes);
   });
 
+  app.post('/links/session-import', {
+    bodyLimit: SESSION_IMPORT_MAX_BYTES,
+    schema: {
+      body: Type.Object({
+        preview: Type.Boolean(),
+        items: SessionImportItems,
+      }),
+    },
+  }, async (req, reply) => {
+    const { items, preview } = req.body as { items: SessionImportItem[]; preview: boolean };
+    try {
+      return await importSession(req.server.db, items, preview);
+    } catch (error) {
+      // Drizzle errors may include the submitted titles and URLs in their parameters.
+      req.log.error({ code: pgCode(error) }, 'Session import failed');
+      return reply.code(500).send({ error: 'session import failed' });
+    }
+  });
+
+  app.post('/links/session-import/verify', {
+    bodyLimit: SESSION_IMPORT_MAX_BYTES,
+    schema: { body: Type.Object({ items: SessionImportItems }) },
+  }, async (req, reply) => {
+    try {
+      const { items } = req.body as { items: SessionImportItem[] };
+      return { verified: await verifySessionImport(req.server.db, items) };
+    } catch (error) {
+      req.log.error({ code: pgCode(error) }, 'Session verification failed');
+      return reply.code(500).send({ error: 'session verification failed' });
+    }
+  });
+
   app.post('/links/og-backfill', {
     schema: {
       body: Type.Object({
@@ -453,6 +495,7 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
       body: Type.Object({
         title: Type.Optional(Type.String()),
         note: Type.Optional(Type.String()),
+        sessionProtected: Type.Optional(Type.Literal(false)),
         status: Type.Optional(Type.Union([Type.Literal('active'), Type.Literal('archived')])),
         relevance: Type.Optional(Type.Union([Type.Integer({ minimum: 1, maximum: 5 }), Type.Null()])),
         // Hub names, replacing the hubs the link is in: see setLinkHubs.
@@ -466,7 +509,7 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
   }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const { hubs: hubNames, addHubs, removeHubs, ...fields } = req.body as {
-      title?: string; note?: string; status?: 'active' | 'archived'; relevance?: number | null;
+      title?: string; note?: string; status?: 'active' | 'archived'; relevance?: number | null; sessionProtected?: false;
       hubs?: string[]; addHubs?: string[]; removeHubs?: string[];
     };
     // A whole set and changes to it can't both apply.

@@ -79,6 +79,88 @@ same page: `http` and `https`, with or without a trailing slash, the mobile site
 (`m.`, `mobile.`) and the AMP version. Different query values, such as two
 YouTube videos, stay separate.
 
+### Browser session archives
+
+The `bukmark sessions` command reads the JSONL archives created by `sessions capture`. Run
+`sessions inspect` to see numbered snapshots and groups, tab counts, and the
+number of unique bookmark candidates. Inspection reads the files locally.
+
+```sh
+bukmark sessions inspect SafariTabGroups.jsonl ChromeSessions.jsonl
+```
+
+Session commands run locally with Node.js 22.13 or newer. On first use, the
+installed command downloads its versioned helper and verifies its checksum.
+This downloads code only; archives stay on this machine. Android capture and
+cleanup also need Android Platform Tools (`adb`) on this machine.
+
+With one phone connected over USB and its regular Chrome tab switcher visible,
+capture the tab metadata locally. Confirm that Chrome has zero Incognito tabs
+before running the command. You can also pass a previously captured local USB
+probe with `--probe`.
+
+```sh
+bukmark sessions capture android \
+  --out AndroidChromeUSB.jsonl --confirm-no-incognito
+```
+
+Android USB captures are partial. Group membership, switcher order, and
+coverage of inactive tabs are unknown.
+
+Use the same file order when choosing a numbered snapshot or group. Repeat
+`--select` to choose more than one, or use `--all` for the full set. Set
+`BUKMARK_TOKEN` to an access token for your instance, then choose an explicit
+destination and mode.
+
+```sh
+bukmark sessions import SafariTabGroups.jsonl \
+  --select 1 --destination http://localhost:3000 --preview
+```
+
+Preview sends the selection to that instance to check for existing and deleted
+bookmarks. Use `--apply` to save it. After an interrupted import, run the same
+selection again to finish it. Several tab occurrences can share one bookmark
+and keep separate source details. Links that were already saved keep their
+existing settings.
+
+Use `sessions verify` with the same selection and destination to read back
+saved occurrences and write a private receipt of exact matches.
+
+```sh
+bukmark sessions verify AndroidChromeUSB.jsonl \
+  --all --destination http://localhost:3000 --receipt AndroidChromeUSB.receipt.json
+```
+
+Android cleanup is an explicit command. It
+requires a direct USB archive with a handset fingerprint and a destination
+that supports session verification. Archives converted with `--probe` do
+not contain a handset fingerprint and cannot be used for cleanup.
+
+```sh
+bukmark sessions close android AndroidChromeUSB.jsonl \
+  --destination http://localhost:3000 --preview --confirm-no-incognito
+```
+
+Cleanup matches current Android tab IDs and exact URLs to saved occurrences
+read back from bukmark. It preserves loaded tabs and any tabs sharing their
+URLs, and excludes changed or unverified tabs. The implementation accepts
+`--apply --log AndroidChromeUSB.closed.jsonl` in place of `--preview`, records
+each close request before sending it, and checks the remaining tab list after
+each request and at completion. Keep the log for retries.
+
+Keep Chrome’s regular switcher visible and leave the phone untouched during
+cleanup. Concurrent manual changes stop the command. Loaded tabs remain open
+because closing them could select and load another page. Inactive-tab
+coverage and group order remain unknown.
+
+Closing is currently enabled only for the validated Android Chrome build
+157.0.8103.48. Other builds can capture metadata and preview matches, but apply
+stops until their close behavior has been validated.
+
+New session bookmarks stay out of automatic page checks, preview fetching, and
+browser bookmark sync. To enable these for a link, send
+`{"sessionProtected":false}` to `PATCH /api/links/:id`.
+
 ## Export
 
 ### From the web app

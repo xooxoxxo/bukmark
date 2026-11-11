@@ -9,9 +9,8 @@ const CONCURRENCY = 8;
 async function main(): Promise<void> {
   const all = process.argv.includes('--all');
   const { db, sql } = getDb();
-  const where = all
-    ? eq(links.status, 'active')
-    : and(eq(links.status, 'active'), isNull(links.ogFetchedAt));
+  const where = and(eq(links.status, 'active'), eq(links.sessionProtected, false),
+    all ? undefined : isNull(links.ogFetchedAt));
   const targets = await db.select({ id: links.id, url: links.url }).from(links).where(where);
   console.log(`og-fetch: ${targets.length} links to process`);
 

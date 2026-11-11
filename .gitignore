@@ -31,3 +31,4 @@ docs/superpowers/
 # Design-tool state (Hallmark, Impeccable); the briefs live in the vault.
 .hallmark/
 .impeccable/
+packaging/dist/

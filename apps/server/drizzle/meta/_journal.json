@@ -85,6 +85,20 @@
       "when": 1791740512555,
       "tag": "0011_app_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791740512556,
+      "tag": "0012_session_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791740512557,
+      "tag": "0013_session_match_key_index",
+      "breakpoints": true
     }
   ]
 }

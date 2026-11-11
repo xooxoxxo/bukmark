@@ -15,6 +15,7 @@ export const links = pgTable('links', {
   relevance: integer('relevance'),
   dupeCount: integer('dupe_count').notNull().default(1),
   imageUrl: text('image_url'),
+  sessionProtected: boolean('session_protected').notNull().default(false),
   ogFetchedAt: timestamp('og_fetched_at', { withTimezone: true }),
   /** The page's readable text, from its last check: searched, and kept as a copy. */
   contentText: text('content_text'),
@@ -31,7 +32,7 @@ export const links = pgTable('links', {
   uniqueIndex('links_url_hash_uq').on(t.urlHash),
   index('links_status_idx').on(t.status),
   index('links_checked_at_idx').on(t.checkedAt),
-  index('links_match_key_idx').on(t.matchKey),
+  index('links_match_key_idx').using('hash', t.matchKey),
   // The sync feed reads links in (updated_at, id) order from a cursor.
   index('links_updated_at_idx').on(t.updatedAt, t.id),
 ]);
@@ -52,9 +53,10 @@ export const captures = pgTable('captures', {
   originalUrl: text('original_url').notNull().default(''),
   originalTitle: text('original_title').notNull().default(''),
   groupHint: text('group_hint'),
+  sessionOccurrenceKey: text('session_occurrence_key'),
   raw: jsonb('raw'),
   capturedAt: timestamp('captured_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [index('captures_link_idx').on(t.linkId)]);
+}, (t) => [index('captures_link_idx').on(t.linkId), uniqueIndex('captures_session_occurrence_uq').on(t.sessionOccurrenceKey)]);
 
 /**
  * Passages saved from pages. link_id goes null when the link is deleted; the
