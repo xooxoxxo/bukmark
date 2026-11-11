@@ -3,6 +3,15 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "dependencies": { "@bukmark/shared": "workspace:*" },
-  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" }
+  "dependencies": {
+    "@bukmark/shared": "workspace:*"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
 }

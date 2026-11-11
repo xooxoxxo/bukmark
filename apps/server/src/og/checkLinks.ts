@@ -21,7 +21,8 @@ export const checkPage: CheckPage = (url) => fetchPage(url, PAGE_BYTES);
  */
 export const isBroken = dsql`(${links.httpStatus} IN (404, 410) OR ${links.checkError} = 'dns')`;
 
-const due = or(isNull(links.checkedAt), lt(links.checkedAt, dsql`now() - make_interval(days => ${RECHECK_DAYS})`));
+const due = and(eq(links.sessionProtected, false),
+  or(isNull(links.checkedAt), lt(links.checkedAt, dsql`now() - make_interval(days => ${RECHECK_DAYS})`)));
 
 export interface CheckResult {
   processed: number;

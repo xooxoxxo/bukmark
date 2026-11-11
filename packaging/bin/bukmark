@@ -10,7 +10,8 @@
 # Docs: https://bukmark.it/docs/install/
 set -eu
 
-BUKMARK_CLI_VERSION=0.4.1
+BUKMARK_CLI_VERSION=0.5.0
+BUKMARK_SESSIONS_SHA256=d0a39c831d12f49956552e92134fa5eb39af3c1173c62a0bde6da37da7564339
 
 DEFAULT_IMAGE=ghcr.io/xooxoxxo/bukmark
 DB_IMAGE=pgvector/pgvector:pg17
@@ -64,14 +65,19 @@ Commands:
   start              Start bukmark.
   stop               Stop bukmark. Your data is kept.
   restart            Restart bukmark, with any changes to .env.
+  sessions ...       Capture, inspect, import, verify or clean up browser tabs.
+                     Runs locally with Node.js 22.13+; Android also needs ADB.
   status             Show whether bukmark is running.
   logs [-f]          Show the server's logs. -f keeps following them.
   update             Back up the database, download the newest version and
                      restart. Your data is kept.
     --latest         Follow new releases again after a rollback.
+    --local-version TAG  Use a locally available app image with this tag.
+    --dry-run        Check a local upgrade without changing the install.
   rollback           Undo the last update: the version and database from
                      before it. Changes since that update are lost.
     --yes            Roll back without asking.
+    --local          Use the local copy of the previous app image.
   open               Open bukmark in your browser.
   uninstall          Remove bukmark's containers. Your data is kept.
     --delete-data    Also delete all bookmarks and settings, after asking.
@@ -602,7 +608,68 @@ last_update_get() {
   sed -n "s/^$1=//p" "$LAST_UPDATE" | tail -n 1
 }
 
+cmd_update_local() {
+  local_version=$1
+  dry_run=$2
+  case $local_version in
+    '' | latest | *[!A-Za-z0-9._-]*) die_usage "Choose an exact local version tag." ;;
+  esac
+  require_setup
+  require_docker
+  [ -f "$COMPOSE_YML" ] || die "The running install's Compose file is missing."
+  [ ! -f "$OVERRIDE_YML" ] || die "A local update needs review of the existing Compose override."
+  if ! app_running || ! db_running; then
+    die "Start the app and database before a local update."
+  fi
+  previous=$(running_version)
+  before=$(running_image_id)
+  if [ -z "$previous" ] || [ -z "$before" ]; then
+    die "Cannot identify the running version."
+  fi
+  previous_ref=$(BUKMARK_VERSION=$previous app_image)
+  [ "$(image_id "$previous_ref")" = "$before" ] ||
+    die "The previous version must be available locally for rollback."
+  BUKMARK_VERSION=$local_version
+  export BUKMARK_VERSION
+  target=$(app_image)
+  expected=$(image_id "$target")
+  [ -n "$expected" ] || die "The exact local app image $target is missing."
+  candidate_version=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$target")
+  [ "$candidate_version" = "$local_version" ] || die "The local image version label differs from its tag."
+  [ "$expected" != "$before" ] || die "The requested app image is already running."
+  dc config --images | grep -Fxq "$target" || die "Compose does not resolve to $target."
+  say "Local upgrade: $previous to $target ($expected)"
+  if "$dry_run"; then return; fi
+
+  dump=$BACKUP_DIR/before-update-$(date -u +%Y%m%dT%H%M%SZ).pgdump
+  [ ! -e "$dump" ] || die "A backup already exists for this update time."
+  dc stop app
+  if ! backup_database "$dump"; then
+    dc start app || true
+    die "The database backup failed. The app image was not changed."
+  fi
+  say "Backed up the database to $dump"
+  tmp=$BACKUP_DIR/.last-update.$$
+  (umask 077; printf 'version=%s\ndump=%s\n' "$previous" "$dump" >"$tmp")
+  mv -f "$tmp" "$LAST_UPDATE"
+  say "Rollback is available with bukmark rollback --local."
+  set_env BUKMARK_VERSION "$local_version"
+  dc up -d --no-deps --no-build --pull never app
+  [ "$(running_image_id)" = "$expected" ] || die "The expected local image is not running."
+  wait_healthy
+  say "bukmark is updated ($target), running at $(server_url)"
+}
+
 cmd_update() {
+  if [ "${1:-}" = --local-version ]; then
+    [ $# -ge 2 ] || die_usage "Provide a local version tag."
+    case "${3:-}:$#" in
+      :2) cmd_update_local "$2" false ;;
+      --dry-run:3) cmd_update_local "$2" true ;;
+      *) die_usage "Use update --local-version TAG [--dry-run]." ;;
+    esac
+    return
+  fi
   latest=false
   for arg in "$@"; do
     case $arg in
@@ -683,9 +750,11 @@ cmd_update() {
 
 cmd_rollback() {
   yes=false
+  local_only=false
   for arg in "$@"; do
     case $arg in
       --yes | -y) yes=true ;;
+      --local) local_only=true ;;
       *) die_usage "Unknown option for rollback: $arg" ;;
     esac
   done
@@ -717,13 +786,20 @@ cmd_rollback() {
   export BUKMARK_VERSION
   # Before anything is stopped: with no image for that version there is
   # nothing to roll back to, and the running server should stay up.
-  pull_images || true
+  if "$local_only"; then
+    [ -n "$(image_id "$(app_image)")" ] || die "The previous app image is missing."
+    db_running || die "Start the database before a local rollback."
+  else
+    pull_images || true
+  fi
   set_env BUKMARK_VERSION "$previous"
   say "Set BUKMARK_VERSION=$previous in $ENV_FILE"
 
   dc stop app
-  dc up -d --wait db ||
-    die "The database did not start, so it was not restored. bukmark is stopped; start it again: bukmark start"
+  if ! "$local_only"; then
+    dc up -d --wait db ||
+      die "The database did not start, so it was not restored. bukmark is stopped; start it again: bukmark start"
+  fi
   say "Restoring the database from $dump..."
   # Emptied schemas first: pg_restore into tables the newer version changed
   # would fail or mix the two. That includes drizzle, where the server records
@@ -735,12 +811,50 @@ cmd_rollback() {
     ! dc exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --exit-on-error' <"$dump"; then
     die "Restoring the database failed (see above). bukmark is stopped, so nothing more is changed. The backup is still in $dump"
   fi
-  dc up -d --remove-orphans
+  if "$local_only"; then
+    dc up -d --no-deps --no-build --pull never app
+  else
+    dc up -d --remove-orphans
+  fi
   wait_healthy
   # Done: a second rollback would restore the same dump over newer changes.
   rm -f "$LAST_UPDATE"
   say "bukmark is back on $previous, with the database from before the update, running at $(server_url)"
   say "BUKMARK_VERSION stays at $previous, so bukmark update keeps it there. To follow new releases again: bukmark update --latest"
+}
+
+
+valid_sessions_bundle() {
+  [ -f "$1" ] || return 1
+  node -e 'const fs=require("node:fs"),crypto=require("node:crypto");try{process.exit(crypto.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex")===process.argv[2]?0:1)}catch{process.exit(1)}' "$1" "$BUKMARK_SESSIONS_SHA256"
+}
+
+cmd_sessions() {
+  have node || die "Session commands need Node.js 22.13 or newer on this machine."
+  node -e 'const [major,minor]=process.versions.node.split(".").map(Number);process.exit(major>22||(major===22&&minor>=13)?0:1)' ||
+    die "Session commands need Node.js 22.13 or newer on this machine."
+  bundle=$DIR/tools/sessions-$BUKMARK_CLI_VERSION.mjs
+  if ! valid_sessions_bundle "$bundle"; then
+    (umask 077 && mkdir -p "$DIR/tools")
+    tmp=$(mktemp "$DIR/tools/.sessions.XXXXXX")
+    trap 'rm -f "$tmp"' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    bundle_url=https://github.com/xooxoxxo/bukmark/releases/download/v$BUKMARK_CLI_VERSION/bukmark-sessions.mjs
+    say "Downloading the local sessions helper for bukmark $BUKMARK_CLI_VERSION..."
+    if have curl; then
+      curl -fsSL -o "$tmp" "$bundle_url" || die "Could not download the sessions helper. No archive was read."
+    elif have wget; then
+      wget -q -O "$tmp" "$bundle_url" || die "Could not download the sessions helper. No archive was read."
+    else
+      die "Install curl or wget to download the sessions helper."
+    fi
+    valid_sessions_bundle "$tmp" || die "The sessions helper checksum did not match. Nothing was run."
+    chmod 600 "$tmp"
+    mv -f "$tmp" "$bundle"
+    trap - EXIT INT TERM
+  fi
+  exec node "$bundle" "$@"
 }
 
 cmd_open() {
@@ -806,6 +920,7 @@ main() {
   cmd=$1
   shift
   case $cmd in
+    sessions) cmd_sessions "$@" ;;
     setup) cmd_setup "$@" ;;
     start) no_options "$@"; cmd_start ;;
     stop) no_options "$@"; cmd_stop ;;

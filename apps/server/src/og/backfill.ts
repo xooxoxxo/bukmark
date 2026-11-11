@@ -1,4 +1,4 @@
-import { asc, eq, isNull, sql as dsql } from 'drizzle-orm';
+import { and, asc, eq, isNull, sql as dsql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { links } from '../db/schema.js';
 
@@ -6,6 +6,8 @@ export interface BackfillResult {
   processed: number;
   remaining: number;
 }
+
+const pending = and(eq(links.sessionProtected, false), isNull(links.ogFetchedAt));
 
 /**
  * Fetch og:image for links that have never been tried.
@@ -24,7 +26,7 @@ export async function backfillOg(
   const batch = await db
     .select({ id: links.id, url: links.url })
     .from(links)
-    .where(isNull(links.ogFetchedAt))
+    .where(pending)
     .orderBy(asc(links.firstSeen))
     .limit(limit);
 
@@ -47,7 +49,7 @@ export async function backfillOg(
   const [rem] = await db
     .select({ n: dsql<number>`count(*)::int` })
     .from(links)
-    .where(isNull(links.ogFetchedAt));
+    .where(pending);
 
   return { processed: batch.length, remaining: rem?.n ?? 0 };
 }

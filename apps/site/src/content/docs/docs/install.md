@@ -78,10 +78,11 @@ commands:
 | `bukmark start` | Starts bukmark. |
 | `bukmark stop` | Stops bukmark. Data is kept. |
 | `bukmark restart` | Restarts bukmark, applying changes to `.env`. |
+| `bukmark sessions ...` | Captures browser metadata locally, inspects archives, previews and applies imports, verifies stored tabs, and closes verified Android background tabs. Requires Node.js 22.13+; Android needs ADB. See [session archives](/docs/export/#browser-session-archives). |
 | `bukmark status` | Exits 0 when bukmark is running, 3 when it is stopped or not set up, 1 when it runs but does not answer. |
 | `bukmark logs` | Shows the server's logs. `-f` keeps following them. |
-| `bukmark update` | Backs up the database, downloads the newest image and restarts. Data is kept. `--latest` follows new releases again after a rollback. |
-| `bukmark rollback` | Goes back to the version and database from before the last update. `--yes` skips the confirmation. |
+| `bukmark update` | Backs up the database, downloads the newest image and restarts. Data is kept. `--latest` follows new releases again after a rollback. `--local-version TAG` upgrades to an exact image already on this host; add `--dry-run` to check it first. |
+| `bukmark rollback` | Goes back to the version and database from before the last update. `--yes` skips the confirmation; `--local` uses the locally available previous image. |
 | `bukmark open` | Opens bukmark in your browser. |
 | `bukmark uninstall` | Removes the containers, keeping data. `--delete-data` deletes it too; `--yes` skips the confirmation. |
 | `bukmark version` | Prints the command's version. |
@@ -94,6 +95,7 @@ Everything is in `~/.bukmark`, except your bookmarks:
 | What | What it is for |
 | --- | --- |
 | `.env` | Your settings. Keep it with the volume: it holds the database password. |
+| `tools/` | Versioned local session helpers, checked against the command’s checksum before running. |
 | `compose.yml` | Rewritten on every run. Don't edit it. |
 | `compose.override.yml` | Optional, yours, for changes `.env` can't make. See [Behind a reverse proxy](#behind-a-reverse-proxy). |
 | Docker volume `bukmark-cli_pgdata` | Your bookmarks. |

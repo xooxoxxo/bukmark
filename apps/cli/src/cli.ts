@@ -9,6 +9,15 @@ import { collectResultFiles, mergeBatch, prepareBatches, validateBatch } from '.
 import { defaultPaths, type Paths, type Source } from '@bukmark/shared';
 
 const SOURCES: Source[] = ['onetab_import', 'chrome_import', 'safari_import', 'extension_capture', 'manual'];
+const SESSIONS_USAGE = [
+  'usage: sessions capture safari --db <SafariTabs.db copy> --out <archive.jsonl>',
+  '       sessions capture chrome --sessions <copied Sessions directory> --out <archive.jsonl> [--profile <name>]',
+  '       sessions capture android --out <archive.jsonl> --confirm-no-incognito [--probe <local Chrome USB JSON> | --adb <path>]',
+  '       sessions inspect <archive.jsonl>... [--select <number>]...',
+  '       sessions import <archive.jsonl>... (--select <number>... | --all) --destination <origin> (--preview | --apply)',
+  '       sessions verify <archive.jsonl>... (--select <number>... | --all) --destination <origin> --receipt <path>',
+  '       sessions close android <archive.jsonl> --destination <origin> (--preview | --apply --log <path>) --confirm-no-incognito',
+].join('\n');
 
 export async function runCli(argv: string[], paths: Paths = defaultPaths): Promise<number> {
   const [command, ...rest] = argv;
@@ -16,6 +25,64 @@ export async function runCli(argv: string[], paths: Paths = defaultPaths): Promi
   const canonFile = join(paths.dataDir, 'categories.json');
 
   switch (command) {
+    case 'sessions': {
+      const [action, source, ...args] = rest;
+      if (rest.includes('--help')) { console.log(SESSIONS_USAGE); return 0; }
+      try {
+        if (action === 'close' && source === 'android') {
+          const { closeVerifiedAndroid } = await import('./sessions/android-close.js');
+          return await closeVerifiedAndroid(args);
+        }
+        if (action === 'inspect' || action === 'import' || action === 'verify') {
+          const { runSessionSelection } = await import('./sessions/selection-command.js');
+          return await runSessionSelection(action, rest.slice(1));
+        }
+        if (action === 'capture' && source === 'android') {
+          const { values } = parseArgs({ args, options: {
+            probe: { type: 'string' }, adb: { type: 'string' }, out: { type: 'string' }, 'confirm-no-incognito': { type: 'boolean' },
+          } });
+          if (!values.out || !values['confirm-no-incognito'] || (values.probe && values.adb)) {
+            console.error(SESSIONS_USAGE);
+            return 2;
+          }
+          const { captureAndroidProbe, captureAndroidUsb } = await import('./sessions/android.js');
+          const { tabs } = values.probe ? captureAndroidProbe(values.probe, values.out) : await captureAndroidUsb(values.out, values.adb);
+          console.log(`Captured ${tabs} page entries in a partial Android archive. Groups, positions and inactive coverage are unknown.`);
+          console.log(`Local archive: ${values.out}`);
+          return 0;
+        }
+        if (action !== 'capture' || (source !== 'safari' && source !== 'chrome')) { console.error(SESSIONS_USAGE); return 2; }
+        const { values } = parseArgs({
+          args,
+          options: source === 'safari'
+            ? { db: { type: 'string' }, out: { type: 'string' } }
+            : { sessions: { type: 'string' }, profile: { type: 'string' }, out: { type: 'string' } },
+        });
+        if (typeof values.out !== 'string' || !values.out) { console.error(SESSIONS_USAGE); return 2; }
+        if (source === 'safari') {
+          if (typeof values.db !== 'string' || !values.db) { console.error(SESSIONS_USAGE); return 2; }
+          const { captureSafari } = await import('./sessions/safari.js');
+          const report = captureSafari(values.db, values.out);
+          console.log(`Captured ${report.groups} groups and ${report.tabs} tabs (${report.missingUrls} without a saved URL).`);
+          if (report.partialGroups) console.warn(`${report.partialGroups} groups had unrecognized rows or count differences.`);
+        } else {
+          if (typeof values.sessions !== 'string' || !values.sessions) { console.error(SESSIONS_USAGE); return 2; }
+          const { captureChrome } = await import('./sessions/chrome.js');
+          const profile = typeof values.profile === 'string' ? values.profile : null;
+          const report = captureChrome(values.sessions, values.out, profile);
+          console.log(`Captured ${report.sessions} Chrome sessions, ${report.windows} windows, ${report.groups} groups and ${report.tabs} tabs (${report.missingUrls} without a saved URL).`);
+          if (report.partialWindows) console.warn(`${report.partialWindows} windows have incomplete saved data.`);
+          for (const { file, reason } of report.partialFiles) console.warn(`Partial ${file}: ${reason}`);
+          for (const { file, reason } of report.skippedFiles) console.warn(`Skipped ${file}: ${reason}`);
+        }
+        console.log(`Local archive: ${values.out}`);
+        return 0;
+      } catch (error) {
+        console.error(error instanceof Error ? error.message : 'Session capture failed.');
+        return 1;
+      }
+    }
+
     case 'ingest': {
       const { values, positionals } = parseArgs({
         args: rest,
@@ -104,7 +171,7 @@ export async function runCli(argv: string[], paths: Paths = defaultPaths): Promi
     }
 
     default:
-      console.error('commands: ingest | prepare | merge-triage | render | export | status');
+      console.error('commands: sessions | ingest | prepare | merge-triage | render | export | status');
       return 2;
   }
 }
