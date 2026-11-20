@@ -6,10 +6,37 @@ import {
   type QueryClient,
 } from '@tanstack/react-query';
 import * as api from './client';
+import type { SiftApplicationInput, SiftScope } from '@bukmark/shared/review';
 import { chunkBySize } from './importSize';
-import type { BulkAction, HubPatch, LinkPatch, LinkSort, QuotePatch, UpdatesPatch } from './types';
+import type { BulkAction, HubPatch, LinkPatch, LinkSort, QuotePatch, ReviewFilter, UpdatesPatch } from './types';
 
 export const PAGE_SIZE = 200;
+
+export const useSiftBaselines = () => useQuery({queryKey:['sift','baselines'],queryFn:api.fetchSiftBaselines});
+export const useSiftRuns = (offset:number) => useQuery({queryKey:['sift','runs',offset],queryFn:()=>api.fetchSiftRuns(offset)});
+export const useSiftPreview = (id:string|null,offset:number) => useQuery({
+  queryKey:['sift','preview',id,offset],queryFn:()=>api.fetchSiftPreview(id!,offset),enabled:id!==null,
+});
+export function useSaveSiftPreview() {
+  const client=useQueryClient();
+  return useMutation({mutationFn:(scope:SiftScope)=>api.saveSiftPreview(scope),
+    onSuccess:()=>client.invalidateQueries({queryKey:['sift']})});
+}
+export function usePrepareSiftApplication() {
+  const client=useQueryClient();
+  return useMutation({mutationFn:({id,input}:{id:string;input:SiftApplicationInput})=>api.prepareSiftApplication(id,input),
+    onSuccess:(_view,request)=>client.invalidateQueries({queryKey:['sift','preview',request.id]})});
+}
+export const useSiftApplicationPreview = (id:string|null,offset:number) => useQuery({
+  queryKey:['sift','application-preview',id,offset],queryFn:()=>api.fetchSiftApplicationPreview(id!,offset),enabled:id!==null,
+});
+export const useSiftApplication = (id:string|null,offset:number) => useQuery({
+  queryKey:['sift','application',id,offset],queryFn:()=>api.fetchSiftApplication(id!,offset),enabled:id!==null,
+});
+export function useApproveSiftApplication() {
+  const invalidate=useInvalidate('sift','links','link','hubs','stats');
+  return useMutation({mutationFn:({id,digest}:{id:string;digest:string})=>api.approveSiftApplication(id,digest),onSuccess:invalidate});
+}
 
 export interface LinkFilters {
   q?: string;
@@ -45,6 +72,46 @@ function useInvalidate(...keys: string[]) {
   return () => Promise.all(keys.map((k) => queryClient.invalidateQueries({ queryKey: [k] })));
 }
 
+export function useReview(state: ReviewFilter, linkId: string | null, offset: number, enabled = true) {
+  return useQuery({
+    queryKey: ['review', state, linkId, offset],
+    queryFn: () => api.fetchReview(state, linkId, offset),
+    enabled,
+  });
+}
+
+export function usePrepareReview() {
+  const invalidate = useInvalidate('review');
+  return useMutation({ mutationFn: api.prepareReview, onSuccess: invalidate });
+}
+
+export function useDecideReview() {
+  const invalidate = useInvalidate('review', 'links', 'link', 'hubs', 'stats', 'azuk-deliveries');
+  return useMutation({ mutationFn: api.decideReview, onSuccess: invalidate });
+}
+
+export function useAzukLists(enabled: boolean) {
+  return useQuery({ queryKey: ['azuk-lists'], queryFn: api.fetchAzukLists, enabled, retry: false });
+}
+
+export function useAzukDeliveries(linkId: string | null, offset: number) {
+  return useQuery({
+    queryKey: ['azuk-deliveries', linkId, offset],
+    queryFn: () => api.fetchAzukDeliveries(linkId, offset),
+    refetchInterval: (query) => query.state.data?.items.some(
+      ({ connectionAvailable, status }) => connectionAvailable && (status === 'queued' || status === 'running'),
+    ) ? 2000 : false,
+  });
+}
+
+export function useUpdateAzukDelivery() {
+  const invalidate = useInvalidate('azuk-deliveries');
+  return useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'retry' | 'refresh' }) => api.updateAzukDelivery(id, action),
+    onSuccess: invalidate,
+  });
+}
+
 export function useSaveLink() {
   const invalidate = useInvalidate('links', 'hubs', 'stats');
   return useMutation({
@@ -70,7 +137,7 @@ export function useLink(id: string | null) {
  * the server takes per hub. Everything that shows the link refetches after.
  */
 export function useEditLink() {
-  const invalidate = useInvalidate('links', 'link', 'hubs', 'stats');
+  const invalidate = useInvalidate('links', 'link', 'hubs', 'stats', 'review');
   return useMutation({
     mutationFn: async ({ id, body, addHubs, removeHubs }: {
       id: string;
@@ -87,7 +154,7 @@ export function useEditLink() {
 }
 
 export function useDeleteLink() {
-  const invalidate = useInvalidate('links', 'hubs', 'stats', 'quotes');
+  const invalidate = useInvalidate('links', 'hubs', 'stats', 'quotes', 'review');
   return useMutation({
     mutationFn: (id: string) => api.bulkLinks({ ids: [id], action: 'delete' }),
     onSuccess: () => invalidate(),
@@ -111,7 +178,7 @@ export function useRefreshLink() {
 }
 
 export function useBulkLinks() {
-  const invalidate = useInvalidate('links', 'hubs', 'stats', 'quotes');
+  const invalidate = useInvalidate('links', 'hubs', 'stats', 'quotes', 'review');
   return useMutation({
     mutationFn: (body: { ids: string[]; action: BulkAction; hubId?: string }) =>
       api.bulkLinks(body),
@@ -132,7 +199,9 @@ export function useImportLinks() {
       items,
       orphanQuotes = [],
       onProgress,
+      reviewLimit = 0,
     }: {
+      reviewLimit?: number;
       items: api.ImportItem[];
       /** Quotes whose page is gone, from a bukmark backup. Sent once, riding the first request(s). */
       orphanQuotes?: api.ImportOrphanQuote[];
@@ -147,11 +216,18 @@ export function useImportLinks() {
       const batches = chunkBySize(items, api.IMPORT_BATCH_SIZE);
       const orphanChunks = chunkBySize(orphanQuotes, api.IMPORT_ORPHAN_BATCH_SIZE);
 
+      const reviewIds = new Set<string>();
       let done = 0;
       for (let n = 0; n < Math.max(batches.length, orphanChunks.length); n++) {
         // Past the last batch a request carries orphans alone, with no items.
         const batch = batches[n] ?? [];
-        const res = await api.importLinks(batch, orphanChunks[n]);
+        const res = reviewIds.size < reviewLimit
+          ? await api.importLinks(batch, orphanChunks[n], true)
+          : await api.importLinks(batch, orphanChunks[n]);
+        for (const id of res.reviewIds ?? []) {
+          if (reviewIds.size >= reviewLimit) break;
+          reviewIds.add(id);
+        }
         total.created += res.created;
         total.updated += res.updated;
         total.skippedDeleted += res.skippedDeleted;
@@ -162,6 +238,7 @@ export function useImportLinks() {
         done += batch.length;
         onProgress?.(done, items.length);
       }
+      if (reviewLimit) total.reviewIds = [...reviewIds];
       return total;
     },
     onSuccess: () => invalidate(),

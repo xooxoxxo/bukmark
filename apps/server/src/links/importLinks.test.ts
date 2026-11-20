@@ -23,6 +23,16 @@ describe('importLinks', () => {
     await end();
   });
 
+  it('offers only active unprotected links belonging to the chosen file for first review', async () => {
+    const incoming = ['guide', 'private', 'archived', 'outside'].map(name => ({ url: `https://example.org/${name}`, title: name }));
+    expect((await importLinks(db, incoming)).reviewIds).toBeUndefined();
+    await db.update(links).set({ sessionProtected: true }).where(eq(links.title, 'private'));
+    await db.update(links).set({ status: 'archived' }).where(eq(links.title, 'archived'));
+    const [guide] = await db.select().from(links).where(eq(links.title, 'guide'));
+    const review = await importLinks(db, incoming.slice(0, 3), undefined, [], true);
+    expect(review.reviewIds).toEqual([guide!.id]);
+  });
+
   it('creates links and records the folder path as a capture group hint', async () => {
     const res = await importLinks(db, [
       { url: 'https://a.com/1', title: 'Alpha', folderPath: 'Bookmarks Bar/Dev/Rust' },

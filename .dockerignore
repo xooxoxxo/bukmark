@@ -7,3 +7,17 @@ apps/cli/fixtures/real
 .git
 .env
 .env.*
+
+# Local-only project notes, agent state and package caches.
+openspec
+.pnpm-store
+.mcp.json
+.claude
+.codex
+.agents
+.code-review-graph
+.hallmark
+.impeccable
+.playwright-mcp
+.superpowers
+**/.DS_Store

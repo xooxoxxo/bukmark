@@ -106,7 +106,7 @@ describe('the command runs the same server as docker-compose.yml', () => {
   });
 
   it("keeps the caller's environment from overriding .env, bar the image it runs", () => {
-    const unset = cli.match(/^unset ([^\n]*(?:\\\n[^\n]*)*)/m)?.[1]?.replace(/\\\n/g, ' ').split(/\s+/) ?? [];
+    const unset = cli.replace(/\\\n/g, ' ').match(/^unset (.*)$/m)?.[1]?.split(/\s+/) ?? [];
     const overridable = new Set(['BUKMARK_IMAGE', 'BUKMARK_VERSION']);
     expect([...composeVars(cliCompose)].filter((n) => !overridable.has(n) && !unset.includes(n))).toEqual([]);
   });

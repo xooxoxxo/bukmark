@@ -1,0 +1,24 @@
+.page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--bk-space-xl) 0;
+  line-height: 1.5;
+}
+.page > * { max-width: 44rem; }
+.page h1 { font: 800 clamp(2rem, 5vw, 3.8rem)/1.02 var(--bk-font-display); letter-spacing: -.045em; margin: 0 0 1rem; }
+.page h2 { font-family: var(--bk-font-display); line-height: 1.15; margin: 0 0 .75rem; }
+.page p { margin: .5rem 0 1rem; }
+.page section { border-top: 2px solid var(--bk-ink); padding: 1.5rem 0; }
+.page > a { display: inline-block; margin-top: 1rem; }
+.items { border: 0; padding: 0; margin: 1.5rem 0; min-width: 0; }
+.legend { font-weight: 700; padding: 0 0 .5rem; }
+.item { border-top: 1px solid var(--bk-rule); padding: .9rem 0; overflow-wrap: anywhere; }
+.pick { display: flex; align-items: baseline; gap: .6rem; font-weight: 700; }
+.pick input { flex: none; }
+.address { display: block; font-size: .85rem; color: var(--bk-muted); }
+.folder { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
+.folder input { max-width: 100%; padding: .45rem; color: var(--bk-ink); background: var(--bk-paper); border: 1px solid var(--bk-ink); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; }
+.primary { background: var(--bk-ink); color: var(--bk-paper); padding: .7rem 1rem; border: 2px solid var(--bk-ink); font: 700 1rem var(--bk-font-display); cursor: pointer; }
+.primary:disabled { opacity: .55; cursor: default; }

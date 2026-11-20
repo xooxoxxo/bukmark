@@ -142,3 +142,147 @@ export interface UpdatesPatch {
   enabled?: boolean;
   skippedVersion?: string | null;
 }
+export type ReviewAction = 'reference' | 'next_step' | 'archive' | 'undecided' | 'product';
+export type ReviewFilter = 'pending' | 'deferred' | 'decided';
+
+export interface ReviewDraft {
+  action: ReviewAction;
+  hub?: string;
+  nextStep?: string;
+}
+
+export interface ReviewProposal {
+  id: string;
+  revision: number;
+  status: 'pending' | 'deferred' | 'dismissed' | 'applied';
+  draft: ReviewDraft;
+  reason: string;
+  origin: 'rule' | 'assistant' | 'owner';
+  link: { id: string; url: string; title: string; note: string; status: LinkDto['status'] };
+  sourceVersion: string;
+  sourceChanged: boolean;
+  dupeCount: number;
+  oneTab: boolean;
+  folder: string | null;
+  listingUrl: string | null;
+}
+
+export interface ReviewDecision {
+  id: string;
+  revision: number;
+  sourceVersion: string;
+  decision: 'approve' | 'edit' | 'defer' | 'dismiss' | 'resume';
+  draft?: ReviewDraft;
+  azuk?: AzukApproval;
+}
+
+export interface AzukApproval {
+  connection: string;
+  listId: string;
+  listName: string;
+  listingUrl: string;
+  productName: string;
+  target?: { price: string; currency: string };
+}
+
+export type AzukLists = { status: 'disabled' | 'unavailable' } | {
+  status: 'ready';
+  connection: string;
+  lists: Array<{ id: string; name: string; kind: string }>;
+};
+
+export interface AzukDelivery {
+  id: string;
+  listName: string;
+  listingUrl: string;
+  productName: string;
+  status: 'queued' | 'running' | 'delivered' | 'failed' | 'needs_review' | 'stopped';
+  itemId: string | null;
+  watchId: string | null;
+  error: string | null;
+  canRetry: boolean;
+  canRefresh: boolean;
+  connectionAvailable: boolean;
+  watch: {
+    status: string;
+    tier: string;
+    notify: string;
+    triggers: Array<{ type: string; price?: string | number; currency?: string; pct?: string | number; variant?: string }>;
+    settingsMatch: boolean;
+    checkedAt: string | null;
+    targetStatus: string;
+    observation: { price: string; currency: string | null; at: string } | null;
+  } | null;
+}
+export interface BuilderCandidate {
+  id: string;
+  url: string;
+  title: string;
+}
+
+export type BuilderContext = {
+  key: string;
+  kind: 'issue';
+  url: string;
+  number: number;
+  title: string;
+  state: 'open' | 'closed';
+  note?: string;
+} | {
+  key: string;
+  kind: 'package-version';
+  url: string;
+  version: string;
+} | {
+  key: string;
+  kind: 'discussion';
+  url: string;
+  sourceUrl: string;
+  number: number;
+  title: string;
+} | {
+  key: string;
+  kind: 'code';
+  url: string;
+  sourceUrl: string;
+  entryType: 'file' | 'directory';
+  commit: string;
+  ref: string;
+  path: string;
+};
+
+export type BuilderRecord = {
+  key: string;
+  name: string;
+  canonicalUrl: string;
+  synopsis: string;
+  language?: string;
+  tags: string[];
+  context: BuilderContext[];
+} & ({ kind: 'repository'; repository: string } | { kind: 'package'; ecosystem: 'npm'; repositoryUrl?: string });
+
+export interface BuilderDraft {
+  id: string;
+  revision: number;
+  record: BuilderRecord;
+  excluded: string[];
+}
+
+export interface BuilderApproval {
+  id: string;
+  revision: number;
+  synopsis: string;
+  tags: string[];
+  contextKeys: string[];
+}
+
+export interface BuilderPreparation {
+  linkId: string;
+  outcome: 'inactive' | 'unverified' | 'prepared' | 'unchanged';
+  reason?: string;
+}
+
+export interface BuilderExport {
+  id: string;
+  recordCount: number;
+}

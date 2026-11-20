@@ -62,6 +62,42 @@ Use your server's address in place of `http://localhost:3000`.
 | POST | `/api/links/assign` | Assign links to hubs in bulk |
 | PATCH | `/api/links/:id` | Update a single link |
 | POST | `/api/links/bulk` | Archive, activate, assign, or delete links |
+| GET | `/api/review` | Read the bookmark review queue |
+| POST | `/api/review/sift/baselines` | Record existing owner-approved bins |
+| GET | `/api/review/sift/baselines` | List recorded approval batches |
+| POST | `/api/review/sift/runs` | Save a local sifting preview |
+| GET | `/api/review/sift/runs` | List saved sifting runs |
+| GET | `/api/review/sift/runs/:id` | Read a saved sifting preview |
+| POST | `/api/review/sift/runs/:id/application-previews` | Freeze selected bin changes for review |
+| GET | `/api/review/sift/application-previews/:id` | Read guarded bin changes |
+| POST | `/api/review/sift/application-previews/:id/apply` | Approve the exact reviewed bin changes |
+| GET | `/api/review/sift/applications/:id` | Read an application receipt |
+| GET | `/api/review/candidates` | Read evidence for a bounded batch of active links |
+| POST | `/api/review/prepare` | Prepare review drafts from URL rules |
+| POST | `/api/review/proposals` | Submit draft actions for review |
+| POST | `/api/review/decisions` | Apply review decisions from the owner session |
+| GET | `/api/review/azuk/lists` | Get Azuk connection status and lists |
+| GET | `/api/review/azuk/deliveries` | Read delivery receipts and watch observations |
+| POST | `/api/review/azuk/deliveries/:id/retry` | Recheck and retry a failed delivery |
+| POST | `/api/review/azuk/deliveries/:id/refresh` | Read the current watch from Azuk |
+| GET | `/api/review/builder/candidates` | Find saved repository, issue, and package links |
+| POST | `/api/review/builder/prepare` | Verify public sources and prepare builder drafts |
+| GET | `/api/review/builder/drafts` | Read builder previews and their revisions |
+| POST | `/api/review/builder/exports` | Approve selected builder drafts for export |
+| GET | `/api/review/builder/exports/:id` | Download an approved JSON export |
+| GET | `/api/review/recipes/candidates` | Find saved pages to prepare as recipes |
+| POST | `/api/review/recipes/prepare` | Read a selected public page and prepare a recipe |
+| GET | `/api/review/recipes/drafts` | Read recipe previews and their revisions |
+| POST | `/api/review/recipes/exports` | Approve a recipe revision for download |
+| GET | `/api/review/recipes/exports/:id` | Download an approved recipe JSON export |
+| GET | `/api/review/notes/candidates` | Find saved pages to cite in notes |
+| GET | `/api/review/notes/drafts` | Read notes and their cited passages |
+| POST | `/api/review/notes/drafts` | Start or reopen a note from a bookmark |
+| PATCH | `/api/review/notes/drafts/:id` | Save edited note fields |
+| POST | `/api/review/notes/evidence` | Read or attach a passage |
+| POST | `/api/review/notes/exports` | Approve a saved note revision |
+| GET | `/api/review/notes/exports/:id` | Download approved note JSON |
+| POST | `/api/review/sift/runs/:id/bookmark-file` | Download selected bookmarks in named folders |
 | POST | `/api/quotes` | Save a passage from a page, saving the page too if needed |
 | GET | `/api/quotes` | List quotes, newest first, with search and paging |
 | PATCH | `/api/quotes/:id` | Edit a quote's text or note |
@@ -447,6 +483,8 @@ Create a link. If the normalized URL already exists, the outcome is `updated` or
 
 ### POST /api/links/import
 
+The first-run guide adds `?reviewSample=true` to an owner-session import to receive `reviewIds` for active, unprotected bookmarks from the file. The guide keeps up to twelve distinct IDs across import batches.
+
 Import a batch of links. The web app's [file import](/docs/export/#import) and
 the extension's **Import all bookmarks** use it. Import creates no hubs. The
 body is limited to 4 MiB.
@@ -728,6 +766,161 @@ Apply one action to many links.
 
 **Errors:** `400` with `{ "error": "assign requires hubId" }` for `assign` or
 `unassign` without `hubId` (the message names the action).
+
+### GET /api/review
+
+Read the review queue. Set `state` to `pending` (the default), `deferred`, or
+`decided`. Optionally filter by `linkId` or pass an `offset`. The response
+contains up to 25 `items` and a `more` flag.
+
+Each item includes its `id`, `revision`, `sourceVersion`, status, draft, reason,
+and link. It also includes the import folder and OneTab count when available.
+
+### GET /api/review/candidates
+
+Read active links, including links in hubs. Set `limit` from 1 to 25 (default
+12), `offset`, or `linkId`. The response contains `items` and a `more` flag.
+Each item includes the link ID and `sourceVersion`, plus the note, import
+folder, saved page excerpt, and up to two saved quote excerpts when available.
+
+### POST /api/review/prepare
+
+Prepare drafts from URL rules. Send an empty object for the next 12 active
+links without a draft. Use `limit` from 1 to 25 to change the batch size,
+or pass `linkId` to prepare a single link. The response contains `items`
+with a `linkId` and an `outcome` of `prepared`, `unchanged`, or `inactive`.
+
+### POST /api/review/proposals
+
+Send an `items` array with up to 25 drafts. Each item takes a `linkId`,
+`sourceVersion` from the candidates response, `reason`, and `draft`. A draft
+has an `action` of `reference`, `next_step`, `archive`, `undecided`, or
+`product`, and optional `hub` and `nextStep` fields.
+
+The response contains an outcome per link. In addition to the prepare
+outcomes, `changed` means the link evidence changed. `incomplete` means
+the URL did not identify a supported listing for a product draft.
+
+### POST /api/review/decisions
+
+Requires an owner session cookie and matching `Origin`. Send an `items` array
+with up to 25 decisions. Each item includes the review `id`, `revision`,
+`sourceVersion`, and a `decision` of `approve`, `edit`, `defer`, `dismiss`,
+or `resume`. Include `draft` when changing the proposed action.
+
+To approve a product handoff, include an `azuk` object. Pass the `connection`,
+`listId`, and `listName` from the list response, the reviewed `listingUrl`,
+and `productName`. An optional `target` has a decimal `price` string and
+three-letter `currency`. The default watch checks daily and alerts its creator
+on a 10% price drop.
+
+The response contains `items` with an `id` and an `outcome` of `saved`,
+`changed`, `inactive`, `incomplete`, `destination`, or `existing`.
+`destination` means the connection or selected list needs another review.
+`existing` means the same listing already has a delivery for that list.
+
+A bearer token receives `403`.
+
+```json
+{
+  "error": "Open Bookmarkt to make review decisions.",
+  "code": "owner_session_required"
+}
+```
+
+### GET /api/review/azuk/lists
+
+Requires an owner session. Returns `status` as `disabled`, `unavailable`, or
+`ready`. A ready response also has an opaque `connection` and a `lists` array
+with each list's ID, name, and kind.
+
+### GET /api/review/azuk/deliveries
+
+Requires an owner session. Accepts optional `linkId` and `offset` filters.
+Returns up to 25 `items` and a `more` flag. Each receipt includes the exact
+listing, list name, delivery status, and the item and watch IDs as Azuk
+confirms them. Watch settings and price observations come from Azuk.
+
+### POST /api/review/azuk/deliveries/:id/retry
+
+Requires an owner session and matching `Origin`. Queues a failed delivery
+or one that needs review so it can check Azuk again. The worker reuses a
+confirmed record and stops for review when an earlier write is uncertain.
+Returns an `outcome` of `queued`, `unchanged`, or `unavailable`.
+
+### POST /api/review/azuk/deliveries/:id/refresh
+
+Requires an owner session and matching `Origin`. Reads the current watch
+settings and latest observation for a delivered listing. Returns an
+`outcome` of `refreshed`, `unchanged`, or `unavailable`.
+
+### GET /api/review/builder/candidates
+
+Requires an owner session. Returns up to 25 saved links with `id`, `url`, and `title`, plus a `more` flag. Search title or URL with `q`, scope to one bookmark with `linkId`, or pass `offset` to continue.
+
+### POST /api/review/builder/prepare
+
+Requires an owner session and same-site Origin. Send `{ "linkIds": [...] }` with 1 to 12 saved link IDs. The server checks public GitHub or npm metadata and returns an `items` entry per link with `linkId` and `outcome`. Outcomes are `prepared`, `unchanged`, `inactive`, and `unverified`. An unverified result includes a `reason`.
+
+### GET /api/review/builder/drafts
+
+Requires an owner session. Returns up to 25 `items` and a `more` flag. Each item includes `id`, `revision`, the `record` with its available context, and `excluded` context keys from the last approval. Pass `linkId` to scope the drafts or `offset` to continue.
+
+### POST /api/review/builder/exports
+
+Requires an owner session and same-site Origin. Send `items` with 1 to 100 entries. Each entry includes the preview's `id` and `revision`, the approved `synopsis` and `tags`, and the selected `contextKeys`. Returns the export `id` and `recordCount`. A stale revision returns 409 and requires a new review of the selection.
+
+### GET /api/review/builder/exports/:id
+
+Requires an owner session. Downloads `bukmark-builder.json` with `schemaVersion: 1` and the approved `records`. Records and context entries use stable provider keys. An unknown export returns 404.
+
+### GET /api/review/recipes/candidates
+
+Requires an owner session. Lists active and archived HTTPS bookmarks. Search the title or URL with `q`, scope the search with `linkId`, or page with `offset`. Returns up to 25 `items` and a `more` flag.
+
+### POST /api/review/recipes/prepare
+
+Requires an owner session and same-site Origin. Send `linkId` to read one saved page. The response includes an `outcome` and a `draft` when prepared. If `outcome` is `choose`, send the selected card's `key` with the same `linkId`. Unavailable pages, malformed data, and ambiguous cards return an outcome without replacing a draft.
+
+### GET /api/review/recipes/drafts
+
+Requires an owner session. Returns up to 25 drafts with their `id`, `revision`, editable `fields`, and any variations, unassigned lines, or timing conflict. Pass `linkId` to scope the results or `offset` to continue.
+
+### POST /api/review/recipes/exports
+
+Requires an owner session and same-site Origin. Send `id`, `revision`, the edited `fields`, the `selectedVariations` keys, and `reviewedUnassigned`. A recipe needs a title, ingredients, and steps. Resolve or omit disputed optional times. Returns the export `id`. A stale revision returns 409.
+
+### GET /api/review/recipes/exports/:id
+
+Requires an owner session. Downloads `bukmark-recipe.json` with `schemaVersion: 1` and one approved recipe in the `recipes` array. An unknown export returns 404.
+
+### GET /api/review/notes/candidates
+
+Requires an owner session. Returns up to 25 active or archived HTTPS bookmarks and a `more` flag. Search with `q`, scope to a bookmark with `linkId`, or pass `offset` to continue.
+
+### GET /api/review/notes/drafts
+
+Requires an owner session. Returns up to 25 notes and a `more` flag. Notes include the editable `fields`, `revision`, supporting `evidence`, and latest approved export ID when available. Pass `linkId` or `offset` to scope or page the results.
+
+### POST /api/review/notes/drafts
+
+Requires an owner session and same-site Origin. Send `linkId` to open an existing note or start one. Set `another` to true to start a separate note from the same bookmark. Returns the `draft`.
+
+### PATCH /api/review/notes/drafts/:id
+
+Requires an owner session and same-site Origin. Send the current `revision` and `fields` with `title`, `bodyMarkdown`, `tags`, `includeExcerpt`, and optional `whyItMatters`. Returns the saved `draft`. A stale revision returns 409.
+
+### POST /api/review/notes/evidence
+
+Requires an owner session and same-site Origin. Send `id`, `revision`, and `mode`. Use `read` for a bounded page preview or `keep` to retain an earlier citation after a change. Use `page` with a short `excerpt` to attach a passage. A Wikipedia `versionUrl` can pin the article revision. Use `quote` with `quoteId` and `excerpt` for an existing quote. Either attachment can carry a `locator`.
+
+### POST /api/review/notes/exports
+
+Requires an owner session and same-site Origin. Send `id` and the saved `revision`. Returns the export `id`. Repeating an accepted approval returns its existing ID. A stale unapproved revision returns 409.
+
+### GET /api/review/notes/exports/:id
+
+Requires an owner session. Downloads `bukmark-note.json` with `schemaVersion: 1` and one approved note in `notes`. An unknown export returns 404.
 
 ### POST /api/quotes
 
@@ -1374,3 +1567,92 @@ Revoke an access token. `id` is the token's UUID.
 | -- | -- | -- |
 | `401` | `unauthenticated` | See [401](#401-unauthenticated) |
 | `404` | `{ "error": "Token not found" }` | There is no such token |
+
+## Saved local sifting previews
+
+These endpoints require an owner browser session. Bearer tokens receive `403 owner_session_required`.
+Responses use `Cache-Control: no-store`. Current protection is checked when reading saved history and preview pages.
+Protected sources appear only in aggregate counts, including when they became protected after a run was saved.
+
+### POST /api/review/sift/baselines
+
+Record an existing owner-approved bin manifest after checking its bins and membership timestamps.
+The manifest contains `reference`, `approvedAt`, `bins` and `items`.
+Each bin supplies its `id`, `name`, `count` and `createdAt`.
+Each item supplies `linkId`, `hubId` and `membershipCreatedAt`.
+Imports validate exact membership timestamps and complete bin counts. They cannot replace a different recorded approval.
+Importing the same manifest again reuses its baseline and decision records.
+
+### GET /api/review/sift/baselines
+
+List recorded approval batches with IDs, references, approval dates and source counts.
+
+### POST /api/review/sift/runs
+
+Save a local preview or reuse an identical run.
+
+Example preview request:
+
+```json
+{ "scope": { "kind": "next", "limit": 100 } }
+```
+
+Other scopes select explicit `linkIds`, a recorded `baseline` ID, or the same sources as an existing `run` ID.
+The maximum scope is 1,000 bookmarks. The save response contains `id`, `reusedRun`, `reusedResults` and `createdResults`.
+Results are reused by consumed inputs and rule versions. Source and decision evidence is tracked separately.
+
+### GET /api/review/sift/runs
+
+List saved runs, 25 per page. Use the optional `offset` query parameter, starting at zero.
+
+### GET /api/review/sift/runs/:id
+
+Read a saved preview, 25 visible sources per page, with full visible-source totals.
+Use the optional `offset` query parameter. The response includes recorded choices, evidence holds, existing export associations and local usage.
+It also lists saved `applicationPreviews` with their IDs, dates, selection counts and optional application receipt IDs.
+The review screen can reopen those exact previews and receipts after a refresh.
+
+Saving an analysis run does not file bookmarks. These endpoints make no page/model requests and do not prepare routes.
+Changed historical membership or scope evidence returns `409`; missing run IDs return `404`.
+
+### POST /api/review/sift/runs/:id/application-previews
+
+Freeze an exact selection and target bin before approval. Supply the saved run's `digest`, a `selection` and `hubId`.
+Select all saved sources with `{ "kind": "run" }`, or a subset with `{ "kind": "links", "linkIds": ["uuid"] }`.
+The selection must contain 1–1,000 sources from that run. `hubId` identifies an existing bin; `null` creates a held preview without a target.
+Equivalent requests reuse the preview ID and digest. Preparing this preview writes only the preview ledger.
+
+### GET /api/review/sift/application-previews/:id
+
+Read the frozen selection and current guard results. Use optional `offset` for pages of 25 visible sources.
+The response includes `previewId`, `runId`, approval `digest`, `target`, `selectedCount`, `counts`, `applyEnabled` and `applicationId`.
+Counts distinguish `ready`, `applied`, `unchanged` and `held`. Protected or deleted source details are omitted, with aggregate counts retained.
+
+### POST /api/review/sift/application-previews/:id/apply
+
+Approve only the exact preview by sending `{ "digest": "reviewed-preview-digest" }`.
+Application is disabled by default. `BUKMARK_SIFT_APPLY=true` enables this owner-session action; it does not approve a batch.
+The transaction rechecks source state, protection, decisions, memberships, target-bin state and export/delivery receipts under locks.
+Stale, archived, protected, owner-decided, exported or delivered sources are held. Existing matching memberships are unchanged.
+Eligible entries add only the selected membership and a new owner decision. Other memberships and owner fields are preserved.
+The normal sync timestamp advances when a membership is added. Every entry receives a durable outcome, and retry reuses the same receipt ID.
+Approval cannot change the selection, target bin or guards. Unknown execution fields are rejected.
+
+### GET /api/review/sift/applications/:id
+
+Read a durable approval receipt, paginated using optional `offset`. Protection is rechecked even for successful historical receipts and approval retries.
+
+| Status | Body |
+| --- | --- |
+| `404` | `{ "error": "Sifting run or decision baseline not found.", "code": "missing" }` |
+| `409` | `{ "error": "A bin or membership changed. No decision baseline was imported.", "code": "baseline_changed" }` |
+| `409` | `{ "error": "These sources already have a different recorded owner decision. Existing choices were preserved.", "code": "decision_conflict" }` |
+| `409` | `{ "error": "The selected sources changed or the scope is empty. Review the current selection.", "code": "scope_changed" }` |
+| `409` | `{ "error": "The preview or target bin changed. Create and review a new preview.", "code": "preview_changed" }` |
+| `409` | `{ "error": "The library is being edited. Nothing was applied; retry the same approval.", "code": "library_busy" }` |
+| `403` | `{ "error": "Applying bin changes is disabled on this instance.", "code": "apply_disabled" }` |
+
+
+### POST /api/review/sift/runs/:id/bookmark-file
+
+An owner session can download selected links from a saved review as a browser bookmarks HTML file. Send a `choices` array of one to twelve entries. Each takes a `linkId` and a nonblank `folder` name of up to 120 characters. The server checks the current library again. A changed, protected, or ineligible link returns HTTP 409 for the entire selection. A successful download preserves the original bookmarks and folders.

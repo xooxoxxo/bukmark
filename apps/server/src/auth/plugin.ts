@@ -17,6 +17,12 @@ export function authOf(req: FastifyRequest): AuthContext {
   return req.auth;
 }
 
+export async function requireOwnerSession(req: FastifyRequest, reply: FastifyReply) {
+  if (authOf(req).kind !== 'session') {
+    return reply.code(403).send({ error: 'Open Bookmarkt to make review decisions.', code: 'owner_session_required' });
+  }
+}
+
 /**
  * The token of an `Authorization: Bearer` header ('' when it carries none), or
  * null when there is no bearer header. The scheme is case-insensitive; other

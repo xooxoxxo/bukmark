@@ -24,6 +24,7 @@ export interface ImportItem {
 }
 
 export interface ImportLinksResult {
+  reviewIds?: string[];
   created: number;
   updated: number;
   skippedDeleted: number;
@@ -93,8 +94,10 @@ export async function importLinks(
   items: ImportItem[],
   source = 'browser-import',
   orphanQuotes: ImportOrphanQuote[] = [],
+  reviewSample = false,
 ): Promise<ImportLinksResult> {
   const res: ImportLinksResult = {
+    ...(reviewSample ? { reviewIds: [] } : {}),
     created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 0, alreadyHere: 0, invalid: 0 },
   };
   const fromDeleted = await importItems(db, items, source, res);
@@ -287,6 +290,13 @@ async function importItems(
         }),
       );
       for (const r of rows) resolved.push({ h: r.urlHash, id: r.id, url: r.url, title: r.title });
+    }
+
+    if (res.reviewIds && resolved.length) {
+      const visible = await tx.select({ id: links.id }).from(links)
+        .where(and(inArray(links.id, resolved.map(row => row.id)), eq(links.sessionProtected, false), eq(links.status, 'active')));
+      const eligible = new Set(visible.map(row => row.id));
+      res.reviewIds = resolved.map(row => row.id).filter(id => eligible.has(id));
     }
 
     // Quotes ride with their link. The source copy is the link's own address

@@ -1,5 +1,14 @@
+import type { KnowledgeDraft, KnowledgeEvidenceAction, KnowledgeFields, KnowledgeReading, RecipeApproval, RecipeDraft,
+  SiftApplicationInput, SiftApplicationView, SiftBaselineSummary, SiftPreview, SiftRunReceipt, SiftRunSummary, SiftScope } from '@bukmark/shared/review';
 import type {
   BulkAction,
+  AzukDelivery,
+  AzukLists,
+  BuilderApproval,
+  BuilderCandidate,
+  BuilderDraft,
+  BuilderExport,
+  BuilderPreparation,
   HubDto,
   HubPatch,
   LinkDetail,
@@ -9,6 +18,9 @@ import type {
   QuoteDto,
   QuotePatch,
   QuotesQuery,
+  ReviewDecision,
+  ReviewFilter,
+  ReviewProposal,
   Stats,
   UpdatesPatch,
   UpdatesStatus,
@@ -45,12 +57,115 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export const fetchSiftBaselines = () => http<{items:SiftBaselineSummary[]}>('/review/sift/baselines');
+export const fetchSiftRuns = (offset:number) => http<{items:SiftRunSummary[];more:boolean}>(`/review/sift/runs?offset=${offset}`);
+export const fetchSiftPreview = (id:string,offset:number) => http<SiftPreview>(`/review/sift/runs/${encodeURIComponent(id)}?offset=${offset}`);
+export const saveSiftPreview = (scope:SiftScope) => http<SiftRunReceipt>('/review/sift/runs',jsonInit('POST',{scope}));
+export const prepareSiftApplication = (id:string,input:SiftApplicationInput) => http<SiftApplicationView>(`/review/sift/runs/${encodeURIComponent(id)}/application-previews`,jsonInit('POST',input));
+export const fetchSiftApplicationPreview = (id:string,offset:number) => http<SiftApplicationView>(`/review/sift/application-previews/${encodeURIComponent(id)}?offset=${offset}`);
+export const approveSiftApplication = (id:string,digest:string) => http<SiftApplicationView>(`/review/sift/application-previews/${encodeURIComponent(id)}/apply`,jsonInit('POST',{digest}));
+export const fetchSiftApplication = (id:string,offset:number) => http<SiftApplicationView>(`/review/sift/applications/${encodeURIComponent(id)}?offset=${offset}`);
+
 function jsonInit(method: string, body: unknown): RequestInit {
   return {
     method,
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   };
+}
+
+function builderQuery(linkId: string | null, offset: number, q?: string) {
+  const params = new URLSearchParams({ offset: String(offset) });
+  if (linkId) params.set('linkId', linkId);
+  if (q) params.set('q', q);
+  return params;
+}
+
+export function fetchBuilderCandidates(linkId: string | null, offset: number, q: string) {
+  return http<{ items: BuilderCandidate[]; more: boolean }>(`/review/builder/candidates?${builderQuery(linkId, offset, q)}`);
+}
+
+export function prepareBuilderDrafts(linkIds: string[]) {
+  return http<{ items: BuilderPreparation[] }>('/review/builder/prepare', jsonInit('POST', { linkIds }));
+}
+
+export function fetchBuilderDrafts(linkId: string | null, offset: number) {
+  return http<{ items: BuilderDraft[]; more: boolean }>(`/review/builder/drafts?${builderQuery(linkId, offset)}`);
+}
+
+export function approveBuilderExport(items: BuilderApproval[]) {
+  return http<BuilderExport>('/review/builder/exports', jsonInit('POST', { items }));
+}
+
+export function builderExportUrl(id: string) {
+  return `/api/review/builder/exports/${encodeURIComponent(id)}`;
+}
+
+export interface SavedPageCandidate {
+  id: string;
+  title: string;
+  url: string;
+  status: 'active' | 'archived';
+}
+
+export type RecipePreparation = { outcome: 'prepared'; draft: RecipeDraft }
+  | { outcome: 'choose'; choices: { key: string; title: string }[] }
+  | { outcome: 'unavailable'; error: string | null; status: number | null }
+  | { outcome: 'missing' | 'changed' | 'malformed' | 'ambiguous' | 'no-recipe' };
+
+function savedPageQuery(linkId: string | null, offset: number, q?: string) {
+  const params = new URLSearchParams({ offset: String(offset) });
+  if (linkId) params.set('linkId', linkId);
+  if (q) params.set('q', q);
+  return params;
+}
+
+export function fetchRecipeCandidates(linkId: string | null, offset: number, q: string) {
+  return http<{ items: SavedPageCandidate[]; more: boolean }>(`/review/recipes/candidates?${savedPageQuery(linkId, offset, q)}`);
+}
+
+export function prepareRecipe(linkId: string, key?: string) {
+  return http<RecipePreparation>('/review/recipes/prepare', jsonInit('POST', { linkId, key }));
+}
+
+export function fetchRecipeDrafts(linkId: string | null, offset: number) {
+  return http<{ items: RecipeDraft[]; more: boolean }>(`/review/recipes/drafts?${savedPageQuery(linkId, offset)}`);
+}
+
+export function approveRecipeExport(approval: RecipeApproval) {
+  return http<{ id: string }>('/review/recipes/exports', jsonInit('POST', approval));
+}
+
+export function recipeExportUrl(id: string) {
+  return `/api/review/recipes/exports/${encodeURIComponent(id)}`;
+}
+
+export function fetchKnowledgeCandidates(linkId: string | null, offset: number, q: string) {
+  return http<{ items: SavedPageCandidate[]; more: boolean }>(`/review/notes/candidates?${savedPageQuery(linkId, offset, q)}`);
+}
+
+export function fetchKnowledgeNotes(linkId: string | null, offset: number) {
+  return http<{ items: KnowledgeDraft[]; more: boolean }>(`/review/notes/drafts?${savedPageQuery(linkId, offset)}`);
+}
+
+export function startKnowledgeNote(linkId: string, another: boolean) {
+  return http<{ draft: KnowledgeDraft }>('/review/notes/drafts', jsonInit('POST', { linkId, another }));
+}
+
+export function saveKnowledgeNote(id: string, revision: number, fields: KnowledgeFields) {
+  return http<{ draft: KnowledgeDraft }>(`/review/notes/drafts/${encodeURIComponent(id)}`, jsonInit('PATCH', { revision, fields }));
+}
+
+export function updateKnowledgeEvidence(id: string, revision: number, action: KnowledgeEvidenceAction) {
+  return http<{ draft: KnowledgeDraft; reading?: KnowledgeReading }>('/review/notes/evidence', jsonInit('POST', { id, revision, ...action }));
+}
+
+export function approveKnowledgeNote(id: string, revision: number) {
+  return http<{ id: string }>('/review/notes/exports', jsonInit('POST', { id, revision }));
+}
+
+export function knowledgeExportUrl(id: string) {
+  return `/api/review/notes/exports/${encodeURIComponent(id)}`;
 }
 
 export function fetchLinks(query: LinksQuery = {}): Promise<{ items: LinkDto[]; total: number }> {
@@ -110,6 +225,40 @@ export function bulkLinks(body: {
   return http('/links/bulk', jsonInit('POST', body));
 }
 
+export function fetchReview(state: ReviewFilter, linkId: string | null, offset: number) {
+  const query = new URLSearchParams({ state, offset: String(offset) });
+  if (linkId) query.set('linkId', linkId);
+  return http<{ items: ReviewProposal[]; more: boolean }>(`/review?${query}`);
+}
+
+export function prepareReview(linkId: string | null) {
+  return http<{ items: Array<{ linkId: string; outcome: 'prepared' | 'unchanged' | 'inactive' }> }>(
+    '/review/prepare', jsonInit('POST', linkId ? { linkId } : {}),
+  );
+}
+
+export function decideReview(items: ReviewDecision[]) {
+  return http<{ items: Array<{ id: string; outcome: 'saved' | 'existing' | 'inactive' | 'changed' | 'incomplete' | 'destination' }> }>(
+    '/review/decisions', jsonInit('POST', { items }),
+  );
+}
+
+export function fetchAzukLists() {
+  return http<AzukLists>('/review/azuk/lists');
+}
+
+export function fetchAzukDeliveries(linkId: string | null, offset: number) {
+  const query = new URLSearchParams({ offset: String(offset) });
+  if (linkId) query.set('linkId', linkId);
+  return http<{ items: AzukDelivery[]; more: boolean }>(`/review/azuk/deliveries?${query}`);
+}
+
+export function updateAzukDelivery(id: string, action: 'retry' | 'refresh') {
+  return http<{ outcome: 'queued' | 'refreshed' | 'unchanged' | 'unavailable' }>(
+    `/review/azuk/deliveries/${encodeURIComponent(id)}/${action}`, { method: 'POST' },
+  );
+}
+
 export interface ImportQuote {
   text: string;
   note?: string;
@@ -130,6 +279,7 @@ export interface ImportItem {
 }
 
 export interface ImportResult {
+  reviewIds?: string[];
   created: number;
   updated: number;
   skippedDeleted: number;
@@ -146,9 +296,10 @@ export const IMPORT_ORPHAN_BATCH_SIZE = 1000;
 export function importLinks(
   items: ImportItem[],
   orphanQuotes?: ImportOrphanQuote[],
+  reviewSample = false,
 ): Promise<ImportResult> {
   const body = orphanQuotes && orphanQuotes.length > 0 ? { items, orphanQuotes } : { items };
-  return http('/links/import', jsonInit('POST', body));
+  return http(reviewSample ? '/links/import?reviewSample=true' : '/links/import', jsonInit('POST', body));
 }
 
 export function fetchHubs(): Promise<{ items: HubDto[] }> {

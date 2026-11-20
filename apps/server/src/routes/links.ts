@@ -5,6 +5,7 @@ import { normalizeUrl, matchKey, SESSION_IMPORT_MAX_ITEMS, SESSION_IMPORT_MAX_BY
 import { pgCode } from '../db/client.js';
 import { deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 import { addLink } from '../links/addLink.js';
+import { builderSource } from '../builder/model.js';
 import { importLinks, type ImportItem, type ImportOrphanQuote } from '../links/importLinks.js';
 import { importSession, verifySessionImport } from '../links/importSession.js';
 import { assignHubs } from '../links/assignHubs.js';
@@ -342,9 +343,11 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
     const norm = normalizeUrl(b.url);
     if (!norm.ok) return reply.code(400).send({ error: `${norm.reason} url` });
     const { title, note, hub, relevance } = b;
+    const source = builderSource(b.url.trim());
+    const originalUrl = source?.kind === 'github-context' && source.page === 'blob' && source.lines ? source.sourceUrl : undefined;
     return addLink(
       req.server.db,
-      { url: norm.url, urlHash: norm.urlHash, title, note, hub, relevance },
+      { url: norm.url, urlHash: norm.urlHash, originalUrl, title, note, hub, relevance },
       req.server.fetchOgImage,
     );
   });
@@ -354,6 +357,7 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
     // web client closes a batch at ~800 KB, and this is the headroom above it.
     bodyLimit: IMPORT_BODY_LIMIT,
     schema: {
+      querystring: Type.Object({ reviewSample: Type.Optional(Type.Boolean()) }),
       body: Type.Object({
         items: Type.Array(
           Type.Object({
@@ -379,7 +383,8 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
     if (items.length === 0 && !orphanQuotes?.length) {
       return reply.code(400).send({ error: 'nothing to import' });
     }
-    return importLinks(req.server.db, items, undefined, orphanQuotes);
+    const reviewSample = (req.query as { reviewSample?: boolean }).reviewSample === true && req.auth?.kind === 'session';
+    return importLinks(req.server.db, items, undefined, orphanQuotes, reviewSample);
   });
 
   app.post('/links/session-import', {

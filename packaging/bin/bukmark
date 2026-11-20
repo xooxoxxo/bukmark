@@ -36,7 +36,8 @@ WAIT_SECONDS=${BUKMARK_WAIT_SECONDS:-120}
 # shell's environment win over .env, so a PORT or POSTGRES_PASSWORD exported
 # for some other project would quietly change bukmark's. BUKMARK_VERSION and
 # BUKMARK_IMAGE still pass through, to pick an image for one run.
-unset POSTGRES_PASSWORD PORT BUKMARK_LISTEN TRUST_PROXY BUKMARK_EXTENSION_IDS BUKMARK_CHECK_PAGES BUKMARK_UPDATE_FEED \
+unset POSTGRES_PASSWORD PORT BUKMARK_LISTEN TRUST_PROXY BUKMARK_EXTENSION_IDS BUKMARK_CHECK_PAGES BUKMARK_SIFT_APPLY BUKMARK_UPDATE_FEED \
+  BUKMARK_AZUK_URL BUKMARK_AZUK_TOKEN \
   COMPOSE_FILE COMPOSE_PROJECT_NAME COMPOSE_PROFILES COMPOSE_ENV_FILES
 
 say() { printf '%s\n' "$*"; }
@@ -248,7 +249,10 @@ services:
       TRUST_PROXY: ${TRUST_PROXY:-false}
       BUKMARK_EXTENSION_IDS: ${BUKMARK_EXTENSION_IDS:-}
       BUKMARK_CHECK_PAGES: ${BUKMARK_CHECK_PAGES:-true}
+      BUKMARK_SIFT_APPLY: ${BUKMARK_SIFT_APPLY:-false}
       BUKMARK_UPDATE_FEED: ${BUKMARK_UPDATE_FEED:-}
+      BUKMARK_AZUK_URL: ${BUKMARK_AZUK_URL:-}
+      BUKMARK_AZUK_TOKEN: ${BUKMARK_AZUK_TOKEN:-}
       # Tells the app's Settings › Updates which update command to show.
       BUKMARK_INSTALL_METHOD: installer
     ports: ["${BUKMARK_LISTEN:-127.0.0.1}:${PORT:-3000}:3000"]
@@ -307,10 +311,15 @@ BUKMARK_EXTENSION_IDS=
 # false stops the server fetching saved pages in the background.
 # See https://bukmark.it/docs/install/#environment-variables
 BUKMARK_CHECK_PAGES=true
+BUKMARK_SIFT_APPLY=false
 
 # off stops checking GitHub for new bukmark releases.
 # See https://bukmark.it/docs/privacy/#update-checks
 BUKMARK_UPDATE_FEED=
+
+# Optional Azuk handoff. Use the private REST origin and a server-side token.
+BUKMARK_AZUK_URL=
+BUKMARK_AZUK_TOKEN=
 
 # Server version to run: latest, or a release such as 0.3.0.
 # bukmark update downloads the newest image for it.

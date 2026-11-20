@@ -9,6 +9,7 @@
     "@fastify/cors": "^11.3.1",
     "@fastify/static": "^10.1.6",
     "@fastify/type-provider-typebox": "^6.1.0",
+    "cheerio": "^1.2.0",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.5",
     "postgres": "^3.4.9",
@@ -25,6 +26,7 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:import": "tsx src/import/run.ts",
     "db:og-fetch": "tsx src/og/fetchOg.ts",
+    "sift": "tsx src/sift/run.ts",
     "auth:reset-owner": "tsx src/auth/resetOwner.ts"
   }
 }
