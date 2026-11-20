@@ -5,6 +5,7 @@ import {
   approveBuilderExport, builderExportUrl, fetchBuilderCandidates, fetchBuilderDrafts, prepareBuilderDrafts,
 } from '../api/client';
 import type { BuilderApproval, BuilderCandidate, BuilderContext, BuilderDraft } from '../api/types';
+import { DraftNavigation, useDraftNavigation } from './DraftNavigation';
 import styles from './ReviewPage.module.css';
 
 const PAGE_SIZE = 25;
@@ -44,60 +45,68 @@ function DraftCard({ item, edit, selected, busy, selectionDisabled, onEdit, onSe
   return (
     <article className={styles.row} aria-label={record.name}>
       <div className={styles.source}>
-        <h3>{record.name}</h3>
+        <h3><a href={record.canonicalUrl} target="_blank" rel="noreferrer">{record.name}</a></h3>
         <p className={styles.meta}>
           {record.kind === 'repository' ? 'GitHub repository' : 'npm package'}
           {record.language ? ` · ${record.language}` : ''}
         </p>
-        <p className={styles.url}>{record.key}</p>
-        <a className={styles.url} href={record.canonicalUrl} target="_blank" rel="noreferrer">Public source</a>
+
+        {edit.synopsis && <p className={styles.reason}>{edit.synopsis}</p>}
+        {edit.tags.trim() && <p className={styles.meta}>{edit.tags.split('\n').map(tag => tag.trim()).filter(Boolean).join(' · ')}</p>}
         {record.kind === 'package' && record.repositoryUrl ? (
           <a className={styles.url} href={record.repositoryUrl} target="_blank" rel="noreferrer">Source repository</a>
         ) : null}
         {record.context.length ? (
-          <fieldset className={styles.context} disabled={busy}>
-            <legend>Attached context</legend>
-            {record.context.map((context) => (
-              <div key={context.key}>
-                <label className={styles.selection}>
-                  <input type="checkbox" checked={edit.contextKeys.includes(context.key)}
-                    onChange={(event) => onEdit({ ...edit, contextKeys: event.target.checked
-                      ? [...edit.contextKeys, context.key] : edit.contextKeys.filter((key) => key !== context.key) })}
-                  />
-                  Include {contextLabel(context)}
-                </label>
-                <p>
-                  <a href={context.url} target="_blank" rel="noreferrer">
-                    {context.kind === 'issue' || context.kind === 'discussion' ? context.title
-                      : context.kind === 'code' ? `Pinned commit ${context.commit.slice(0, 12)}` : context.version}
-                  </a>
-                  {context.kind === 'issue' ? ` · ${context.state}` : ''}
-                </p>
-                {context.kind === 'issue' && context.note ? <p className={styles.meta}>{context.note}</p> : null}
-                {(context.kind === 'discussion' || context.kind === 'code') && context.sourceUrl !== context.url ? (
-                  <a className={styles.meta} href={context.sourceUrl} target="_blank" rel="noreferrer">Saved bookmark</a>
-                ) : null}
-              </div>
-            ))}
-          </fieldset>
+          <details className={styles.evidence}>
+            <summary>Attachments ({edit.contextKeys.length} of {record.context.length} included)</summary>
+            <fieldset className={styles.context} disabled={busy}>
+              <legend>Attached context</legend>
+              {record.context.map((context) => (
+                <div key={context.key}>
+                  <label className={styles.selection}>
+                    <input type="checkbox" checked={edit.contextKeys.includes(context.key)}
+                      onChange={(event) => onEdit({ ...edit, contextKeys: event.target.checked
+                        ? [...edit.contextKeys, context.key] : edit.contextKeys.filter((key) => key !== context.key) })}
+                    />
+                    Include {contextLabel(context)}
+                  </label>
+                  <p>
+                    <a href={context.url} target="_blank" rel="noreferrer">
+                      {context.kind === 'issue' || context.kind === 'discussion' ? context.title
+                        : context.kind === 'code' ? `Pinned commit ${context.commit.slice(0, 12)}` : context.version}
+                    </a>
+                    {context.kind === 'issue' ? ` · ${context.state}` : ''}
+                  </p>
+                  {context.kind === 'issue' && context.note ? <p className={styles.meta}>{context.note}</p> : null}
+                  {(context.kind === 'discussion' || context.kind === 'code') && context.sourceUrl !== context.url ? (
+                    <a className={styles.meta} href={context.sourceUrl} target="_blank" rel="noreferrer">Saved bookmark</a>
+                  ) : null}
+                </div>
+              ))}
+            </fieldset>
+          </details>
         ) : null}
       </div>
       <div className={styles.review}>
-        <label className={styles.field}>
-          Synopsis
-          <textarea rows={3} maxLength={500} value={edit.synopsis} disabled={busy}
-            onChange={(event) => onEdit({ ...edit, synopsis: event.target.value })} />
-        </label>
-        <label className={styles.field}>
-          Tags, one per line
-          <textarea rows={3} value={edit.tags} disabled={busy}
-            onChange={(event) => onEdit({ ...edit, tags: event.target.value })} />
-        </label>
         <label className={styles.selection}>
           <input type="checkbox" aria-label={`Select ${record.name} for JSON export`} checked={selected} disabled={selectionDisabled}
             onChange={(event) => onSelect(event.target.checked)} />
           Select for export
         </label>
+        <details className={styles.recordEditor}>
+          <summary>Edit project details</summary>
+          <label className={styles.field}>
+            Synopsis
+            <textarea rows={3} maxLength={500} value={edit.synopsis} disabled={busy}
+              onChange={(event) => onEdit({ ...edit, synopsis: event.target.value })} />
+          </label>
+          <label className={styles.field}>
+            Tags, one per line
+            <textarea rows={3} value={edit.tags} disabled={busy}
+              onChange={(event) => onEdit({ ...edit, tags: event.target.value })} />
+          </label>
+          <p className={styles.meta}>Record ID · {record.key}</p>
+        </details>
       </div>
     </article>
   );
@@ -140,11 +149,13 @@ export function BuilderReview({ linkId }: { linkId: string | null }) {
     queryKey: ['builder-drafts', linkId, draftOffset],
     queryFn: () => fetchBuilderDrafts(linkId, draftOffset),
   });
+  const navigation = useDraftNavigation(drafts.data && drafts.data.items.length > 0);
   const prepare = useMutation({
     mutationFn: (items: BuilderCandidate[]) => prepareBuilderDrafts(items.map(({ id }) => id)),
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       setSources(new Map());
       setDraftOffset(0);
+      if (result.items.some(item => item.outcome === 'prepared' || item.outcome === 'unchanged')) navigation.showPreparedDraft();
       await refreshDrafts();
     },
   });
@@ -180,9 +191,10 @@ export function BuilderReview({ linkId }: { linkId: string | null }) {
 
   return (
     <div className={styles.builder}>
-      <section aria-labelledby="builder-candidates">
+      <DraftNavigation navigation={navigation} />
+      <section hidden={navigation.stage !== 'sources'} aria-labelledby="builder-candidates">
         <h3 id="builder-candidates">Prepare from bookmarks</h3>
-        <p>Select up to {PREPARE_LIMIT} saved GitHub repositories, issues, discussions, files, folders, or npm packages.</p>
+        <p>Choose up to {PREPARE_LIMIT} GitHub or npm bookmarks. Related links stay with their project.</p>
         {!linkId ? (
           <form className={styles.actions} onSubmit={(event) => {
             event.preventDefault();
@@ -222,7 +234,10 @@ export function BuilderReview({ linkId }: { linkId: string | null }) {
           </button>
           {sources.size ? <button type="button" disabled={busy} onClick={() => setSources(new Map())}>Clear selection</button> : null}
         </div>
-        {prepare.data ? (
+      </section>
+      {prepare.data ? (
+        <details className={styles.evidence} open={prepare.data.items.some(item => item.outcome !== 'prepared' && item.outcome !== 'unchanged')}>
+          <summary>Preparation results ({prepare.data.items.length})</summary>
           <ul className={styles.builderResults} aria-label="Preparation results">
             {prepare.data.items.map((item) => {
               const source = prepare.variables.find(({ id }) => item.linkId === id);
@@ -236,13 +251,13 @@ export function BuilderReview({ linkId }: { linkId: string | null }) {
               );
             })}
           </ul>
-        ) : null}
-      </section>
-      <section aria-labelledby="builder-drafts">
+        </details>
+      ) : null}
+      <section hidden={navigation.stage !== 'drafts'} aria-labelledby="builder-drafts">
         <div className={styles.bar}>
           <div>
             <h3 id="builder-drafts">Review builder drafts</h3>
-            <p>Select up to {BUILDER_EXPORT_MAX_ITEMS} drafts for one JSON download. Selections and edits are kept across pages.</p>
+            <p>Choose up to {BUILDER_EXPORT_MAX_ITEMS} projects across pages for one JSON file.</p>
           </div>
           <button type="button" className={styles.primary} disabled={busy || !selectedRows.length || staleSelection} onClick={exportSelected}>
             {approve.isPending ? 'Approving…' : `Approve JSON export${selectedRows.length ? ` (${selectedRows.length})` : ''}`}
@@ -257,10 +272,6 @@ export function BuilderReview({ linkId }: { linkId: string | null }) {
               Download JSON ({approve.data.recordCount} {approve.data.recordCount === 1 ? 'record' : 'records'})
             </a>
           </p>
-        ) : null}
-        {error || tagError || staleSelection ? (
-          <p role="alert" className={styles.error}>{error?.message ?? (staleSelection
-            ? 'A selected draft changed. Review it and select it again.' : 'Use up to 12 tags of 50 characters each.')}</p>
         ) : null}
         {drafts.isPending ? <p role="status">Loading builder drafts…</p> : null}
         {drafts.isSuccess && !rows.length ? <p>No builder drafts on this page.</p> : null}
@@ -281,6 +292,10 @@ export function BuilderReview({ linkId }: { linkId: string | null }) {
         })}
         <Pages offset={draftOffset} more={Boolean(drafts.data?.more)} busy={busy} onChange={setDraftOffset} />
       </section>
+      {error || tagError || staleSelection ? (
+        <p role="alert" className={styles.error}>{error?.message ?? (staleSelection
+          ? 'A selected draft changed. Review it and select it again.' : 'Use up to 12 tags of 50 characters each.')}</p>
+      ) : null}
     </div>
   );
 }

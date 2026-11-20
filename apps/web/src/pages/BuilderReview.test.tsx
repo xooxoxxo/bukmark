@@ -67,17 +67,19 @@ it('reviews three saved sources and approves two records with the issue under it
   render(<Wrapper><MemoryRouter><ReviewPage /></MemoryRouter></Wrapper>);
   const user = userEvent.setup();
 
-  await user.click(screen.getByRole('button', { name: 'Builder catalog' }));
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Review area' }), 'builder');
   for (const candidate of candidates) {
     await user.click(await screen.findByRole('checkbox', { name: new RegExp(candidate.title) }));
   }
   await user.click(screen.getByRole('button', { name: 'Prepare selected links (3)' }));
   const repo = within(await screen.findByRole('article', { name: 'sample/tools' }));
   const pkg = within(screen.getByRole('article', { name: '@sample/validators' }));
+  await user.click(repo.getByText(/Attachments \(/));
   expect(repo.getByRole('checkbox', { name: 'Include issue #120' })).toBeChecked();
   expect(repo.getByRole('link', { name: 'Missing prop' })).toHaveAttribute('href', issueUrl);
   expect(pkg.queryByRole('checkbox', { name: 'Include issue #120' })).not.toBeInTheDocument();
 
+  await user.click(repo.getByText('Edit project details'));
   const synopsis = repo.getByRole('textbox', { name: 'Synopsis' });
   await user.clear(synopsis);
   await user.type(synopsis, 'Reviewed synopsis.');
@@ -120,6 +122,8 @@ it('exports all 39 selections across pages with their edits and pinned context, 
   render(<Wrapper><BuilderReview linkId={null} /></Wrapper>);
   const user = userEvent.setup();
   const first = within(await screen.findByRole('article', { name: 'sample/tools-0' }));
+  await user.click(first.getByText(/Attachments \(/));
+  await user.click(first.getByText('Edit project details'));
   expect(first.getByRole('link', { name: 'Pinned commit aaaaaaaaaaaa' })).toHaveAttribute('href', pinnedUrl);
   await user.clear(first.getByRole('textbox', { name: 'Synopsis' }));
   await user.type(first.getByRole('textbox', { name: 'Synopsis' }), 'Reviewed across pages.');
@@ -140,6 +144,7 @@ it('exports all 39 selections across pages with their edits and pinned context, 
   })) }]);
   await user.click(screen.getByRole('button', { name: 'Previous page' }));
   const reset = within(await screen.findByRole('article', { name: 'sample/tools-0' }));
+  await user.click(reset.getByText('Edit project details'));
   expect(reset.getByRole('textbox', { name: 'Synopsis' })).toHaveValue('Repository 0.');
   expect(reset.getByRole('checkbox', { name: 'Select sample/tools-0 for JSON export' })).not.toBeChecked();
   expect(screen.getByRole('button', { name: 'Approve JSON export' })).toBeDisabled();

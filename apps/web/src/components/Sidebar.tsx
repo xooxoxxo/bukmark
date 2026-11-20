@@ -9,6 +9,7 @@ export function Sidebar() {
   const { data } = useHubs();
   const { data: stats } = useStats();
   const createHub = useCreateHub();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [name, setName] = useState('');
   const unassigned = useFilters((state) => state.unassigned);
   const setUnassigned = useFilters((state) => state.setUnassigned);
@@ -17,6 +18,7 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const atRoot = location.pathname === '/';
+  const Brand = ['/start', '/review'].includes(location.pathname) ? 'span' : 'h1';
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -26,87 +28,96 @@ export function Sidebar() {
   }
 
   return (
-    <nav className={styles.sidebar}>
-      <h1 className={styles.title}>
-        <img src="/logo-mark.svg" alt="" className={styles.logo} />
-        bukmark
-      </h1>
-      <NavLink
-        to="/"
-        end
-        onClick={() => {
-          setUnassigned(false);
-          setBroken(false);
-        }}
-        className={({ isActive }) => (isActive && !unassigned && !broken ? styles.active : styles.item)}
-      >
-        All links
-      </NavLink>
-      <NavLink
-        to="/quotes"
-        className={({ isActive }) => (isActive ? styles.active : styles.item)}
-      >
-        Quotes{' '}
-        {stats ? <span className={styles.count}>{stats.quotes}</span> : null}
-      </NavLink>
-      <button
-        type="button"
-        className={`${atRoot && unassigned && !broken ? styles.active : styles.item} ${styles.filterItem}`}
-        onClick={() => {
-          setUnassigned(true);
-          setBroken(false);
-          navigate('/');
-        }}
-        aria-pressed={atRoot && unassigned}
-      >
-        Unassigned{' '}
-        {stats ? <span className={styles.count}>{stats.unassigned}</span> : null}
-      </button>
-      {stats && stats.broken > 0 ? (
+    <aside className={styles.sidebar}>
+      <div className={styles.brandBar}>
+        <Brand className={styles.title}>
+          <img src="/logo-mark.svg" alt="" className={styles.logo} />
+          bukmark
+        </Brand>
+        <button type="button" className={styles.menuToggle} aria-expanded={menuOpen} aria-controls="library-navigation"
+          onClick={() => setMenuOpen(open => !open)}>Menu <span aria-hidden="true">{menuOpen ? '▴' : '▾'}</span></button>
+      </div>
+      <nav aria-label="Library" id="library-navigation" className={styles.navigation} data-open={menuOpen}
+        onClick={event => { if (event.target instanceof Element && event.target.closest('a[href]')) setMenuOpen(false); }}>
+        <NavLink
+          to="/"
+          end
+          onClick={() => {
+            setUnassigned(false);
+            setBroken(false);
+          }}
+          className={({ isActive }) => (isActive && !unassigned && !broken ? styles.active : styles.item)}
+        >
+          All links
+        </NavLink>
+        <NavLink
+          to="/quotes"
+          className={({ isActive }) => (isActive ? styles.active : styles.item)}
+        >
+          Quotes{' '}
+          {stats ? <span className={styles.count}>{stats.quotes}</span> : null}
+        </NavLink>
         <button
           type="button"
-          className={`${atRoot && broken ? styles.active : styles.item} ${styles.filterItem}`}
+          className={`${atRoot && unassigned && !broken ? styles.active : styles.item} ${styles.filterItem}`}
           onClick={() => {
-            setBroken(true);
-            setUnassigned(false);
+            setUnassigned(true);
+            setBroken(false);
+            setMenuOpen(false);
             navigate('/');
           }}
-          aria-pressed={atRoot && broken}
+          aria-pressed={atRoot && unassigned}
         >
-          Broken links{' '}
-          <span className={styles.count}>{stats.broken}</span>
+          Unassigned{' '}
+          {stats ? <span className={styles.count}>{stats.unassigned}</span> : null}
         </button>
-      ) : null}
-      <NavLink to="/review" className={({ isActive }) => (isActive ? styles.active : styles.item)}>
-        Review
-      </NavLink>
-      <ul className={styles.hubList}>
-        {(data?.items ?? []).map((hub) => (
-          <li key={hub.id}>
-            <NavLink
-              to={`/hubs/${hub.id}`}
-              onClick={() => {
-                setUnassigned(false);
-                setBroken(false);
-              }}
-              className={({ isActive }) => (isActive ? styles.active : styles.item)}
-            >
-              {hub.name} <span className={styles.count}>{hub.linkCount}</span>
-            </NavLink>
-          </li>
-        ))}
-      </ul>
-      <form onSubmit={onSubmit} className={styles.newHub}>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="New hub…"
-          aria-label="New hub name"
-        />
-        <button type="submit">Add</button>
-      </form>
-      {createHub.isError ? <p className={styles.error}>{createHub.error.message}</p> : null}
-      <SidebarMenu />
-    </nav>
+        {stats && stats.broken > 0 ? (
+          <button
+            type="button"
+            className={`${atRoot && broken ? styles.active : styles.item} ${styles.filterItem}`}
+            onClick={() => {
+              setBroken(true);
+              setUnassigned(false);
+              setMenuOpen(false);
+              navigate('/');
+            }}
+            aria-pressed={atRoot && broken}
+          >
+            Broken links{' '}
+            <span className={styles.count}>{stats.broken}</span>
+          </button>
+        ) : null}
+        <NavLink to="/review" className={({ isActive }) => (isActive ? styles.active : styles.item)}>
+          Review
+        </NavLink>
+        <ul className={styles.hubList}>
+          {(data?.items ?? []).map((hub) => (
+            <li key={hub.id}>
+              <NavLink
+                to={`/hubs/${hub.id}`}
+                onClick={() => {
+                  setUnassigned(false);
+                  setBroken(false);
+                }}
+                className={({ isActive }) => (isActive ? styles.active : styles.item)}
+              >
+                {hub.name} <span className={styles.count}>{hub.linkCount}</span>
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+        <form onSubmit={onSubmit} className={styles.newHub}>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="New hub…"
+            aria-label="New hub name"
+          />
+          <button type="submit">Add</button>
+        </form>
+        {createHub.isError ? <p className={styles.error}>{createHub.error.message}</p> : null}
+        <SidebarMenu />
+      </nav>
+    </aside>
   );
 }

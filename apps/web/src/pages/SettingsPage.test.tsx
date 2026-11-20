@@ -134,13 +134,18 @@ describe('SettingsPage', () => {
     await waitFor(() => expect(client.logout).toHaveBeenCalledTimes(1));
   });
 
-  it('offers importing bookmarks', () => {
+  async function openDirectImport() {
     renderSettings();
+    await userEvent.click(screen.getByText('Import directly to the library'));
+  }
+
+  it('offers importing bookmarks', async () => {
+    await openDirectImport();
     expect(screen.getByRole('button', { name: 'Import bookmarks…' })).toBeInTheDocument();
   });
 
   it('imports the parsed links from a chosen bookmarks file', async () => {
-    renderSettings();
+    await openDirectImport();
 
     await userEvent.upload(screen.getByTestId('import-file'), bookmarksFile(TWO_LINKS));
 
@@ -156,7 +161,7 @@ describe('SettingsPage', () => {
     vi.mocked(client.importLinks).mockResolvedValue({
       created: 1, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 3, alreadyHere: 0, invalid: 0 },
     });
-    renderSettings();
+    await openDirectImport();
     const backup = JSON.stringify({
       links: [{ url: 'https://a.com/1', title: 'Alpha', quotes: [{ text: 'A passage.' }] }],
       orphanQuotes: [{ text: 'Orphan.', sourceUrl: 'https://gone.com/p' }],
@@ -177,7 +182,7 @@ describe('SettingsPage', () => {
     vi.mocked(client.importLinks).mockResolvedValue({
       created: 0, updated: 1, skippedDeleted: 0, invalid: [], quotes: { added: 0, alreadyHere: 3, invalid: 0 },
     });
-    renderSettings();
+    await openDirectImport();
     const backup = JSON.stringify({ links: [{ url: 'https://a.com/1', quotes: [{ text: 'a' }] }] });
     await userEvent.upload(screen.getByTestId('import-file'), new File([backup], 'b.json', { type: 'application/json' }));
     const status = await screen.findByRole('status');
@@ -190,7 +195,7 @@ describe('SettingsPage', () => {
     vi.mocked(client.importLinks).mockResolvedValue({
       created: 1, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 1, alreadyHere: 2, invalid: 1 },
     });
-    renderSettings();
+    await openDirectImport();
     const backup = JSON.stringify({
       links: [{ url: 'https://a.com/1', quotes: [{ text: 'ok' }, { text: '' }] }],
     });
@@ -202,7 +207,7 @@ describe('SettingsPage', () => {
     vi.mocked(client.importLinks).mockResolvedValue({
       created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 1, alreadyHere: 0, invalid: 0 },
     });
-    renderSettings();
+    await openDirectImport();
     const backup = JSON.stringify({ links: [], orphanQuotes: [{ text: 'Orphan.', sourceUrl: 'https://gone.com/p' }] });
     await userEvent.upload(screen.getByTestId('import-file'), new File([backup], 'b.json', { type: 'application/json' }));
     await waitFor(() => expect(client.importLinks).toHaveBeenCalledTimes(1));
@@ -214,7 +219,7 @@ describe('SettingsPage', () => {
     vi.mocked(client.importLinks).mockResolvedValue({
       created: 1, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 2, alreadyHere: 0, invalid: 0 },
     });
-    renderSettings();
+    await openDirectImport();
     const zip = zipSync({
       'metadata_0_to_1.json': strToU8(JSON.stringify([
         { slug: 'post', url: 'https://a.com/post', title: 'Post', labels: ['rust'], state: 'Archived', savedAt: '2024-05-01T10:00:00Z' },
@@ -239,7 +244,7 @@ describe('SettingsPage', () => {
   });
 
   it('refuses an export ZIP too large to read in the browser, before reading it', async () => {
-    renderSettings();
+    await openDirectImport();
     const zip = new File([new Uint8Array(4)], 'huge-export.zip', { type: 'application/zip' });
     Object.defineProperty(zip, 'size', { value: 3 * 1024 * 1024 * 1024 });
     const read = vi.spyOn(zip, 'arrayBuffer');
@@ -250,7 +255,7 @@ describe('SettingsPage', () => {
   });
 
   it('says nothing about quotes when none were restored', async () => {
-    renderSettings();
+    await openDirectImport();
     await userEvent.upload(screen.getByTestId('import-file'), bookmarksFile(TWO_LINKS));
     expect(await screen.findByRole('status')).not.toHaveTextContent('quote');
   });
@@ -260,7 +265,7 @@ describe('SettingsPage', () => {
       { length: client.IMPORT_BATCH_SIZE + 5 },
       (_, i) => `<DT><A HREF="https://a.com/${i}">L${i}</A>`,
     ).join('\n');
-    renderSettings();
+    await openDirectImport();
 
     await userEvent.upload(screen.getByTestId('import-file'), bookmarksFile(`<DL><p>${many}</DL><p>`));
 
@@ -269,7 +274,7 @@ describe('SettingsPage', () => {
   });
 
   it('reports a json file that is not a backup without calling the API', async () => {
-    renderSettings();
+    await openDirectImport();
 
     await userEvent.upload(
       screen.getByTestId('import-file'),
@@ -282,7 +287,7 @@ describe('SettingsPage', () => {
 
   it('surfaces a failed import instead of reporting success', async () => {
     vi.mocked(client.importLinks).mockRejectedValue(new client.ApiError('database is down', 500));
-    renderSettings();
+    await openDirectImport();
 
     await userEvent.upload(screen.getByTestId('import-file'), bookmarksFile(TWO_LINKS));
 

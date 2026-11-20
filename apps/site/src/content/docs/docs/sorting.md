@@ -66,7 +66,7 @@ config. See [modelcontextprotocol.io](https://modelcontextprotocol.io).
 
 ## Saved sifting previews
 
-Open **Review → Sifting previews** to save local suggestions and reopen earlier runs.
+Open **Review** and choose **Sifting previews** from **Review area** to save local suggestions and reopen earlier runs.
 Choose a reviewed batch, the selected bookmark, or the next 100 bookmarks without a recorded bin.
 The preview shows suggestions beside recorded bin choices, approval evidence and existing export receipts.
 
@@ -78,7 +78,7 @@ Protected sources are analyzed on the server; preview responses expose only thei
 That check also applies when opening a run saved before a source became protected.
 
 Recording a preview does not move bookmarks, change their reviews, prepare handoffs or create exports.
-This release has no sifting apply operation. Access requires an owner browser session.
+Open **Review changes to bins** to inspect a selection. Applying it requires an owner browser session and a server with bin changes enabled.
 
 ## Troubleshooting
 
