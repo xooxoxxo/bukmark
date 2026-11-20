@@ -1,5 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router';
 import { errorMessage } from '../api/client';
 import { useDeleteLink, useEditLink, useHubs, useLink, useQuotes, useRefreshLink } from '../api/queries';
 import type { HubDto, LinkDetail, LinkPatch, QuoteDto } from '../api/types';
@@ -123,6 +124,9 @@ function EditorForm({ link, hubs, onDone }: { link: LinkDetail; hubs: HubDto[]; 
     <form onSubmit={onSubmit} className={styles.form}>
       <Dialog.Title className={styles.title}>Edit link</Dialog.Title>
       <a className={styles.url} href={link.url} target="_blank" rel="noreferrer">{link.url}</a>
+      {link.status === 'active' ? (
+        <Link to={`/review?linkId=${encodeURIComponent(link.id)}`} onClick={onDone} className={styles.url}>Review this link</Link>
+      ) : null}
       <div className={styles.checkRow}>
         <p className={link.broken ? `${styles.check} ${styles.broken}` : styles.check}>{checkLine(link)}</p>
         <button

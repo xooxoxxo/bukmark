@@ -15,7 +15,11 @@ interface Status {
 }
 
 /** A button that reads a bookmarks file and imports it, with its progress. */
-export function ImportBookmarks({ buttonClass, statusClass, errorClass }: {
+export function ImportBookmarks({ buttonClass, statusClass, errorClass, onImported, onFileStarted, disabled, reviewLimit }: {
+  onFileStarted?: () => void;
+  disabled?: boolean;
+  onImported?: (ids: string[]) => void;
+  reviewLimit?: number;
   buttonClass?: string;
   statusClass?: string;
   errorClass?: string;
@@ -30,6 +34,7 @@ export function ImportBookmarks({ buttonClass, statusClass, errorClass }: {
     event.target.value = '';
     if (!file) return;
 
+    onFileStarted?.();
     setStatus({ kind: 'reading', message: `Reading ${file.name}…` });
     try {
       // A ZIP (an Omnivore export) is read as bytes, after a size check so a
@@ -49,6 +54,7 @@ export function ImportBookmarks({ buttonClass, statusClass, errorClass }: {
       setStatus({ kind: 'importing', message: `Importing 0 of ${parsed.items.length}…` });
       const result = await importLinks.mutateAsync({
         items: parsed.items,
+        reviewLimit,
         orphanQuotes: parsed.orphanQuotes,
         onProgress: (done, total) =>
           setStatus({ kind: 'importing', message: `Importing ${done} of ${total}…` }),
@@ -71,6 +77,7 @@ export function ImportBookmarks({ buttonClass, statusClass, errorClass }: {
       if (parsed.duplicates > 0) parts.push(`${parsed.duplicates} duplicate`);
       if (parsed.nonWeb > 0) parts.push(`${parsed.nonWeb} not web links`);
       if (result.invalid.length > 0) parts.push(`${result.invalid.length} unreadable`);
+      onImported?.(result.reviewIds ?? []);
       setStatus({ kind: 'done', message: `${parts.join(', ')}. New links land unsorted.` });
     } catch (error) {
       const message =
@@ -93,7 +100,7 @@ export function ImportBookmarks({ buttonClass, statusClass, errorClass }: {
       <button
         type="button"
         className={buttonClass}
-        disabled={importLinks.isPending}
+        disabled={disabled || status?.kind === 'reading' || importLinks.isPending}
         onClick={() => fileInput.current?.click()}
       >
         Import bookmarks…

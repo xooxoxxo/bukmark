@@ -6,9 +6,19 @@ import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { config } from './config.js';
+import { createAzukClient, type AzukClient } from './azuk/client.js';
+import { startAzukDeliveries } from './azuk/delivery.js';
 import { getDb, type Db } from './db/client.js';
 import { backfillMatchKey } from './db/backfillMatchKey.js';
 import { linkRoutes } from './routes/links.js';
+import { reviewRoutes } from './routes/review.js';
+import { builderRoutes } from './routes/builder.js';
+import { recipeRoutes } from './routes/recipe.js';
+import { knowledgeRoutes } from './routes/knowledge.js';
+import { siftRoutes } from './routes/sift.js';
+import { readPublicPage } from './og/publicPage.js';
+import type { RecipeReader } from './recipe/service.js';
+import type { KnowledgePageReader } from './knowledge/source.js';
 import { hubRoutes } from './routes/hubs.js';
 import { quoteRoutes } from './routes/quotes.js';
 import { exportRoutes } from './routes/export.js';
@@ -75,6 +85,13 @@ export async function buildApp(
     updates?: Partial<UpdatesEnv>;
     /** Check for a new release in the background. Defaults to config, which is on unless the feed is off. */
     checkUpdates?: boolean;
+    azuk?: AzukClient | null;
+    azukWorker?: boolean;
+    builderFetch?: typeof fetch;
+    recipePage?: RecipeReader;
+    knowledgePage?: KnowledgePageReader;
+    /** Guarded bin application is off by default; preview remains available. */
+    siftApply?: boolean;
   } = {},
 ): Promise<FastifyInstance> {
   const app = Fastify({
@@ -89,9 +106,13 @@ export async function buildApp(
   app.decorate('registeredRoutes', registeredRoutes);
 
   const { db, sql } = getDb(opts.databaseUrl);
+  const azuk = opts.azuk === undefined
+    ? createAzukClient(process.env.BUKMARK_AZUK_URL, process.env.BUKMARK_AZUK_TOKEN)
+    : opts.azuk ?? undefined;
   app.decorate('db', db);
   app.decorate('fetchOgImage', opts.fetchOgImage ?? defaultFetchOgImage);
   app.addHook('onClose', async () => { await sql.end(); });
+  if (azuk && opts.azukWorker !== false) startAzukDeliveries(app, azuk);
 
   // Links saved before match keys existed get theirs in the background, so a
   // large collection does not hold up the server answering. Until it is done,
@@ -143,7 +164,12 @@ export async function buildApp(
     api.addHook('onRequest', requireAuth);
     await api.register(protectedAuthRoutes, { prefix: '/auth' });
     await api.register(linkRoutes, { checkPage });
-      await api.register(hubRoutes);
+    await api.register(reviewRoutes, { azuk });
+    await api.register(builderRoutes, { fetcher: opts.builderFetch ?? globalThis.fetch });
+    await api.register(recipeRoutes, { readPage: opts.recipePage ?? readPublicPage });
+    await api.register(knowledgeRoutes, { readPage: opts.knowledgePage ?? readPublicPage });
+    await api.register(siftRoutes, { applyEnabled: opts.siftApply ?? config.siftApply });
+    await api.register(hubRoutes);
     await api.register(quoteRoutes);
     await api.register(exportRoutes);
     await api.register(updateRoutes, { env: updatesEnv });

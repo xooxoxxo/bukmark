@@ -122,6 +122,7 @@ export function SettingsPage() {
 
       <section className={styles.section} aria-labelledby="import-export">
         <h2 id="import-export" className={styles.heading}>Import and export</h2>
+        <Link to="/start">Import and organize bookmarks</Link>
         <div className={styles.field}>
           <p className={styles.label}>Import</p>
           <p className={styles.hint}>

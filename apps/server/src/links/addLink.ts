@@ -7,6 +7,7 @@ import { reactivateHub } from './setLinkHubs.js';
 export interface AddLinkInput {
   url: string;
   urlHash: string;
+  originalUrl?: string;
   title?: string;
   note?: string;
   hub?: string;
@@ -36,7 +37,7 @@ export async function addLink(
   input: AddLinkInput,
   fetchOgImage: (url: string) => Promise<string | null>,
 ): Promise<AddLinkResult> {
-  const { url, urlHash, title, note, hub, relevance, source = 'manual', onlyIfAbsent = false } = input;
+  const { url, urlHash, originalUrl = url, title, note, hub, relevance, source = 'manual', onlyIfAbsent = false } = input;
   const key = matchKey(url);
 
   const { outcome, id } = await db.transaction(async (tx) => {
@@ -72,7 +73,7 @@ export async function addLink(
         const [won] = await tx.select({ id: links.id }).from(links).where(eq(links.urlHash, urlHash)).limit(1);
         return { outcome: 'existing' as AddLinkResult['outcome'], id: won!.id };
       }
-      await tx.insert(captures).values({ linkId: ins[0].id, source, originalUrl: url, originalTitle: title ?? '' });
+      await tx.insert(captures).values({ linkId: ins[0].id, source, originalUrl, originalTitle: title ?? '' });
       return { outcome: (resurrected ? 'resurrected' : 'created') as AddLinkResult['outcome'], id: ins[0].id };
     }
 
@@ -102,7 +103,7 @@ export async function addLink(
     }
 
     await tx.insert(captures).values({
-      linkId, source, originalUrl: url, originalTitle: title ?? '',
+      linkId, source, originalUrl, originalTitle: title ?? '',
     });
 
     if (hub) {

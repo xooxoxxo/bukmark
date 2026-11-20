@@ -2,6 +2,16 @@ import { sql } from 'drizzle-orm';
 import {
   boolean, check, index, integer, jsonb, pgTable, primaryKey, real, text, timestamp, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
+import type { ReviewDraft, ReviewState } from '../review/model.js';
+import type { WatchTrigger } from '../azuk/client.js';
+import type { DeliveryStatus, DeliveryStep, WatchReceipt } from '../azuk/model.js';
+import type { BuilderEdits, BuilderRecord } from '../builder/model.js';
+import type { KnowledgeEvidence, KnowledgeExport, KnowledgeFields, RecipeDraftData, RecipeExport } from '@bukmark/shared';
+import type { KnowledgeMismatch } from '../knowledge/service.js';
+import type { RecipeEdits } from '../recipe/service.js';
+import type { SiftBaselineInput, SiftComputed } from '@bukmark/shared';
+import type { SiftGuard, SiftRules } from '../sift/historyModel.js';
+import type { SiftApplicationEntry, SiftTarget } from '../sift/applyModel.js';
 
 export const links = pgTable('links', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -32,6 +42,7 @@ export const links = pgTable('links', {
   uniqueIndex('links_url_hash_uq').on(t.urlHash),
   index('links_status_idx').on(t.status),
   index('links_checked_at_idx').on(t.checkedAt),
+  // Match keys can include long URL paths and are only queried for equality.
   index('links_match_key_idx').using('hash', t.matchKey),
   // The sync feed reads links in (updated_at, id) order from a cursor.
   index('links_updated_at_idx').on(t.updatedAt, t.id),
@@ -57,6 +68,134 @@ export const captures = pgTable('captures', {
   raw: jsonb('raw'),
   capturedAt: timestamp('captured_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('captures_link_idx').on(t.linkId), uniqueIndex('captures_session_occurrence_uq').on(t.sessionOccurrenceKey)]);
+
+export const reviewProposals = pgTable('review_proposals', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  linkId: uuid('link_id').notNull().references(() => links.id, { onDelete: 'cascade' }),
+  draft: jsonb('draft').$type<ReviewDraft>().notNull(),
+  reason: text('reason').notNull(),
+  origin: text('origin', { enum: ['rule', 'assistant', 'owner'] }).notNull(),
+  status: text('status').$type<ReviewState>().notNull().default('pending'),
+  revision: integer('revision').notNull().default(1),
+  sourceVersion: text('source_version').notNull(),
+  inputKey: text('input_key').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('review_proposals_link_uq').on(t.linkId),
+  index('review_proposals_queue_idx').on(t.status, t.updatedAt, t.id),
+]);
+
+export const azukDeliveries = pgTable('azuk_deliveries', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  // Keep the receipt after the source link or review is deleted.
+  linkId: uuid('link_id').notNull(),
+  proposalId: uuid('proposal_id').notNull(),
+  revision: integer('revision').notNull(),
+  connection: text('connection').notNull(),
+  listId: uuid('list_id').notNull(),
+  listName: text('list_name').notNull(),
+  listingUrl: text('listing_url').notNull(),
+  productName: text('product_name').notNull(),
+  trigger: jsonb('trigger').$type<WatchTrigger>().notNull(),
+  status: text('status').$type<DeliveryStatus>().notNull().default('queued'),
+  itemId: uuid('item_id'),
+  watchId: uuid('watch_id'),
+  watch: jsonb('watch').$type<WatchReceipt>(),
+  error: text('error'),
+  pendingStep: text('pending_step').$type<DeliveryStep>(),
+  claim: uuid('claim'),
+  claimUntil: timestamp('claim_until', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('azuk_deliveries_destination_uq').on(t.connection, t.listId, t.listingUrl),
+  index('azuk_deliveries_queue_idx').on(t.connection, t.status, t.updatedAt),
+]);
+
+export const builderDrafts = pgTable('builder_drafts', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  key: text('key').notNull(),
+  record: jsonb('record').$type<BuilderRecord>().notNull(),
+  edits: jsonb('edits').$type<BuilderEdits>().notNull().default({}),
+  revision: integer('revision').notNull().default(1),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('builder_drafts_key_uq').on(t.key),
+  index('builder_drafts_queue_idx').on(t.updatedAt, t.id),
+]);
+
+export const builderDraftSources = pgTable('builder_draft_sources', {
+  draftId: uuid('draft_id').notNull().references(() => builderDrafts.id, { onDelete: 'cascade' }),
+  linkId: uuid('link_id').notNull().references(() => links.id, { onDelete: 'cascade' }),
+}, (t) => [
+  primaryKey({ columns: [t.draftId, t.linkId] }),
+  index('builder_draft_sources_link_idx').on(t.linkId),
+]);
+
+export const builderExports = pgTable('builder_exports', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  key: text('key').notNull(),
+  revisions: jsonb('revisions').$type<{ id: string; revision: number }[]>().notNull(),
+  records: jsonb('records').$type<BuilderRecord[]>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex('builder_exports_key_uq').on(t.key)]);
+
+export const recipeDrafts = pgTable('recipe_drafts', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  key: text('key').notNull(),
+  data: jsonb('data').$type<RecipeDraftData>().notNull(),
+  edits: jsonb('edits').$type<RecipeEdits>().notNull().default({}),
+  selectedVariations: jsonb('selected_variations').$type<string[]>().notNull().default([]),
+  reviewedUnassigned: boolean('reviewed_unassigned').notNull().default(false),
+  revision: integer('revision').notNull().default(1),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('recipe_drafts_key_uq').on(t.key),
+  index('recipe_drafts_queue_idx').on(t.updatedAt, t.id),
+]);
+
+export const recipeDraftSources = pgTable('recipe_draft_sources', {
+  draftId: uuid('draft_id').notNull().references(() => recipeDrafts.id, { onDelete: 'cascade' }),
+  linkId: uuid('link_id').notNull().references(() => links.id, { onDelete: 'cascade' }),
+}, (t) => [
+  primaryKey({ columns: [t.draftId, t.linkId] }),
+  index('recipe_draft_sources_link_idx').on(t.linkId),
+]);
+
+export const recipeExports = pgTable('recipe_exports', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  draftId: uuid('draft_id').notNull(),
+  revision: integer('revision').notNull(),
+  requestKey: text('request_key').notNull(),
+  payload: jsonb('payload').$type<RecipeExport>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('recipe_exports_revision_uq').on(t.draftId, t.revision),
+  uniqueIndex('recipe_exports_request_key_uq').on(t.requestKey),
+]);
+
+export const knowledgeNotes = pgTable('knowledge_notes', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  linkId: uuid('link_id').references(() => links.id, { onDelete: 'set null' }),
+  savedUrl: text('saved_url').notNull(),
+  fields: jsonb('fields').$type<KnowledgeFields>().notNull(),
+  evidence: jsonb('evidence').$type<KnowledgeEvidence>(),
+  mismatch: jsonb('mismatch').$type<KnowledgeMismatch>(),
+  revision: integer('revision').notNull().default(1),
+  approvedRevision: integer('approved_revision').notNull().default(0),
+  latestExportId: uuid('latest_export_id'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index('knowledge_notes_link_idx').on(t.linkId),
+  index('knowledge_notes_queue_idx').on(t.updatedAt, t.id),
+]);
+
+export const knowledgeExports = pgTable('knowledge_exports', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  noteId: uuid('note_id').notNull(),
+  draftRevision: integer('draft_revision').notNull(),
+  payload: jsonb('payload').$type<KnowledgeExport>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex('knowledge_exports_revision_uq').on(t.noteId, t.draftRevision)]);
 
 /**
  * Passages saved from pages. link_id goes null when the link is deleted; the
@@ -109,6 +248,74 @@ export const importJobs = pgTable('import_jobs', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const siftBaselines = pgTable('sift_baselines', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  key: text('key').notNull(),
+  reference: text('reference').notNull(),
+  approvedAt: timestamp('approved_at', { withTimezone: true }).notNull(),
+  manifest: jsonb('manifest').$type<SiftBaselineInput>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex('sift_baselines_key_uq').on(t.key)]);
+
+/** Existing owner choices, recorded without changing their source memberships. */
+export const siftDecisions = pgTable('sift_decisions', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  linkId: uuid('link_id').notNull(),
+  baselineId: uuid('baseline_id').references(() => siftBaselines.id),
+  applicationId: uuid('application_id').references(() => siftApplications.id),
+  field: text('field').notNull().default('bin'),
+  hubId: uuid('hub_id').notNull(),
+  bin: text('bin').notNull(),
+  membershipCreatedAt: text('membership_created_at').notNull(),
+  revision: integer('revision').notNull().default(1),
+}, (t) => [uniqueIndex('sift_decisions_source_field_uq').on(t.linkId, t.field),
+  check('sift_decisions_one_approval', sql`num_nonnulls(${t.baselineId}, ${t.applicationId}) = 1`)]);
+
+export const siftResults = pgTable('sift_results', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  key: text('key').notNull(),
+  input: jsonb('input').$type<{ url: string; title: string; status: 'active' | 'archived'; pageText?: string }>().notNull(),
+  rulesDigest: text('rules_digest').notNull(),
+  computed: jsonb('computed').$type<SiftComputed>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex('sift_results_key_uq').on(t.key)]);
+
+export const siftRuns = pgTable('sift_runs', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  key: text('key').notNull(),
+  scopeKey: text('scope_key').notNull(),
+  sourceIds: jsonb('source_ids').$type<string[]>().notNull(),
+  rules: jsonb('rules').$type<SiftRules>().notNull(),
+  digest: text('digest').notNull(),
+  previousRunId: uuid('previous_run_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex('sift_runs_key_uq').on(t.key), index('sift_runs_history_idx').on(t.createdAt, t.id)]);
+
+export const siftRunItems = pgTable('sift_run_items', {
+  runId: uuid('run_id').notNull().references(() => siftRuns.id, { onDelete: 'cascade' }),
+  linkId: uuid('link_id').notNull(),
+  resultId: uuid('result_id').notNull().references(() => siftResults.id),
+  guard: jsonb('guard').$type<SiftGuard>().notNull(),
+  guardDigest: text('guard_digest').notNull(),
+}, (t) => [primaryKey({ columns: [t.runId, t.linkId] })]);
+
+export const siftApplicationPreviews = pgTable('sift_application_previews', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  digest: text('digest').notNull(),
+  runId: uuid('run_id').notNull().references(() => siftRuns.id),
+  runDigest: text('run_digest').notNull(),
+  target: jsonb('target').$type<SiftTarget | null>(),
+  entries: jsonb('entries').$type<SiftApplicationEntry[]>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex('sift_application_previews_digest_uq').on(t.digest)]);
+
+export const siftApplications = pgTable('sift_applications', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  previewId: uuid('preview_id').notNull().references(() => siftApplicationPreviews.id),
+  entries: jsonb('entries').$type<SiftApplicationEntry[]>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex('sift_applications_preview_uq').on(t.previewId)]);
 
 export const deletedHashes = pgTable('deleted_hashes', {
   urlHash: text('url_hash').primaryKey(),

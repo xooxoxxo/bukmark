@@ -37,7 +37,7 @@ function renderEditor(link: Partial<LinkDetail> = {}) {
   });
   useEditing.getState().open('l1');
   const Wrapper = makeWrapper();
-  return render(<Wrapper><LinkEditor /></Wrapper>);
+  return render(<Wrapper><MemoryRouter><LinkEditor /></MemoryRouter></Wrapper>);
 }
 
 describe('LinkEditor', () => {
@@ -211,3 +211,4 @@ describe('checkLine', () => {
   });
 
 });
+import { MemoryRouter } from 'react-router';

@@ -31,11 +31,12 @@ describe('docs name only buttons and menus that exist', () => {
     expect(missing).toEqual([]);
   });
 
-  it('every Settings or Options menu path exists', () => {
+  it('every documented menu path exists', () => {
     // "Settings" is the web app's menu button; "Options" is Chrome's name for
     // the extension's options page, so only what follows it is ours.
     const menus: Record<string, { ui: string; labels: (path: string[]) => string[] }> = {
       Settings: { ui: webUi, labels: (path) => path },
+      Review: { ui: webUi, labels: (path) => path },
       Options: { ui: extensionUi, labels: (path) => path.slice(1) },
     };
     const missing: string[] = [];

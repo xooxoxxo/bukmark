@@ -77,6 +77,9 @@ export function Sidebar() {
           <span className={styles.count}>{stats.broken}</span>
         </button>
       ) : null}
+      <NavLink to="/review" className={({ isActive }) => (isActive ? styles.active : styles.item)}>
+        Review
+      </NavLink>
       <ul className={styles.hubList}>
         {(data?.items ?? []).map((hub) => (
           <li key={hub.id}>

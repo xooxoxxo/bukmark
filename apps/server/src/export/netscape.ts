@@ -24,12 +24,14 @@ function esc(s: string): string {
     .replaceAll('"', '&quot;');
 }
 
-function anchor(l: ExportLink): string[] {
-  const added = Math.floor(Date.parse(l.firstSeen) / 1000);
+type BrowserBookmark = Pick<ExportLink, 'url' | 'title' | 'hubs' | 'note'> & { firstSeen?: string };
+
+function anchor(l: BrowserBookmark): string[] {
+  const added = l.firstSeen ? ` ADD_DATE="${Math.floor(Date.parse(l.firstSeen) / 1000)}"` : '';
   const tags = esc([...l.hubs].sort().join(','));
   const label = esc(l.title === '' ? l.url : l.title);
   const lines = [
-    `            <DT><A HREF="${esc(l.url)}" ADD_DATE="${added}" TAGS="${tags}">${label}</A>`,
+    `            <DT><A HREF="${esc(l.url)}"${added} TAGS="${tags}">${label}</A>`,
   ];
   // <DD> is the standard Netscape description element. The v0 exporter never
   // used it, so notes — the record of WHY a link was kept — were lost on export.
@@ -50,9 +52,9 @@ function anchor(l: ExportLink): string[] {
  * links out as bookmark sync does, and none of them land loose among the
  * browser's own bookmarks.
  */
-export function toNetscapeHtml(links: ExportLink[]): string {
-  const byHub = new Map<string, ExportLink[]>();
-  const unsorted: ExportLink[] = [];
+export function toNetscapeHtml(links: BrowserBookmark[], { literalFolderNames = false } = {}): string {
+  const byHub = new Map<string, BrowserBookmark[]>();
+  const unsorted: BrowserBookmark[] = [];
 
   for (const l of links) {
     if (l.hubs.length === 0) {
@@ -76,13 +78,13 @@ export function toNetscapeHtml(links: ExportLink[]): string {
     '    <DL><p>',
   ];
 
-  const folders: [string, ExportLink[]][] = [...byHub.entries()].sort(([a], [b]) =>
+  const folders: [string, BrowserBookmark[]][] = [...byHub.entries()].sort(([a], [b]) =>
     a.localeCompare(b),
   );
   if (unsorted.length > 0) folders.push([UNSORTED, unsorted]);
 
   for (const [name, items] of folders) {
-    const title = items === unsorted ? name : folderName(name);
+    const title = items === unsorted || literalFolderNames ? name : folderName(name);
     out.push(`        <DT><H3>${esc(title)}</H3>`, '        <DL><p>');
     for (const l of items) out.push(...anchor(l));
     out.push('        </DL><p>');

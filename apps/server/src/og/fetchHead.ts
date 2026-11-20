@@ -18,6 +18,14 @@ export interface PageFetch {
   url: string;
 }
 
+type PageRequest = (url: URL, signal: AbortSignal) => Promise<Response | PageError>;
+
+async function requestPage(url: URL, signal: AbortSignal): Promise<Response | PageError> {
+  const host = await classifyHost(url.hostname);
+  if (host !== 'public') return host === 'unresolved' ? 'dns' : host === 'private' ? 'blocked' : 'network';
+  return fetch(url.href, { signal, redirect: 'manual', headers: { 'user-agent': UA, accept: 'text/html,*/*' } });
+}
+
 async function readCapped(res: Response, maxBytes: number): Promise<string | null> {
   if (!res.body) return null;
   const reader = res.body.getReader();
@@ -39,7 +47,9 @@ async function readCapped(res: Response, maxBytes: number): Promise<string | nul
  * resolve to a public address. Redirects are followed manually so each
  * Location is re-validated before it is fetched.
  */
-export async function fetchPage(rawUrl: string, maxBytes: number): Promise<PageFetch> {
+export async function fetchPage(
+  rawUrl: string, maxBytes: number, request: PageRequest = requestPage, overall?: AbortSignal,
+): Promise<PageFetch> {
   let url = rawUrl;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     let parsed: URL;
@@ -51,20 +61,13 @@ export async function fetchPage(rawUrl: string, maxBytes: number): Promise<PageF
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       return { status: null, error: 'blocked', html: null, url };
     }
-    const host = await classifyHost(parsed.hostname);
-    if (host !== 'public') {
-      const error = host === 'unresolved' ? 'dns' : host === 'private' ? 'blocked' : 'network';
-      return { status: null, error, html: null, url };
-    }
-
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    const signal = overall ? AbortSignal.any([ctrl.signal, overall]) : ctrl.signal;
     try {
-      const res = await fetch(url, {
-        signal: ctrl.signal,
-        redirect: 'manual',
-        headers: { 'user-agent': UA, accept: 'text/html,*/*' },
-      });
+      signal.throwIfAborted();
+      const res = await request(parsed, signal);
+      if (typeof res === 'string') return { status: null, error: res, html: null, url };
       if (res.status >= 300 && res.status < 400) {
         const loc = res.headers.get('location');
         await res.body?.cancel().catch(() => undefined);
@@ -78,7 +81,7 @@ export async function fetchPage(rawUrl: string, maxBytes: number): Promise<PageF
       if (!readable) await res.body?.cancel().catch(() => undefined);
       return { status: res.status, error: null, html, url };
     } catch {
-      return { status: null, error: ctrl.signal.aborted ? 'timeout' : 'network', html: null, url };
+      return { status: null, error: signal.aborted ? 'timeout' : 'network', html: null, url };
     } finally {
       clearTimeout(timer);
     }

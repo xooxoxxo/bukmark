@@ -64,6 +64,22 @@ config. See [modelcontextprotocol.io](https://modelcontextprotocol.io).
 | `list_hubs` | See your existing hubs. |
 | `assign_hubs` | Assign links to one or more hubs. |
 
+## Saved sifting previews
+
+Open **Review → Sifting previews** to save local suggestions and reopen earlier runs.
+Choose a reviewed batch, the selected bookmark, or the next 100 bookmarks without a recorded bin.
+The preview shows suggestions beside recorded bin choices, approval evidence and existing export receipts.
+
+Saving the same inputs again reuses the run and its results. Changes to source data or review evidence create a comparison with the earlier run.
+Owner choices remain recorded when a new suggestion differs. A changed membership is shown as a hold rather than a replacement decision.
+
+This flow uses stored data and local URL rules. It does not read saved websites or call a model.
+Protected sources are analyzed on the server; preview responses expose only their aggregate count.
+That check also applies when opening a run saved before a source became protected.
+
+Recording a preview does not move bookmarks, change their reviews, prepare handoffs or create exports.
+This release has no sifting apply operation. Access requires an owner browser session.
+
 ## Troubleshooting
 
 If every tool call fails with "bukmark rejected the request (401)", set

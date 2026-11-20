@@ -60,7 +60,13 @@ To update: `git pull && docker compose up -d --build`.
 
 1. Open `http://localhost:3000` (or your port or address).
 2. Enter a password of 12–1024 characters twice and click **Create password**.
-3. [Add the browser extension](/docs/extension/) and log in to the same address.
+3. In the empty library, choose **Import and organize bookmarks**. Export an HTML bookmarks file from your browser, then choose that file in Bukmark.
+4. Choose **Show suggestions** to see up to 12 bookmarks from the file. Each suggestion explains why the link might belong in a folder. Tick the links you want and edit any folder names.
+5. Choose **Download**. Open the HTML file to read the links, or import it into your browser to add the folders. Your library keeps the full import. You can run this guide again from **Settings → Import and export**.
+
+When a link looks like a development tool, recipe, or source for a note, its suggestion also links to a separate review where you can prepare a more detailed download.
+
+The guide runs on your server. You can use it without an AI account, a connected service, or a browser extension. To capture more links as you browse, [add the extension](/docs/extension/).
 
 :::caution[Set the password right away]
 Until it is set, whoever reaches the server first can claim it, and every `/api`
@@ -163,6 +169,9 @@ CORS_ORIGINS=
 TRUST_PROXY=false
 BUKMARK_EXTENSION_IDS=
 BUKMARK_CHECK_PAGES=true
+BUKMARK_SIFT_APPLY=false
+BUKMARK_AZUK_URL=
+BUKMARK_AZUK_TOKEN=
 BUKMARK_UPDATE_FEED=
 ```
 
@@ -174,6 +183,8 @@ BUKMARK_UPDATE_FEED=
 - **`TRUST_PROXY`**: see [Behind a reverse proxy](#behind-a-reverse-proxy).
 - **`BUKMARK_EXTENSION_IDS`**: see
   [Unrecognised extension](/docs/extension/#unrecognised-extension).
+- **`BUKMARK_SIFT_APPLY`** defaults to false. Previewing suggestions and downloading a bookmark file work with this setting off.
+- **`BUKMARK_AZUK_URL`** and **`BUKMARK_AZUK_TOKEN`** connect an optional Azuk shopping list. Leave both empty to use Bukmark on its own.
 - **`BUKMARK_CHECK_PAGES`**: `false` stops reading saved pages in the
   background.
 - **`BUKMARK_UPDATE_FEED`**: `off` stops checking for new releases. Empty

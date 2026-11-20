@@ -41,6 +41,8 @@ export const config = {
   // Fetch saved pages in the background for their text and status. On unless
   // BUKMARK_CHECK_PAGES=false.
   checkPages: process.env.BUKMARK_CHECK_PAGES !== 'false',
+  // Enable only after reviewing a local application preview. Each apply still needs owner approval.
+  siftApply: process.env.BUKMARK_SIFT_APPLY === 'true',
   // Set in the image from the release tag; unset or "dev" is a development build.
   appVersion: process.env.BUKMARK_APP_VERSION,
   // installer (the bukmark command's compose file) or source (the repo's).

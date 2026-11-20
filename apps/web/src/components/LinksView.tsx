@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Link } from 'react-router';
 import { useLinksInfinite } from '../api/queries';
 import { useFilters } from '../state/filters';
 import { useSelection } from '../state/selection';
@@ -75,8 +76,9 @@ export function LinksView({ hubId }: { hubId?: string }) {
           <p>
             {filtered
               ? 'Try another search or filter.'
-              : 'Capture a page with the extension; it will land here unsorted.'}
+              : 'Bring in your browser bookmarks to review them, or save a page with the extension.'}
           </p>
+          {!filtered && <Link className={styles.start} to="/start">Import and organize bookmarks</Link>}
         </div>
       ) : view === 'grid' ? (
         <LinksGrid
