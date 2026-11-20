@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useMutation } from '@tanstack/react-query';
-import { BOOKMARK_REVIEW_LIMIT, canDownloadReviewedBookmark, type SiftBin, type SiftPreview } from '@bukmark/shared';
+import { BOOKMARK_REVIEW_LIMIT, canDownloadReviewedBookmark, type SiftBin, type SiftPreview } from '@bukmark/shared/review';
 import { errorMessage, saveSiftPreview } from '../api/client';
 import { useSiftPreview } from '../api/queries';
 import { ImportBookmarks } from '../components/ImportBookmarks';

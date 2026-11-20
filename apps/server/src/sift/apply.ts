@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
-import type { SiftApplicationInput, SiftApplicationView } from '@bukmark/shared';
+import type { SiftApplicationInput, SiftApplicationView } from '@bukmark/shared/review';
 import { pgCode, type Db } from '../db/client.js';
 import { hubs, hubLinks, links, siftApplicationPreviews, siftApplications, siftDecisions, siftRunItems, siftRuns } from '../db/schema.js';
 import { siftContextFor } from './history.js';

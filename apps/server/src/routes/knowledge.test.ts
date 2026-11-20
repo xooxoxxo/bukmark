@@ -1,4 +1,4 @@
-import type { KnowledgeDraft, KnowledgeEvidenceAction, KnowledgeExport, KnowledgeFields } from '@bukmark/shared';
+import type { KnowledgeDraft, KnowledgeEvidenceAction, KnowledgeExport, KnowledgeFields } from '@bukmark/shared/review';
 import { sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';

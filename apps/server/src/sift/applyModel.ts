@@ -1,4 +1,4 @@
-import type { SiftApplicationItem } from '@bukmark/shared';
+import type { SiftApplicationItem } from '@bukmark/shared/review';
 
 /** IDs and guards stay on the instance; public views recheck current protection. */
 export interface SiftApplicationEntry {

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { RecipeApproval, RecipeDraft, RecipeDraftData, RecipeExport, RecipeFields } from '@bukmark/shared';
+import type { RecipeApproval, RecipeDraft, RecipeDraftData, RecipeExport, RecipeFields } from '@bukmark/shared/review';
 import { and, desc, eq, exists } from 'drizzle-orm';
 import { canonicalJson } from '../canonicalJson.js';
 import type { Db } from '../db/client.js';

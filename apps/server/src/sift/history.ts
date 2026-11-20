@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, notExists, sql } from 'drizzle-orm';
-import type { SiftBaselineInput, SiftPreview, SiftPreviewItem, SiftRunReceipt, SiftScope } from '@bukmark/shared';
+import type { SiftBaselineInput, SiftPreview, SiftPreviewItem, SiftRunReceipt, SiftScope } from '@bukmark/shared/review';
 import type { Db } from '../db/client.js';
 import {
   azukDeliveries, builderExports, hubLinks, hubs, knowledgeExports, links, recipeExports, reviewProposals,

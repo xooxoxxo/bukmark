@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { SiftPreview } from '@bukmark/shared';
+import type { SiftPreview } from '@bukmark/shared/review';
 import { useApproveSiftApplication, useHubs, usePrepareSiftApplication, useSiftApplication, useSiftApplicationPreview } from '../api/queries';
 import styles from './ReviewPage.module.css';
 

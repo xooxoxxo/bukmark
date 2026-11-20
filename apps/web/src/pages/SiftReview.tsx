@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { SiftScope } from '@bukmark/shared';
+import type { SiftScope } from '@bukmark/shared/review';
 import { useSaveSiftPreview, useSiftBaselines, useSiftPreview, useSiftRuns } from '../api/queries';
 import styles from './ReviewPage.module.css';
 import { SiftApplyReview } from './SiftApplyReview';

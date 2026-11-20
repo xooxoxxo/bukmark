@@ -1,4 +1,4 @@
-import type { SiftBin, SiftBinSuggestion } from '@bukmark/shared';
+import type { SiftBin, SiftBinSuggestion } from '@bukmark/shared/review';
 import { builderSource } from '../builder/model.js';
 import { productListing } from '../review/model.js';
 import type { SiftBookmark } from './model.js';

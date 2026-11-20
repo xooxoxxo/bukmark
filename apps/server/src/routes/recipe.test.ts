@@ -1,4 +1,4 @@
-import type { RecipeApproval, RecipeDraft, RecipeExport } from '@bukmark/shared';
+import type { RecipeApproval, RecipeDraft, RecipeExport } from '@bukmark/shared/review';
 import { normalizeUrl } from '@bukmark/shared';
 import { sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { Type, type Static } from 'typebox';
-import { BUILDER_EXPORT_MAX_ITEMS } from '@bukmark/shared';
+import { BUILDER_EXPORT_MAX_ITEMS } from '@bukmark/shared/review';
 import { requireOwnerSession } from '../auth/plugin.js';
 import { canonicalJson } from '../canonicalJson.js';
 import {

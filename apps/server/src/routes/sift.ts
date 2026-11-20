@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { Type, type Static } from 'typebox';
-import { BOOKMARK_REVIEW_LIMIT, canDownloadReviewedBookmark } from '@bukmark/shared';
+import { BOOKMARK_REVIEW_LIMIT, canDownloadReviewedBookmark } from '@bukmark/shared/review';
 import { toNetscapeHtml } from '../export/netscape.js';
 import { requireOwnerSession } from '../auth/plugin.js';
 import {

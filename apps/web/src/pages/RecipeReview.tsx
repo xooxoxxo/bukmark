@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { RecipeApproval, RecipeDraft, RecipeFields } from '@bukmark/shared';
+import type { RecipeApproval, RecipeDraft, RecipeFields } from '@bukmark/shared/review';
 import {
   approveRecipeExport, fetchRecipeCandidates, fetchRecipeDrafts, prepareRecipe, recipeExportUrl,
   type RecipePreparation,

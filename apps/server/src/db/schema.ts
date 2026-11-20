@@ -6,10 +6,10 @@ import type { ReviewDraft, ReviewState } from '../review/model.js';
 import type { WatchTrigger } from '../azuk/client.js';
 import type { DeliveryStatus, DeliveryStep, WatchReceipt } from '../azuk/model.js';
 import type { BuilderEdits, BuilderRecord } from '../builder/model.js';
-import type { KnowledgeEvidence, KnowledgeExport, KnowledgeFields, RecipeDraftData, RecipeExport } from '@bukmark/shared';
+import type { KnowledgeEvidence, KnowledgeExport, KnowledgeFields, RecipeDraftData, RecipeExport } from '@bukmark/shared/review';
 import type { KnowledgeMismatch } from '../knowledge/service.js';
 import type { RecipeEdits } from '../recipe/service.js';
-import type { SiftBaselineInput, SiftComputed } from '@bukmark/shared';
+import type { SiftBaselineInput, SiftComputed } from '@bukmark/shared/review';
 import type { SiftGuard, SiftRules } from '../sift/historyModel.js';
 import type { SiftApplicationEntry, SiftTarget } from '../sift/applyModel.js';
 

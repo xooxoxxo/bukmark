@@ -6,7 +6,7 @@ import {
   type QueryClient,
 } from '@tanstack/react-query';
 import * as api from './client';
-import type { SiftApplicationInput, SiftScope } from '@bukmark/shared';
+import type { SiftApplicationInput, SiftScope } from '@bukmark/shared/review';
 import { chunkBySize } from './importSize';
 import type { BulkAction, HubPatch, LinkPatch, LinkSort, QuotePatch, ReviewFilter, UpdatesPatch } from './types';
 

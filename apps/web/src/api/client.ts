@@ -1,5 +1,5 @@
 import type { KnowledgeDraft, KnowledgeEvidenceAction, KnowledgeFields, KnowledgeReading, RecipeApproval, RecipeDraft,
-  SiftApplicationInput, SiftApplicationView, SiftBaselineSummary, SiftPreview, SiftRunReceipt, SiftRunSummary, SiftScope } from '@bukmark/shared';
+  SiftApplicationInput, SiftApplicationView, SiftBaselineSummary, SiftPreview, SiftRunReceipt, SiftRunSummary, SiftScope } from '@bukmark/shared/review';
 import type {
   BulkAction,
   AzukDelivery,

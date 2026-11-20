@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { sha256Hex } from '@bukmark/shared';
-import type { SiftComputed } from '@bukmark/shared';
+import type { SiftComputed } from '@bukmark/shared/review';
 import { canonicalJson } from '../canonicalJson.js';
 import { siftBookmark, type SiftBookmark } from './model.js';
 import { BIN_RULES, BIN_RULES_VERSION, suggestBin } from './bins.js';

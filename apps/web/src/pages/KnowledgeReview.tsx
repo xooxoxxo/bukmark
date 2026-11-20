@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { KnowledgeDraft, KnowledgeEvidenceAction, KnowledgeFields, KnowledgeReading } from '@bukmark/shared';
+import type { KnowledgeDraft, KnowledgeEvidenceAction, KnowledgeFields, KnowledgeReading } from '@bukmark/shared/review';
 import {
   approveKnowledgeNote, fetchKnowledgeCandidates, fetchKnowledgeNotes, fetchQuotes, knowledgeExportUrl,
   saveKnowledgeNote, startKnowledgeNote, updateKnowledgeEvidence,

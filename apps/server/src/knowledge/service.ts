@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { KnowledgeDraft, KnowledgeEvidence, KnowledgeEvidenceAction, KnowledgeExport, KnowledgeFields } from '@bukmark/shared';
+import type { KnowledgeDraft, KnowledgeEvidence, KnowledgeEvidenceAction, KnowledgeExport, KnowledgeFields } from '@bukmark/shared/review';
 import { and, desc, eq } from 'drizzle-orm';
 import { canonicalJson } from '../canonicalJson.js';
 import type { Db } from '../db/client.js';

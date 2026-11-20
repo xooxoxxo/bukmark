@@ -1,4 +1,4 @@
-import type { RecipeDraftData, RecipeFields, RecipeVariation } from '@bukmark/shared';
+import type { RecipeDraftData, RecipeFields, RecipeVariation } from '@bukmark/shared/review';
 import { load, type CheerioAPI } from 'cheerio/slim';
 
 const MAX_ROWS = 100;

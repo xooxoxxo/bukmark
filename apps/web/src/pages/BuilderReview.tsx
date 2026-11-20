@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BUILDER_EXPORT_MAX_ITEMS } from '@bukmark/shared';
+import { BUILDER_EXPORT_MAX_ITEMS } from '@bukmark/shared/review';
 import {
   approveBuilderExport, builderExportUrl, fetchBuilderCandidates, fetchBuilderDrafts, prepareBuilderDrafts,
 } from '../api/client';

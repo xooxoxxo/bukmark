@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
-import type { SiftPreview } from '@bukmark/shared';
+import type { SiftPreview } from '@bukmark/shared/review';
 import { makeWrapper } from '../test/utils';
 import { SiftReview } from './SiftReview';
 

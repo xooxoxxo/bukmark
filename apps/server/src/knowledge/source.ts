@@ -1,5 +1,5 @@
 import { isIP } from 'node:net';
-import type { KnowledgeCitation, KnowledgeEvidence, KnowledgeReading } from '@bukmark/shared';
+import type { KnowledgeCitation, KnowledgeEvidence, KnowledgeReading } from '@bukmark/shared/review';
 import { load } from 'cheerio/slim';
 import type { PageFetch } from '../og/fetchHead.js';
 import { pageText } from '../og/pageText.js';
