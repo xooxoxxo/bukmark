@@ -15,11 +15,12 @@ interface Status {
 }
 
 /** A button that reads a bookmarks file and imports it, with its progress. */
-export function ImportBookmarks({ buttonClass, statusClass, errorClass, onImported, onFileStarted, disabled, reviewLimit }: {
+export function ImportBookmarks({ buttonLabel = 'Import bookmarks…', buttonClass, statusClass, errorClass, onImported, onFileStarted, disabled, reviewLimit }: {
   onFileStarted?: () => void;
   disabled?: boolean;
   onImported?: (ids: string[]) => void;
   reviewLimit?: number;
+  buttonLabel?: string;
   buttonClass?: string;
   statusClass?: string;
   errorClass?: string;
@@ -103,7 +104,7 @@ export function ImportBookmarks({ buttonClass, statusClass, errorClass, onImport
         disabled={disabled || status?.kind === 'reading' || importLinks.isPending}
         onClick={() => fileInput.current?.click()}
       >
-        Import bookmarks…
+        {buttonLabel}
       </button>
       {status ? (
         <p

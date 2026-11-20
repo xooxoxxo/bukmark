@@ -40,9 +40,9 @@ function explainFolder(bin: SiftBin, address: string): string {
 }
 
 const detailReviews = {
-  builder: ['builder', 'Review this link as a development tool'],
-  recipe: ['recipes', 'Review this link as a recipe'],
-  knowledge: ['notes', 'Review this link as a source for a note'],
+  builder: ['builder', 'Review as a development tool'],
+  recipe: ['recipes', 'Review as a recipe'],
+  knowledge: ['notes', 'Create a knowledge note'],
 } as const;
 
 type FolderChoice = { linkId: string; folder: string };
@@ -87,50 +87,58 @@ function FolderReview({ preview }: { preview: SiftPreview }) {
   }
 
   return <>
-    <h2>Choose bookmarks for your file</h2>
-    <p>Tick the links you want. You can rename each folder for this download. Your library keeps the original bookmarks.</p>
+    <p className={styles.intro}>Select bookmarks for your HTML file. You can rename their folders before downloading.</p>
     {hidden > 0 && <p>{hidden} private or unavailable {hidden === 1 ? 'link was' : 'links were'} left out.</p>}
     <fieldset className={styles.items} disabled={download.isPending}>
-      <legend className={styles.legend}>Bookmarks in this review</legend>
+      <legend className={styles.srOnly}>Choose bookmarks for your file</legend>
+      {items.length > 0 && <div aria-hidden="true" className={styles.columnLabels}><span>Bookmark</span><span>Folder in file</span></div>}
       {items.map(item => {
         const { id, title, url } = item.link;
         const bin = item.computed.bin;
         const name = title || url;
         const included = choices[id] !== undefined;
         const available = eligible.includes(item);
+        const missingFolder = included && !choices[id]?.trim();
         const route = item.computed.handoff;
         const noteSource = url.startsWith('https://') && (item.computed.disposition === 'reference' || bin?.name === 'Technical reference');
         const detail = route === 'builder' || route === 'recipe' || route === 'knowledge' ? detailReviews[route]
           : noteSource && route === 'none' ? detailReviews.knowledge : null;
+        const host = URL.parse(url)?.hostname;
         return <div className={styles.item} key={id}>
-          <label className={styles.pick}>
-            <input type="checkbox" disabled={!available} checked={available && included}
-              onChange={e => change(id, e.target.checked && bin ? folders[bin.name] : undefined)} />
-            {name}
-          </label>
-          <span className={styles.address}>{url}</span>
-          {available && bin ? <>
-            <p><strong>{bin.name === 'Needs review' ? 'Your choice' : folders[bin.name]}.</strong>{' '}
-              {explainFolder(bin.name, url)}</p>
-            {included && <label className={styles.folder}>Folder in file
-              <input maxLength={120} value={choices[id]} onChange={e => change(id, e.target.value)} />
-            </label>}
-            {detail && <Link to={`/review?linkId=${id}&view=${detail[0]}`} target="_blank" rel="noreferrer">
-              {detail[1]} (opens in a new tab)
+          <div className={styles.itemLine}>
+            <label className={styles.pick}>
+              <input type="checkbox" aria-label={name} aria-describedby={available && !included ? `folder-${id}` : undefined} disabled={!available} checked={available && included}
+                onChange={e => change(id, e.target.checked && bin ? folders[bin.name] : undefined)} />
+              <span>{name}{host && title && <small>{host}</small>}</span>
+            </label>
+            {available && bin && (included
+              ? <label className={styles.folder}><span className={styles.srOnly}>Folder for {name}</span>
+                  <input maxLength={120} required placeholder="Folder name" value={choices[id]} aria-invalid={missingFolder}
+                    aria-describedby={missingFolder ? `folder-error-${id}` : undefined} onChange={e => change(id, e.target.value)} />
+                  {missingFolder && <small id={`folder-error-${id}`}>Enter a folder name to download.</small>}
+                </label>
+              : <span id={`folder-${id}`} className={styles.destination}>{bin.name === 'Needs review' ? 'Choose a folder' : folders[bin.name]}</span>)}
+          </div>
+          {!available && <p className={styles.hold}>{item.decision ? `Your saved choice is ${item.decision.bin}.` :
+            bin?.name === 'Check source' ? 'Check the saved title and address.' : 'This bookmark has a decision or has changed.'}
+            {' '}<Link to={`/review?linkId=${id}`}>Review bookmark</Link></p>}
+          <details className={styles.details}>
+            <summary>{available ? 'Why this suggestion?' : 'Source details'}</summary>
+            {available && bin && <p>{explainFolder(bin.name, url)}</p>}
+            <p className={styles.address}>{url}</p>
+            {available && detail && <Link to={`/review?linkId=${id}&view=${detail[0]}`} target="_blank" rel="noreferrer">
+              {detail[1]} <span aria-hidden="true">↗</span><span className={styles.srOnly}> (opens in a new tab)</span>
             </Link>}
-          </> : <p>{item.decision ? `Your saved choice is ${item.decision.bin}.` :
-              bin?.name === 'Check source' ? 'Check the saved title and address before exporting.' :
-              'This bookmark already has a decision or has changed since review.'} <Link to={`/review?linkId=${id}`}>Review bookmark</Link></p>}
+          </details>
         </div>;
       })}
     </fieldset>
     <div className={styles.actions}>
       <button className={styles.primary} disabled={download.isPending || !selected.length || selected.some(row => !row.folder)}
-        onClick={() => download.mutate(selected)}>Download {selected.length || ''} {selected.length === 1 ? 'bookmark' : 'bookmarks'} as HTML</button>
-      <Link to="/">Open library</Link>
+        onClick={() => download.mutate(selected)}>Download {selected.length ? `${selected.length} ` : ''}{selected.length === 1 ? 'bookmark' : 'bookmarks'}</button>
     </div>
     {download.isError && <p role="alert">{errorMessage(download.error)}</p>}
-    {download.isSuccess && <p role="status">Your file is ready. Open it to read the links, or import it in your browser to keep the folders.</p>}
+    {download.isSuccess && <p role="status">Downloaded. Import the HTML file in your browser to keep these folders.</p>}
   </>;
 }
 
@@ -144,32 +152,33 @@ export function FirstRunPage() {
   });
   const preview = useSiftPreview(runId, 0);
   return <div className={styles.page}>
-    <h1>{runId ? 'Review your bookmarks' : 'Organize your first bookmarks'}</h1>
+    <h1>{runId ? 'Review your bookmarks' : 'Import bookmarks'}</h1>
     {runId ? <>
       {preview.isPending && <p role="status">Loading suggestions…</p>}
       {preview.isError && <p role="alert">{errorMessage(preview.error)} <button onClick={() => void preview.refetch()}>Try again</button></p>}
       {preview.data && <FolderReview key={runId} preview={preview.data} />}
-      <Link to="/start" onClick={() => { setIds(null); start.reset(); }}>Import another file</Link>
+      <nav className={styles.footer} aria-label="After review"><Link to="/">Open library</Link><Link to="/start" onClick={() => { setIds(null); start.reset(); }}>Import another file</Link></nav>
     </> : <>
-      <p>Start with the bookmarks file from your browser. Bukmark saves your links and suggests folders for a small reading list you can download.</p>
-      <section>
-        <h2>Import a bookmarks file</h2>
-        <p>In your browser’s bookmark manager, choose Export Bookmarks and save the HTML file. Choose it here to import all its links and try suggestions on up to {BOOKMARK_REVIEW_LIMIT}.</p>
+      <p className={styles.intro}>Import your browser bookmarks, then try folder suggestions on up to {BOOKMARK_REVIEW_LIMIT} links. No AI account needed.</p>
+      <section aria-label="Choose a file">
         <ImportBookmarks disabled={start.isPending} onFileStarted={() => { setIds(null); start.reset(); }}
-          buttonClass={styles.primary} reviewLimit={BOOKMARK_REVIEW_LIMIT}
+          buttonLabel={ids === null ? 'Choose bookmarks file…' : 'Choose another file…'}
+          buttonClass={ids === null ? styles.primary : styles.secondary} reviewLimit={BOOKMARK_REVIEW_LIMIT}
           onImported={items => { setIds(items); start.reset(); }} />
+        <details className={styles.fileHelp}><summary>Where do I get a bookmarks file?</summary>
+          <p>Open your browser’s bookmark manager, choose Export Bookmarks, and save the HTML file.</p>
+        </details>
       </section>
       {ids !== null && <section>
-        <h2>Review suggestions</h2>
         {ids.length ? <>
-          <p>Your server will suggest folders for {ids.length} {ids.length === 1 ? 'bookmark' : 'bookmarks'} from this file, using details already in your library. No AI account is needed.</p>
+          <h2>Review {ids.length} {ids.length === 1 ? 'bookmark' : 'bookmarks'}</h2>
           <button className={styles.primary} disabled={start.isPending} onClick={() => start.mutate(ids)}>
             {start.isPending ? 'Preparing suggestions…' : 'Show suggestions'}
           </button>
         </> : <p>This file has no active bookmarks available for review. Choose another file or open your library.</p>}
         {start.isError && <p role="alert">{errorMessage(start.error)}</p>}
       </section>}
-      <Link to="/">Open library</Link>
+      <nav className={styles.footer} aria-label="Return to library"><Link to="/">Open library</Link></nav>
     </>}
   </div>;
 }

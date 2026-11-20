@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -121,10 +121,21 @@ describe('Sidebar', () => {
     renderSidebar();
     expect(await screen.findByRole('link', { name: 'Quotes 5' })).toHaveAttribute('href', '/quotes');
     // Directly under All links, before the link filters.
-    const items = screen.getAllByRole('link').concat(screen.getAllByRole('button'))
+    const links = within(screen.getByRole('navigation', { name: 'Library' }));
+    const items = links.getAllByRole('link').concat(links.getAllByRole('button'))
       .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
       .map((el) => el.textContent);
     expect(items.slice(0, 3)).toEqual(['All links', 'Quotes 5', 'Unassigned 0']);
+  });
+
+  it('closes the phone menu after choosing a destination', async () => {
+    renderSidebar();
+    const menu = screen.getByRole('button', { name: 'Menu' });
+    expect(menu).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(menu);
+    expect(menu).toHaveAttribute('aria-expanded', 'true');
+    await userEvent.click(screen.getByRole('link', { name: 'Review' }));
+    expect(menu).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('marks Settings with a quiet dot when an update is available', async () => {

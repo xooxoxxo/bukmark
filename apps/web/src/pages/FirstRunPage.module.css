@@ -1,24 +1,48 @@
 .page {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--bk-space-xl) 0;
+  padding: clamp(1.5rem, 4vw, 3.5rem) var(--bk-space-xs) 3rem;
   line-height: 1.5;
 }
-.page > * { max-width: 44rem; }
-.page h1 { font: 800 clamp(2rem, 5vw, 3.8rem)/1.02 var(--bk-font-display); letter-spacing: -.045em; margin: 0 0 1rem; }
-.page h2 { font-family: var(--bk-font-display); line-height: 1.15; margin: 0 0 .75rem; }
-.page p { margin: .5rem 0 1rem; }
-.page section { border-top: 2px solid var(--bk-ink); padding: 1.5rem 0; }
-.page > a { display: inline-block; margin-top: 1rem; }
-.items { border: 0; padding: 0; margin: 1.5rem 0; min-width: 0; }
-.legend { font-weight: 700; padding: 0 0 .5rem; }
-.item { border-top: 1px solid var(--bk-rule); padding: .9rem 0; overflow-wrap: anywhere; }
-.pick { display: flex; align-items: baseline; gap: .6rem; font-weight: 700; }
-.pick input { flex: none; }
-.address { display: block; font-size: .85rem; color: var(--bk-muted); }
-.folder { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
-.folder input { max-width: 100%; padding: .45rem; color: var(--bk-ink); background: var(--bk-paper); border: 1px solid var(--bk-ink); }
-.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; }
-.primary { background: var(--bk-ink); color: var(--bk-paper); padding: .7rem 1rem; border: 2px solid var(--bk-ink); font: 700 1rem var(--bk-font-display); cursor: pointer; }
-.primary:disabled { opacity: .55; cursor: default; }
+.page > * { max-width: 46rem; }
+.page h1 { font: 800 clamp(2rem, 4vw, 3.25rem)/1.05 var(--bk-font-display); letter-spacing: -.04em; margin: 0; }
+.page h2 { font: 700 1.3rem/1.2 var(--bk-font-display); margin: 0 0 1rem; }
+.intro { margin: .75rem 0 1.5rem; color: var(--bk-muted); text-wrap: pretty; }
+.page section { border-top: 1px solid var(--bk-rule); padding: 1.25rem 0; }
+.items { border: 0; padding: 0; margin: 0; min-width: 0; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.item { border-top: 1px solid var(--bk-rule); padding: .75rem 0 .5rem; overflow-wrap: anywhere; }
+.itemLine, .columnLabels { display: grid; grid-template-columns: minmax(0, 1fr) minmax(10rem, 36%); align-items: center; gap: 0 1rem; }
+.pick { display: flex; align-items: center; min-height: 44px; gap: .75rem; font-weight: 700; cursor: pointer; }
+.pick input { flex: none; width: 1.1rem; height: 1.1rem; margin: 0; accent-color: var(--bk-ink); }
+.pick small { display: block; color: var(--bk-muted); font-size: .85rem; font-weight: 400; }
+.destination, .folder input { font: inherit; font-size: .95rem; }
+.folder input { width: 100%; min-height: 44px; padding: .4rem .6rem; color: var(--bk-ink); background: var(--bk-paper); border: 1px solid var(--bk-rule); }
+.details, .hold { margin: 0 0 0 1.85rem; }
+.page summary { width: fit-content; padding-block: .45rem; color: var(--bk-muted); cursor: pointer; }
+.page summary:focus-visible { outline: 2px solid var(--bk-accent); outline-offset: 2px; }
+.details p, .fileHelp p { margin: .25rem 0 .5rem; }
+.details { font-size: .9rem; }
+.address { color: var(--bk-muted); }
+.fileHelp { margin-top: .75rem; }
+.actions { border-top: 1px solid var(--bk-rule); padding-top: 1.25rem; }
+.primary, .secondary { background: var(--bk-ink); color: var(--bk-paper); min-height: 44px; padding: .65rem 1rem; border: 2px solid var(--bk-ink); font: 700 1rem var(--bk-font-display); cursor: pointer; }
+.secondary { color: var(--bk-ink); background: transparent; border-color: var(--bk-rule); }
+.columnLabels { color: var(--bk-muted); font-size: .85rem; padding-bottom: .45rem; }
+.folder small { color: var(--danger); }
+.primary:disabled, .secondary:disabled { opacity: .55; cursor: default; }
+.footer { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 1rem; }
+.footer a { display: inline-flex; align-items: center; min-height: 44px; }
+@media (max-width: 56rem) {
+  .page { overflow: visible; }
+}
+@media (max-width: 38rem) {
+  .columnLabels { display: none; }
+  .itemLine { grid-template-columns: minmax(0, 1fr); }
+  .destination, .folder { margin: .35rem 0 0 1.85rem; }
+}
+@media (pointer: coarse) {
+  .page summary { min-height: 44px; padding-block: .65rem; }
+}

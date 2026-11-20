@@ -114,8 +114,10 @@ export function AzukActivity({ linkId }: { linkId: string | null }) {
             {!item.connectionAvailable ? <p className={styles.meta}>This delivery belongs to a different or unavailable Azuk connection.</p> : null}
           </div>
           <div className={styles.review}>
+            <details className={styles.evidence}><summary>Delivery identifiers</summary>
             <p className={styles.url}>Item · {item.itemId ?? 'Awaiting confirmation'}</p>
             <p className={styles.url}>Watch · {item.watchId ?? 'Awaiting confirmation'}</p>
+            </details>
             {item.watch ? (
               <>
                 {item.watch.observation ? (

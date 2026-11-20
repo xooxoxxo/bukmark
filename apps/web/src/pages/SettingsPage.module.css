@@ -314,3 +314,7 @@
   opacity: 0.6;
   cursor: progress;
 }
+
+.field summary { width: fit-content; min-height: 44px; padding-block: .65rem; cursor: pointer; }
+.field summary:focus-visible { outline: 2px solid var(--bk-accent); outline-offset: 2px; }
+.field details .hint { margin-bottom: var(--bk-space-sm); }

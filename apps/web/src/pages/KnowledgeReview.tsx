@@ -5,6 +5,7 @@ import {
   approveKnowledgeNote, fetchKnowledgeCandidates, fetchKnowledgeNotes, fetchQuotes, knowledgeExportUrl,
   saveKnowledgeNote, startKnowledgeNote, updateKnowledgeEvidence,
 } from '../api/client';
+import { DraftNavigation, useDraftNavigation } from './DraftNavigation';
 import styles from './ReviewPage.module.css';
 
 const PAGE_SIZE = 25;
@@ -128,46 +129,49 @@ function NoteEditor({ draft, starting, onUpdate, onAnother, onRefresh }: {
             {citation.licenseUrl ? <a href={citation.licenseUrl} target="_blank" rel="noreferrer">Source license</a> : null}
           </div>
         ) : <p>Attach a passage before approving.</p>}
-        <button type="button" onClick={() => { save.reset(); approve.reset(); evidence.mutate({ mode: 'read' }); }}>
-          {evidence.isPending && evidence.variables.mode === 'read' ? 'Reading…' : 'Read public page'}
-        </button>
-        {quotes.data?.items.length ? (
-          <label className={styles.field}>Saved quote
-            <select value={quoteId} onChange={(event) => {
-              setQuoteId(event.target.value);
-              setPassageEdited(true);
-              const selected = quotes.data?.items.find(({ id }) => id === event.target.value);
-              if (selected) setExcerpt(Array.from(selected.text).slice(0, 300).join(''));
-            }}>
-              <option value="">Use a page passage</option>
-              {quotes.data.items.map((item) => <option key={item.id} value={item.id}>{item.text.slice(0, 100)}</option>)}
-            </select>
-          </label>
-        ) : null}
-        {reading && !quote ? (
-          <label className={styles.field}>Page preview
-            <textarea readOnly rows={6} value={reading.text} />
-          </label>
-        ) : null}
-        <label className={styles.field}>Source excerpt
-          <textarea rows={3} maxLength={300} value={excerpt} onChange={(event) => {
-            setExcerpt(event.target.value); setPassageEdited(true);
-          }} />
-        </label>
-        <label className={styles.field}>Passage location
-          <input maxLength={200} value={locator} onChange={(event) => {
-            setLocator(event.target.value); setPassageEdited(true);
-          }} placeholder="Section or paragraph" />
-        </label>
-        {!quote && /\.wikipedia\.org\//i.test(reading?.url ?? draft.savedUrl) ? (
-          <label className={styles.field}>Wikipedia permanent link
-            <input maxLength={1800} value={pin} onChange={(event) => {
-              setPin(event.target.value); setPassageEdited(true);
+        <details className={styles.evidence} open={!draft.evidence || draft.sourceChanged}>
+          <summary>{draft.evidence ? 'Replace passage' : 'Attach a passage'}</summary>
+          <button type="button" onClick={() => { save.reset(); approve.reset(); evidence.mutate({ mode: 'read' }); }}>
+            {evidence.isPending && evidence.variables.mode === 'read' ? 'Reading…' : 'Read public page'}
+          </button>
+          {quotes.data?.items.length ? (
+            <label className={styles.field}>Saved quote
+              <select value={quoteId} onChange={(event) => {
+                setQuoteId(event.target.value);
+                setPassageEdited(true);
+                const selected = quotes.data?.items.find(({ id }) => id === event.target.value);
+                if (selected) setExcerpt(Array.from(selected.text).slice(0, 300).join(''));
+              }}>
+                <option value="">Use a page passage</option>
+                {quotes.data.items.map((item) => <option key={item.id} value={item.id}>{item.text.slice(0, 100)}</option>)}
+              </select>
+            </label>
+          ) : null}
+          {reading && !quote ? (
+            <label className={styles.field}>Page preview
+              <textarea readOnly rows={6} value={reading.text} />
+            </label>
+          ) : null}
+          <label className={styles.field}>Source excerpt
+            <textarea rows={3} maxLength={300} value={excerpt} onChange={(event) => {
+              setExcerpt(event.target.value); setPassageEdited(true);
             }} />
           </label>
-        ) : null}
-        <button type="button" disabled={!excerpt.trim()} onClick={capture}>{quote ? 'Attach saved quote' : 'Attach verified passage'}</button>
-        {passageEdited ? <button type="button" onClick={() => resetPassage(draft)}>Discard passage edits</button> : null}
+          <label className={styles.field}>Passage location
+            <input maxLength={200} value={locator} onChange={(event) => {
+              setLocator(event.target.value); setPassageEdited(true);
+            }} placeholder="Section or paragraph" />
+          </label>
+          {!quote && /\.wikipedia\.org\//i.test(reading?.url ?? draft.savedUrl) ? (
+            <label className={styles.field}>Wikipedia permanent link
+              <input maxLength={1800} value={pin} onChange={(event) => {
+                setPin(event.target.value); setPassageEdited(true);
+              }} />
+            </label>
+          ) : null}
+          <button type="button" disabled={!excerpt.trim()} onClick={capture}>{quote ? 'Attach saved quote' : 'Attach verified passage'}</button>
+          {passageEdited ? <button type="button" onClick={() => resetPassage(draft)}>Discard passage edits</button> : null}
+        </details>
       </fieldset>
       <form onSubmit={(event) => { event.preventDefault(); submitFields(); }}>
         <fieldset className={styles.recipeFields} disabled={busy}>
@@ -220,12 +224,14 @@ export function KnowledgeReview({ linkId }: { linkId: string | null }) {
     queryFn: () => fetchKnowledgeCandidates(linkId, offset, q),
   });
   const notes = useQuery({ queryKey: notesKey, queryFn: () => fetchKnowledgeNotes(linkId, noteOffset) });
+  const navigation = useDraftNavigation(notes.data && notes.data.items.length > 0);
   const refresh = () => client.invalidateQueries({ queryKey: ['knowledge-notes'] });
   const start = useMutation({
     mutationFn: ({ sourceId, another }: { sourceId: string; another: boolean }) => startKnowledgeNote(sourceId, another),
     onSuccess: async ({ draft }) => {
       setOpened(draft);
       setSelected(draft.id);
+      navigation.showPreparedDraft();
       setNoteOffset(0);
       await refresh();
     },
@@ -244,7 +250,8 @@ export function KnowledgeReview({ linkId }: { linkId: string | null }) {
 
   return (
     <div className={styles.builder}>
-      <section aria-labelledby="note-sources">
+      <DraftNavigation navigation={navigation} />
+      <section hidden={navigation.stage !== 'sources'} aria-labelledby="note-sources">
         <h3 id="note-sources">Start from a bookmark</h3>
         <p>Choose a public HTTPS page. Archived bookmarks are included.</p>
         {!linkId ? (
@@ -268,7 +275,7 @@ export function KnowledgeReview({ linkId }: { linkId: string | null }) {
         ))}
         <Pages offset={offset} more={sources.data?.more} busy={start.isPending} move={setOffset} />
       </section>
-      <section aria-labelledby="knowledge-drafts">
+      <section hidden={navigation.stage !== 'drafts'} aria-labelledby="knowledge-drafts">
         <h3 id="knowledge-drafts">Review and export notes</h3>
         {notes.isPending ? <p role="status">Loading notes…</p> : null}
         {notes.isSuccess && !draft ? <p>No notes on this page.</p> : null}
@@ -282,8 +289,8 @@ export function KnowledgeReview({ linkId }: { linkId: string | null }) {
         {draft ? <NoteEditor key={draft.id} draft={draft} starting={start.isPending} onUpdate={updateDraft} onRefresh={refresh}
           onAnother={(sourceId) => start.mutate({ sourceId, another: true })} /> : null}
         <Pages offset={noteOffset} more={notes.data?.more} busy={start.isPending} move={(value) => { setNoteOffset(value); setSelected(null); }} />
-        {error ? <p role="alert" className={styles.error}>{error.message}</p> : null}
       </section>
+      {error ? <p role="alert" className={styles.error}>{error.message}</p> : null}
     </div>
   );
 }

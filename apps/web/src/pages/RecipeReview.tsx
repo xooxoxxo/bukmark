@@ -5,6 +5,7 @@ import {
   approveRecipeExport, fetchRecipeCandidates, fetchRecipeDrafts, prepareRecipe, recipeExportUrl,
   type RecipePreparation,
 } from '../api/client';
+import { DraftNavigation, useDraftNavigation } from './DraftNavigation';
 import styles from './ReviewPage.module.css';
 
 const PAGE_SIZE = 25;
@@ -156,18 +157,19 @@ function RecipeForm({ draft, busy, onApprove }: { draft: RecipeDraft; busy: bool
             ))}
             {waits.length < 12 ? <button type="button" onClick={() => change('timing', { ...timing, passive: [...waits, { activity: '', durationText: '' }] })}>Add wait</button> : null}
           </fieldset>
-          <fieldset className={styles.recipeFields} disabled={busy}>
-            <legend>Source credit</legend>
-            <label className={styles.field}>Publisher
-              <input maxLength={200} value={form.publisher ?? ''} onChange={(event) => change('publisher', event.target.value)} />
-            </label>
-            <label className={styles.field}>Authors, one per line
-              <textarea rows={2} value={form.authors} onChange={(event) => change('authors', event.target.value)} />
-            </label>
-            <label className={styles.field}>Credit
-              <input maxLength={500} value={form.credit ?? ''} onChange={(event) => change('credit', event.target.value)} />
-            </label>
-          </fieldset>
+          <details className={styles.evidence}><summary>Source credit</summary>
+            <fieldset className={styles.recipeFields} aria-label="Source credit" disabled={busy}>
+              <label className={styles.field}>Publisher
+                <input maxLength={200} value={form.publisher ?? ''} onChange={(event) => change('publisher', event.target.value)} />
+              </label>
+              <label className={styles.field}>Authors, one per line
+                <textarea rows={2} value={form.authors} onChange={(event) => change('authors', event.target.value)} />
+              </label>
+              <label className={styles.field}>Credit
+                <input maxLength={500} value={form.credit ?? ''} onChange={(event) => change('credit', event.target.value)} />
+              </label>
+            </fieldset>
+          </details>
         </div>
       </div>
       {unassigned ? (
@@ -197,7 +199,7 @@ function RecipeForm({ draft, busy, onApprove }: { draft: RecipeDraft; busy: bool
         </fieldset>
       ) : null}
       <div className={styles.bar}>
-        <p>Destination is a JSON download.</p>
+        <p>Downloads a JSON file.</p>
         <button type="submit" className={styles.primary} disabled={busy || Boolean(timingInvalid) || Boolean(unassigned && !reviewed)}>
           Approve recipe export
         </button>
@@ -222,6 +224,7 @@ export function RecipeReview({ linkId }: { linkId: string | null }) {
     queryKey: ['recipe-drafts', linkId, draftOffset],
     queryFn: () => fetchRecipeDrafts(linkId, draftOffset),
   });
+  const navigation = useDraftNavigation(drafts.data && drafts.data.items.length > 0);
   const refresh = () => client.invalidateQueries({ queryKey: ['recipe-drafts'] });
   const prepare = useMutation({
     mutationFn: ({ id, key }: { id: string; key?: string }) => prepareRecipe(id, key),
@@ -229,6 +232,7 @@ export function RecipeReview({ linkId }: { linkId: string | null }) {
       if (result.outcome === 'prepared') {
         setDraftOffset(0);
         setDraftId(result.draft.id);
+        navigation.showPreparedDraft();
         await refresh();
       }
     },
@@ -244,7 +248,8 @@ export function RecipeReview({ linkId }: { linkId: string | null }) {
 
   return (
     <div className={styles.builder}>
-      <section aria-labelledby="recipe-sources">
+      <DraftNavigation navigation={navigation} />
+      <section hidden={navigation.stage !== 'sources'} aria-labelledby="recipe-sources">
         <h3 id="recipe-sources">Prepare a recipe from a bookmark</h3>
         <p>Choose a saved recipe page. Archived bookmarks are included.</p>
         {!linkId ? (
@@ -280,7 +285,7 @@ export function RecipeReview({ linkId }: { linkId: string | null }) {
           </div>
         ) : null}
       </section>
-      <section aria-labelledby="recipe-drafts">
+      <section hidden={navigation.stage !== 'drafts'} aria-labelledby="recipe-drafts">
         <h3 id="recipe-drafts">Review recipe drafts</h3>
         {drafts.isPending ? <p role="status">Loading recipes…</p> : null}
         {drafts.isSuccess && !draft ? <p>No prepared recipes on this page.</p> : null}
@@ -296,8 +301,8 @@ export function RecipeReview({ linkId }: { linkId: string | null }) {
         {approve.data && approve.variables?.id === draft?.id ? (
           <p role="status" className={styles.message}><a href={recipeExportUrl(approve.data.id)}>Download recipe JSON</a></p>
         ) : null}
-        {error ? <p role="alert" className={styles.error}>{error.message}</p> : null}
       </section>
+      {error ? <p role="alert" className={styles.error}>{error.message}</p> : null}
     </div>
   );
 }

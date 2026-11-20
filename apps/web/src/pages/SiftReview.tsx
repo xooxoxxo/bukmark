@@ -34,7 +34,7 @@ export function SiftReview({linkId}:{linkId:string|null}) {
   }
   return <section aria-labelledby="sift-title">
     <div className={styles.bar}>
-      <div><h3 id="sift-title">Sifting previews</h3><p>Compare local suggestions with your saved choices.</p></div>
+      <div><h3 id="sift-title">Sifting previews</h3><p>Preview folders using the bookmarks already on your server.</p></div>
       <div className={styles.actions}>
         {!linkId?<label className={styles.field}>Preview scope
           <select value={scopeChoice} disabled={save.isPending} onChange={e=>setScopeChoice(e.target.value)}>
@@ -53,7 +53,6 @@ export function SiftReview({linkId}:{linkId:string|null}) {
         }}>{save.isPending?'Saving preview…':'Save local preview'}</button>
       </div>
     </div>
-    <p className={styles.meta}>Preview mode records analysis and preserves your current choices. Local rules use stored data.</p>
     {message?<p role="status" className={styles.message}>{message}</p>:null}
     {error?<p role="alert" className={styles.error}>{error.message}</p>:null}
     {history.isPending||baselines.isPending?<p role="status">Loading saved previews…</p>:null}
@@ -78,6 +77,9 @@ export function SiftReview({linkId}:{linkId:string|null}) {
       <div className={styles.siftTables}>
         {data.counts.suggestedBins&&Object.keys(data.counts.suggestedBins).length?<table><caption>Suggested bins · awaiting review</caption><thead><tr><th>Bin</th><th>Bookmarks</th></tr></thead>
           <tbody>{Object.entries(data.counts.suggestedBins).map(([bin,n])=><tr key={bin}><td>{bin}</td><td>{n}</td></tr>)}</tbody></table>:null}
+      </div>
+      <details className={styles.siftEvidence}><summary>Recorded choices and potential handoffs</summary>
+      <div className={styles.siftTables}>
         <table><caption>Recorded bin choices</caption><thead><tr><th>Bin</th><th>Bookmarks</th></tr></thead>
           <tbody>{Object.entries(data.counts.bins).map(([bin,n])=><tr key={bin}><td>{bin}</td><td>{n}</td></tr>)}</tbody></table>
         <table><caption>Local suggestions</caption><thead><tr><th>Disposition</th><th>Bookmarks</th></tr></thead>
@@ -85,21 +87,27 @@ export function SiftReview({linkId}:{linkId:string|null}) {
         <table><caption>Potential handoffs</caption><thead><tr><th>Route</th><th>Bookmarks</th></tr></thead>
           <tbody>{Object.entries(data.counts.handoffs).map(([name,n])=><tr key={name}><td>{LABELS[name]??name}</td><td>{n}</td></tr>)}</tbody></table>
       </div>
+      </details>
       {data.comparison?<p>Compared with the previous preview: {data.comparison.changedAnalysis} new analysis results,
         {' '}{data.comparison.unchangedAnalysis} results reused, {data.comparison.changedGuards} changed source or review records.</p>:null}
       <details className={styles.siftEvidence}><summary>Run receipt</summary><p>Preview ID: {data.id}</p><p>Result digest: {data.digest}</p>
         <p>Rules: {data.rulesVersion}</p>
         <p>{data.counts.exportedSources} sources already have approved exports; {data.counts.commitPins} commit pins retained.</p></details>
-      <SiftApplyReview key={`${data.id}:${data.digest}`} run={data}/>
+      <details key={`${data.id}:${data.digest}`} className={styles.siftEvidence}><summary>Review changes to bins</summary>
+        <SiftApplyReview run={data}/>
+      </details>
       {data.items.map(item=><article key={item.link.id} className={styles.row}>
         <div className={styles.source}>
           <h4>{/^https?:\/\//i.test(item.link.url)?<a href={item.link.url} target="_blank" rel="noreferrer">{item.link.title||item.link.url}</a>:item.link.title||item.link.url}</h4>
-          <p className={styles.url}>{item.link.url}</p><p>{item.computed.reason}</p>
-          {item.computed.bin?<><p>Suggested bin: {item.computed.bin.name}</p><p className={styles.meta}>{item.computed.bin.reason}</p></>:null}
+          {item.computed.bin?<p>Suggested bin: {item.computed.bin.name}</p>:null}
+          <details className={styles.evidence}><summary>Why this suggestion?</summary>
+            <p className={styles.url}>{item.link.url}</p><p>{item.computed.reason}</p>
+            {item.computed.bin?<p>{item.computed.bin.reason}</p>:null}
           <p className={styles.meta}>Suggestion: {LABELS[item.computed.disposition]} · {LABELS[item.computed.handoff]}</p>
+          </details>
         </div>
         <div className={styles.review}>
-          <p>{item.decision?`${item.holds.includes('bin-membership-changed')?'Recorded bin':'Your bin'}: ${item.decision.bin}`:'No recorded bin choice'}</p>
+          {item.decision?<p>{item.holds.includes('bin-membership-changed')?'Recorded bin':'Your bin'}: {item.decision.bin}</p>:null}
           {item.holds.map(hold=><p key={hold} className={styles.meta}>
             {hold==='owner-approved-bin'&&item.holds.includes('bin-membership-changed')?'The earlier approval remains in history.':HOLDS[hold]??hold}
           </p>)}

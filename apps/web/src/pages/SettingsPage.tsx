@@ -122,21 +122,23 @@ export function SettingsPage() {
 
       <section className={styles.section} aria-labelledby="import-export">
         <h2 id="import-export" className={styles.heading}>Import and export</h2>
-        <Link to="/start">Import and organize bookmarks</Link>
         <div className={styles.field}>
-          <p className={styles.label}>Import</p>
-          <p className={styles.hint}>
-            A bookmarks file from Chrome, Edge, Firefox or Safari (HTML), a CSV export from
-            Raindrop, Pocket or Instapaper, a bukmark JSON export, or an Omnivore export ZIP with
-            its highlights. New links land unsorted.
-          </p>
-          <div>
-            <ImportBookmarks
-              buttonClass={styles.button}
-              statusClass={styles.status}
-              errorClass={styles.error}
-            />
-          </div>
+          <Link to="/start">Import and organize bookmarks</Link>
+          <details>
+            <summary>Import directly to the library</summary>
+            <p className={styles.hint}>
+              A bookmarks file from Chrome, Edge, Firefox or Safari (HTML), a CSV export from
+              Raindrop, Pocket or Instapaper, a bukmark JSON export, or an Omnivore export ZIP with
+              its highlights. New links land unsorted.
+            </p>
+            <div>
+              <ImportBookmarks
+                buttonClass={styles.button}
+                statusClass={styles.status}
+                errorClass={styles.error}
+              />
+            </div>
+          </details>
         </div>
         <div className={styles.field}>
           <p className={styles.label}>Export</p>

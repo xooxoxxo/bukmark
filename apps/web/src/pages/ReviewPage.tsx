@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useAzukLists, useDecideReview, useHubs, usePrepareReview, useReview } from '../api/queries';
 import type { AzukLists, ReviewAction, ReviewDecision, ReviewDraft, ReviewFilter, ReviewProposal } from '../api/types';
@@ -11,10 +11,13 @@ import styles from './ReviewPage.module.css';
 
 const PAGE_SIZE = 25;
 type InboxFilter = ReviewFilter | 'azuk' | 'builder' | 'recipes' | 'notes' | 'sift';
-const FILTERS: Array<{ value: InboxFilter; label: string }> = [
+const STATUSES: Array<{ value: ReviewFilter; label: string }> = [
   { value: 'pending', label: 'To review' },
   { value: 'deferred', label: 'Deferred' },
   { value: 'decided', label: 'Decided' },
+];
+const AREAS: Array<{ value: InboxFilter; label: string }> = [
+  { value: 'pending', label: 'Bookmark decisions' },
   { value: 'azuk', label: 'Azuk deliveries' },
   { value: 'builder', label: 'Builder catalog' },
   { value: 'recipes', label: 'Recipes' },
@@ -71,13 +74,15 @@ function ReviewRow({ item, draft, selected, busy, onDraft, onSelect, onDecision,
             ? <a href={item.link.url} target="_blank" rel="noreferrer">{title}</a>
             : title}
         </h3>
-        {item.link.title ? <p className={styles.url}>{item.link.url}</p> : null}
         <p className={styles.reason}>{item.reason}</p>
-        <p className={styles.meta}>
-          {item.origin === 'assistant' ? 'Suggested by assistant' : item.origin === 'owner' ? 'Edited by you' : 'Suggested from URL'}
-          {item.oneTab ? ` · ${item.dupeCount} OneTab ${item.dupeCount === 1 ? 'appearance' : 'appearances'}` : ''}
-          {item.folder ? ` · Imported from ${item.folder}` : ''}
-        </p>
+        <details className={styles.evidence}><summary>Source details</summary>
+          {item.link.title ? <p className={styles.url}>{item.link.url}</p> : null}
+          <p className={styles.meta}>
+            {item.origin === 'assistant' ? 'Suggested by assistant' : item.origin === 'owner' ? 'Edited by you' : 'Suggested from URL'}
+            {item.oneTab ? ` · ${item.dupeCount} OneTab ${item.dupeCount === 1 ? 'appearance' : 'appearances'}` : ''}
+            {item.folder ? ` · Imported from ${item.folder}` : ''}
+          </p>
+        </details>
         {item.link.note ? (
           <details open={draft.action === 'next_step' ? true : undefined}>
             <summary>Current link note</summary>
@@ -149,13 +154,13 @@ function ReviewRow({ item, draft, selected, busy, onDraft, onSelect, onDecision,
 export function ReviewPage() {
   const [params] = useSearchParams();
   const linkId = params.get('linkId');
-  const view = params.get('view');
-  const initialFilter = view === 'builder' || view === 'recipes' || view === 'notes' ? view : 'pending';
-  return <ReviewInbox key={`${linkId ?? 'all'}:${initialFilter}`} linkId={linkId} initialFilter={initialFilter} />;
+  return <ReviewInbox key={linkId ?? 'all'} linkId={linkId} />;
 }
 
-function ReviewInbox({ linkId, initialFilter }: { linkId: string | null; initialFilter: InboxFilter }) {
-  const [filter, setFilter] = useState<InboxFilter>(initialFilter);
+function ReviewInbox({ linkId }: { linkId: string | null }) {
+  const [params, setParams] = useSearchParams();
+  const view = params.get('view');
+  const filter = [...AREAS, ...STATUSES].find(option => option.value === view)?.value ?? 'pending';
   const [offset, setOffset] = useState(0);
   const [edits, setEdits] = useState<Record<string, ReviewDraft>>({});
   const [selected, setSelected] = useState(() => new Set<string>());
@@ -182,10 +187,17 @@ function ReviewInbox({ linkId, initialFilter }: { linkId: string | null; initial
   });
   const error = localFilter ? queue.error ?? prepare.error ?? decide.error : null;
 
-  function selectFilter(value: InboxFilter) {
-    setFilter(value);
+  useLayoutEffect(() => {
     setOffset(0);
     setSelected(new Set());
+  }, [filter]);
+
+  function selectFilter(value: InboxFilter) {
+    if (value === filter) return;
+    const next = new URLSearchParams(params);
+    if (value === 'pending') next.delete('view');
+    else next.set('view', value);
+    setParams(next);
   }
 
   function changeSelection(key: string, checked: boolean) {
@@ -234,11 +246,22 @@ function ReviewInbox({ linkId, initialFilter }: { linkId: string | null; initial
     <section className={styles.page} aria-labelledby="review-title">
       <header className={styles.header}>
         <div>
-          <h2 id="review-title">{linkId ? 'Review this link' : 'Review bookmarks'}</h2>
-          <p>Check the evidence and decide what to do with each link.</p>
+          <h1 id="review-title">{linkId ? 'Review this link' : 'Review bookmarks'}</h1>
           {linkId ? <Link to="/review">View all reviews</Link> : null}
         </div>
-        {localFilter ? <button type="button" className={styles.primary} disabled={busy}
+        <label className={styles.areaPicker}>Review area
+          <select value={localFilter ? 'pending' : filter} disabled={busy} onChange={event => selectFilter(event.target.value as InboxFilter)}>
+            {AREAS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+      </header>
+      {localFilter && <div className={styles.bar}>
+        <nav aria-label="Review status" className={styles.filters}>
+          {STATUSES.map(({ value, label }) => (
+            <button type="button" key={value} aria-pressed={filter === value} disabled={busy} onClick={() => selectFilter(value)}>{label}</button>
+          ))}
+        </nav>
+        <button type="button" className={styles.primary} disabled={busy}
           onClick={() => {
             setMessage('');
             setProblems([]);
@@ -248,25 +271,18 @@ function ReviewInbox({ linkId, initialFilter }: { linkId: string | null; initial
               if (count) selectFilter('pending');
               setMessage(count ? `Prepared ${count} ${count === 1 ? 'draft' : 'drafts'}.`
                 : items.some((item) => item.outcome === 'inactive') ? 'This link is no longer active.'
-                  : linkId ? 'This link already has a review. Check the review tabs.' : 'There are no more unreviewed links.');
+                  : linkId ? 'This link already has a review. Check the review statuses.' : 'There are no more unreviewed links.');
             } });
           }}>
           {prepare.isPending ? 'Preparing…' : linkId ? 'Prepare this link' : 'Prepare next batch'}
-        </button> : null}
-      </header>
-      <div className={styles.bar}>
-        <nav aria-label="Review status" className={styles.filters}>
-          {FILTERS.map(({ value, label }) => (
-            <button type="button" key={value} aria-pressed={filter === value} onClick={() => selectFilter(value)}>{label}</button>
-          ))}
-        </nav>
-        {filter === 'pending' && rows.length ? (
-          <button type="button" className={styles.primary} disabled={busy || !selectedRows.length}
-            onClick={() => submit(selectedRows, 'approve')}>
-            Approve selected{selectedRows.length ? ` (${selectedRows.length})` : ''}
-          </button>
-        ) : null}
-      </div>
+        </button>
+      </div>}
+      {filter === 'pending' && selectedRows.length > 0 ? (
+        <button type="button" className={styles.bulkAction} disabled={busy}
+          onClick={() => submit(selectedRows, 'approve')}>
+          Approve selected{selectedRows.length ? ` (${selectedRows.length})` : ''}
+        </button>
+      ) : null}
       {(localFilter || filter === 'azuk') && message ? <p role="status" className={styles.message}>{message}</p> : null}
       {(localFilter || filter === 'azuk') && (error || problems.length) ? <p role="alert" className={styles.error}>{error?.message ?? problems.join(' ')}</p> : null}
       {filter === 'azuk' ? <AzukActivity linkId={linkId} /> : null}
