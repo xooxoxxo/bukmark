@@ -4,6 +4,8 @@ import type { Db } from '../db/client.js';
 import { captures, deletedHashes, links, quotes } from '../db/schema.js';
 import { normalizeText } from '../quotes/quoteService.js';
 
+export interface FileImportGroup { importId: string; importName: string }
+
 export interface ImportQuote {
   text: string;
   note?: string;
@@ -95,12 +97,13 @@ export async function importLinks(
   source = 'browser-import',
   orphanQuotes: ImportOrphanQuote[] = [],
   reviewSample = false,
+  group?: FileImportGroup,
 ): Promise<ImportLinksResult> {
   const res: ImportLinksResult = {
     ...(reviewSample ? { reviewIds: [] } : {}),
     created: 0, updated: 0, skippedDeleted: 0, invalid: [], quotes: { added: 0, alreadyHere: 0, invalid: 0 },
   };
-  const fromDeleted = await importItems(db, items, source, res);
+  const fromDeleted = await importItems(db, items, source, res, group);
   const orphans = [...orphanQuotes, ...fromDeleted];
   if (orphans.length > 0) await restoreOrphanQuotes(db, orphans, res);
   return res;
@@ -153,6 +156,7 @@ async function importItems(
   items: ImportItem[],
   source: string,
   res: ImportLinksResult,
+  group?: FileImportGroup,
 ): Promise<ImportOrphanQuote[]> {
 
   // Normalize first, and key by hash so duplicates inside one batch collapse.
@@ -250,7 +254,7 @@ async function importItems(
         .returning({ url: links.url, title: links.title });
       resolved.push({ h, id, ...row! });
       await tx.insert(captures).values({
-        linkId: id, source, originalUrl: n.url, originalTitle: n.title, groupHint: n.folderPath,
+        linkId: id, source, originalUrl: n.url, originalTitle: n.title, groupHint: n.folderPath, raw: group,
       });
     }
 
@@ -285,7 +289,7 @@ async function importItems(
             source,
             originalUrl: n.url,
             originalTitle: n.title,
-            groupHint: n.folderPath,
+            groupHint: n.folderPath, raw: group,
           };
         }),
       );

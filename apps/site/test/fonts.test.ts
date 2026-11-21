@@ -3,15 +3,13 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { read, root } from './source';
 
-// Google Fonts answers a request whose axis range exceeds the font's with the
-// other families only: Bricolage vanished from both apps while this read 12..120.
 describe('brand fonts', () => {
-  it('the web app asks Google for Bricolage within its axes', () => {
+  it('serves both web app fonts from bundled assets', () => {
     const css = read('apps/web/src/global.css');
-    const url = /@import url\('(https:\/\/fonts\.googleapis\.com\/css2\?[^']+)'\)/.exec(css)?.[1] ?? '';
-    const bricolage = /family=Bricolage\+Grotesque:opsz,wght@([^&]+)/.exec(url)?.[1];
-    expect(bricolage).toBe('12..96,400..800');
-    expect(url).toContain('family=Geist:');
+    const urls = [...css.matchAll(/src: url\('([^']+)'\)/g)].map(m => m[1]!);
+    expect(urls.map(path => path.split('/').pop())).toEqual(['geist-latin.woff2', 'bricolage-800.ttf']);
+    for (const path of urls) expect(existsSync(join(root, 'apps/web/src', path))).toBe(true);
+    expect(read('apps/web/index.html')).not.toContain('fonts.googleapis.com');
   });
 
   // Served from the site and preloaded, a docs page paints in its own faces

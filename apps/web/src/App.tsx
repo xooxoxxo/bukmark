@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router';
 import { createQueryClient } from './api/queryClient';
 import { AuthGate } from './components/AuthGate';
 import { Layout } from './components/Layout';
+import { ImportReviewPage } from './pages/ImportReviewPage';
 import { FirstRunPage } from './pages/FirstRunPage';
 import { HubPage } from './pages/HubPage';
 import { LinksPage } from './pages/LinksPage';
@@ -19,6 +20,8 @@ export function AppRoutes() {
     <Routes>
       <Route path="save" element={<SavePage />} />
       <Route element={<Layout />}>
+        <Route path="imports" element={<ImportReviewPage />} />
+        <Route path="imports/:id" element={<ImportReviewPage />} />
         <Route path="start" element={<FirstRunPage />} />
         <Route index element={<LinksPage />} />
         <Route path="hubs/:hubId" element={<HubPage />} />

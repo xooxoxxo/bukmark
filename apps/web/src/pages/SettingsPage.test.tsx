@@ -174,6 +174,7 @@ describe('SettingsPage', () => {
     expect(vi.mocked(client.importLinks).mock.calls[0]).toEqual([
       [{ url: 'https://a.com/1', title: 'Alpha', quotes: [{ text: 'A passage.' }] }],
       [{ text: 'Orphan.', sourceUrl: 'https://gone.com/p' }],
+      false, { importId: expect.stringMatching(/^[a-f0-9]{32}$/), importName: 'bukmark.json' },
     ]);
     expect(await screen.findByRole('status')).toHaveTextContent('3 quotes restored');
   });

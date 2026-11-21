@@ -6,7 +6,7 @@ import { pgCode } from '../db/client.js';
 import { deletedHashes, hubLinks, hubs, links } from '../db/schema.js';
 import { addLink } from '../links/addLink.js';
 import { builderSource } from '../builder/model.js';
-import { importLinks, type ImportItem, type ImportOrphanQuote } from '../links/importLinks.js';
+import { importLinks, type FileImportGroup, type ImportItem, type ImportOrphanQuote } from '../links/importLinks.js';
 import { importSession, verifySessionImport } from '../links/importSession.js';
 import { assignHubs } from '../links/assignHubs.js';
 import { changeLinkHubs, setLinkHubs } from '../links/setLinkHubs.js';
@@ -359,6 +359,7 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
     schema: {
       querystring: Type.Object({ reviewSample: Type.Optional(Type.Boolean()) }),
       body: Type.Object({
+        group: Type.Optional(Type.Object({ importId: Type.String({ pattern: '^[a-f0-9]{32}$' }), importName: Type.String({ minLength: 1, maxLength: 255, pattern: '^[^\\u0000]*$' }) })),
         items: Type.Array(
           Type.Object({
             url: Type.String(),
@@ -379,12 +380,12 @@ export async function linkRoutes(app: FastifyInstance, opts: { checkPage: CheckP
       }),
     },
   }, async (req, reply) => {
-    const { items, orphanQuotes } = req.body as { items: ImportItem[]; orphanQuotes?: ImportOrphanQuote[] };
+    const { items, orphanQuotes, group } = req.body as { items: ImportItem[]; orphanQuotes?: ImportOrphanQuote[]; group?: FileImportGroup };
     if (items.length === 0 && !orphanQuotes?.length) {
       return reply.code(400).send({ error: 'nothing to import' });
     }
     const reviewSample = (req.query as { reviewSample?: boolean }).reviewSample === true && req.auth?.kind === 'session';
-    return importLinks(req.server.db, items, undefined, orphanQuotes, reviewSample);
+    return importLinks(req.server.db, items, undefined, orphanQuotes, reviewSample, req.auth?.kind === 'session' ? group : undefined);
   });
 
   app.post('/links/session-import', {

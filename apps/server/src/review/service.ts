@@ -150,7 +150,7 @@ export interface ReviewDecision {
 
 type Destination = { connection: string; lists: AzukList[] };
 
-async function decideReview(db: Db, input: ReviewDecision, destination: Destination | undefined) {
+export async function decideReview(db: Pick<Db, 'transaction'>, input: ReviewDecision, destination?: Destination) {
   return db.transaction(async (tx) => {
     const [target] = await tx.select({ linkId: reviewProposals.linkId })
       .from(reviewProposals).where(eq(reviewProposals.id, input.id));

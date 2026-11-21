@@ -28,7 +28,8 @@
 .address { color: var(--bk-muted); }
 .fileHelp { margin-top: .75rem; }
 .actions { border-top: 1px solid var(--bk-rule); padding-top: 1.25rem; }
-.primary, .secondary { background: var(--bk-ink); color: var(--bk-paper); min-height: 44px; padding: .65rem 1rem; border: 2px solid var(--bk-ink); font: 700 1rem var(--bk-font-display); cursor: pointer; }
+.reviewImport { display: inline-block; text-decoration: none; }
+.primary, .secondary, .reviewImport { background: var(--bk-ink); color: var(--bk-paper); min-height: 44px; padding: .65rem 1rem; border: 2px solid var(--bk-ink); font: 700 1rem var(--bk-font-display); cursor: pointer; }
 .secondary { color: var(--bk-ink); background: transparent; border-color: var(--bk-rule); }
 .columnLabels { color: var(--bk-muted); font-size: .85rem; padding-bottom: .45rem; }
 .folder small { color: var(--danger); }

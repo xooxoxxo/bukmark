@@ -1,7 +1,16 @@
-/* Bricolage's optical-size axis runs 12..96. A range beyond it (12..120 was here)
-   makes Google drop the family from the stylesheet without an error, and every
-   heading silently falls back to a system face. */
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Geist:wght@400;500;600;700&display=swap');
+/* Use the project's bundled fonts so opening a private review stays on this origin. */
+@font-face {
+  font-family: Geist;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../../site/public/fonts/geist-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  font-display: swap;
+  font-weight: 800;
+  src: url('../../site/src/og/fonts/bricolage-800.ttf') format('truetype');
+}
 
 :root {
   /* Brand tokens from design.md */

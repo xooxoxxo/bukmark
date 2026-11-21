@@ -61,7 +61,7 @@ To update: `git pull && docker compose up -d --build`.
 1. Open `http://localhost:3000` (or your port or address).
 2. Enter a password of 12–1024 characters twice and click **Create password**.
 3. In the empty library, choose **Import and organize bookmarks**. Export an HTML bookmarks file from your browser, then choose that file in Bukmark.
-4. Choose **Show suggestions** to see up to 12 bookmarks from the file. Open **Why this suggestion?** to see the reason for a folder. Tick the links you want and edit any folder names.
+4. Choose **Review this import** to organize the whole import. To download a file instead, choose **Choose folders for export** to see up to 12 bookmarks from the file. Open **Why this suggestion?** to see the reason for a folder. Tick the links you want and edit any folder names.
 5. Choose **Download**. Open the HTML file to read the links, or import it into your browser to add the folders. Your library keeps the full import. You can run this guide again from **Settings → Import and export**.
 
 When a link looks like a development tool, recipe, or source for a note, its expanded suggestion also links to a separate review where you can prepare a more detailed download.

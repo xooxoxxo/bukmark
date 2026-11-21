@@ -863,6 +863,16 @@ cmd_sessions() {
     mv -f "$tmp" "$bundle"
     trap - EXIT INT TERM
   fi
+  if [ "${1:-}" = import ]; then
+    node "$bundle" "$@" || return $?
+    for arg in "$@"; do
+      if [ "$arg" = --apply ]; then
+        say "To review saved bookmarks, open Bookmarkt, choose Review, then Review an import."
+        break
+      fi
+    done
+    return 0
+  fi
   exec node "$bundle" "$@"
 }
 

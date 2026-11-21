@@ -193,14 +193,16 @@ export function useBulkLinks() {
  * is not worth a thundering herd against a self-hosted Postgres.
  */
 export function useImportLinks() {
-  const invalidate = useInvalidate('links', 'hubs', 'stats', 'quotes');
+  const invalidate = useInvalidate('links', 'hubs', 'stats', 'quotes', 'imports');
   return useMutation({
     mutationFn: async ({
       items,
       orphanQuotes = [],
       onProgress,
       reviewLimit = 0,
+      group,
     }: {
+      group?: { importId: string; importName: string };
       reviewLimit?: number;
       items: api.ImportItem[];
       /** Quotes whose page is gone, from a bukmark backup. Sent once, riding the first request(s). */
@@ -221,8 +223,9 @@ export function useImportLinks() {
       for (let n = 0; n < Math.max(batches.length, orphanChunks.length); n++) {
         // Past the last batch a request carries orphans alone, with no items.
         const batch = batches[n] ?? [];
-        const res = reviewIds.size < reviewLimit
-          ? await api.importLinks(batch, orphanChunks[n], true)
+        const sample = reviewIds.size < reviewLimit;
+        const res = group || sample
+          ? await api.importLinks(batch, orphanChunks[n], sample, group)
           : await api.importLinks(batch, orphanChunks[n]);
         for (const id of res.reviewIds ?? []) {
           if (reviewIds.size >= reviewLimit) break;

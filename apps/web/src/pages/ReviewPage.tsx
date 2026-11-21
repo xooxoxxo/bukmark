@@ -247,7 +247,7 @@ function ReviewInbox({ linkId }: { linkId: string | null }) {
       <header className={styles.header}>
         <div>
           <h1 id="review-title">{linkId ? 'Review this link' : 'Review bookmarks'}</h1>
-          {linkId ? <Link to="/review">View all reviews</Link> : null}
+          {linkId ? <Link to="/review">View all reviews</Link> : <Link to="/imports">Review an import</Link>}
         </div>
         <label className={styles.areaPicker}>Review area
           <select value={localFilter ? 'pending' : filter} disabled={busy} onChange={event => selectFilter(event.target.value as InboxFilter)}>

@@ -62,6 +62,9 @@ Use your server's address in place of `http://localhost:3000`.
 | POST | `/api/links/assign` | Assign links to hubs in bulk |
 | PATCH | `/api/links/:id` | Update a single link |
 | POST | `/api/links/bulk` | Archive, activate, assign, or delete links |
+| GET | `/api/imports` | List saved imports and their progress |
+| GET | `/api/imports/:id` | Review bookmarks from one import |
+| POST | `/api/imports/:id/decisions` | Save local import decisions |
 | GET | `/api/review` | Read the bookmark review queue |
 | POST | `/api/review/sift/baselines` | Record existing owner-approved bins |
 | GET | `/api/review/sift/baselines` | List recorded approval batches |
@@ -766,6 +769,18 @@ Apply one action to many links.
 
 **Errors:** `400` with `{ "error": "assign requires hubId" }` for `assign` or
 `unassign` without `hubId` (the message names the action).
+
+### GET /api/imports
+
+An owner session can list browser snapshots and file imports with their names, IDs, timestamps, and reviewed and skipped counts.
+
+### GET /api/imports/:id
+
+An owner session can read a batch, including protected bookmarks. Each row carries a revision and source version, its local filing suggestion, and its current decision. An unknown import returns 404.
+
+### POST /api/imports/:id/decisions
+
+Send an `items` array from the owner session. Each item includes the bookmark `id`, current `revision` and `version`, and a `choice` of `accept`, `keep`, `answer`, `archive`, or `skip`. Include up to 1,000 characters of `answer` text for a follow-up. Only clear suggestions support bulk acceptance. The transaction returns 204 on success or 409 if a bookmark changed or falls outside the batch. Reload the review after a conflict. All decisions stay in this instance.
 
 ### GET /api/review
 

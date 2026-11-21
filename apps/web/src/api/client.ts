@@ -1,4 +1,4 @@
-import type { KnowledgeDraft, KnowledgeEvidenceAction, KnowledgeFields, KnowledgeReading, RecipeApproval, RecipeDraft,
+import type { ImportGroup, ImportView, ImportDecision, KnowledgeDraft, KnowledgeEvidenceAction, KnowledgeFields, KnowledgeReading, RecipeApproval, RecipeDraft,
   SiftApplicationInput, SiftApplicationView, SiftBaselineSummary, SiftPreview, SiftRunReceipt, SiftRunSummary, SiftScope } from '@bukmark/shared/review';
 import type {
   BulkAction,
@@ -65,6 +65,11 @@ export const prepareSiftApplication = (id:string,input:SiftApplicationInput) => 
 export const fetchSiftApplicationPreview = (id:string,offset:number) => http<SiftApplicationView>(`/review/sift/application-previews/${encodeURIComponent(id)}?offset=${offset}`);
 export const approveSiftApplication = (id:string,digest:string) => http<SiftApplicationView>(`/review/sift/application-previews/${encodeURIComponent(id)}/apply`,jsonInit('POST',{digest}));
 export const fetchSiftApplication = (id:string,offset:number) => http<SiftApplicationView>(`/review/sift/applications/${encodeURIComponent(id)}?offset=${offset}`);
+
+export const fetchImports = () => http<ImportGroup[]>('/imports');
+export const fetchImportReview = (id: string) => http<ImportView>('/imports/' + encodeURIComponent(id));
+export const saveImportDecisions = (id: string, items: ImportDecision[]) =>
+  http<void>('/imports/' + encodeURIComponent(id) + '/decisions', jsonInit('POST', { items }));
 
 function jsonInit(method: string, body: unknown): RequestInit {
   return {
@@ -297,9 +302,10 @@ export function importLinks(
   items: ImportItem[],
   orphanQuotes?: ImportOrphanQuote[],
   reviewSample = false,
+  group?: { importId: string; importName: string },
 ): Promise<ImportResult> {
   const body = orphanQuotes && orphanQuotes.length > 0 ? { items, orphanQuotes } : { items };
-  return http(reviewSample ? '/links/import?reviewSample=true' : '/links/import', jsonInit('POST', body));
+  return http(reviewSample ? '/links/import?reviewSample=true' : '/links/import', jsonInit('POST', group ? { ...body, group } : body));
 }
 
 export function fetchHubs(): Promise<{ items: HubDto[] }> {

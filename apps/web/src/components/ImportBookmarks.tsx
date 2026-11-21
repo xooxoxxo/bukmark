@@ -15,19 +15,21 @@ interface Status {
 }
 
 /** A button that reads a bookmarks file and imports it, with its progress. */
-export function ImportBookmarks({ buttonLabel = 'Import bookmarks…', buttonClass, statusClass, errorClass, onImported, onFileStarted, disabled, reviewLimit }: {
+export function ImportBookmarks({ buttonLabel = 'Import bookmarks…', buttonClass, reviewLinkClass, statusClass, errorClass, onImported, onFileStarted, disabled, reviewLimit }: {
   onFileStarted?: () => void;
   disabled?: boolean;
   onImported?: (ids: string[]) => void;
   reviewLimit?: number;
   buttonLabel?: string;
   buttonClass?: string;
+  reviewLinkClass?: string;
   statusClass?: string;
   errorClass?: string;
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const importLinks = useImportLinks();
+  const [reviewId, setReviewId] = useState<string | null>(null);
 
   async function onFileChosen(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -35,6 +37,7 @@ export function ImportBookmarks({ buttonLabel = 'Import bookmarks…', buttonCla
     event.target.value = '';
     if (!file) return;
 
+    setReviewId(null);
     onFileStarted?.();
     setStatus({ kind: 'reading', message: `Reading ${file.name}…` });
     try {
@@ -53,7 +56,9 @@ export function ImportBookmarks({ buttonLabel = 'Import bookmarks…', buttonCla
       }
 
       setStatus({ kind: 'importing', message: `Importing 0 of ${parsed.items.length}…` });
+      const importId = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
       const result = await importLinks.mutateAsync({
+        group: { importId, importName: file.name.slice(0, 255) },
         items: parsed.items,
         reviewLimit,
         orphanQuotes: parsed.orphanQuotes,
@@ -61,6 +66,7 @@ export function ImportBookmarks({ buttonLabel = 'Import bookmarks…', buttonCla
           setStatus({ kind: 'importing', message: `Importing ${done} of ${total}…` }),
       });
 
+      if (result.created + result.updated > 0) setReviewId(importId);
       const parts = [`${result.created} added`];
       if (result.updated > 0) parts.push(`${result.updated} already here`);
       if (result.quotes.added > 0) {
@@ -114,6 +120,7 @@ export function ImportBookmarks({ buttonLabel = 'Import bookmarks…', buttonCla
           {status.message}
         </p>
       ) : null}
+      {reviewId && <p><a className={reviewLinkClass} href={'/imports/' + reviewId}>Review this import</a></p>}
     </>
   );
 }

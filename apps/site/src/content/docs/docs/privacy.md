@@ -175,9 +175,7 @@ bukmark stores it nowhere else.
 ### The web app
 
 The web app keeps you signed in with one cookie, `bukmark_session`, for 30 days.
-It loads its fonts from Google Fonts (`fonts.googleapis.com` and
-`fonts.gstatic.com`), and each link's preview image from the saved page's site,
-without telling that site which page showed it.
+It serves its fonts from your instance. The import review uses saved titles and addresses and loads no preview images. Elsewhere in the library, a link’s preview image can load from the saved page’s site without telling that site which page showed it.
 
 ### MCP clients
 
