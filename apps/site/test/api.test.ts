@@ -12,6 +12,7 @@ const ROUTE_FILES = [
   { file: 'apps/server/src/auth/protectedRoutes.ts', prefix: '/api/auth', isPublic: false },
   { file: 'apps/server/src/routes/links.ts', prefix: '/api', isPublic: false },
   { file: 'apps/server/src/routes/review.ts', prefix: '/api', isPublic: false },
+  { file: 'apps/server/src/routes/importReviews.ts', prefix: '/api', isPublic: false },
   { file: 'apps/server/src/routes/builder.ts', prefix: '/api', isPublic: false },
   { file: 'apps/server/src/routes/recipe.ts', prefix: '/api', isPublic: false },
   { file: 'apps/server/src/routes/knowledge.ts', prefix: '/api', isPublic: false },

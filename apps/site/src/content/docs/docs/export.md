@@ -131,6 +131,8 @@ bukmark sessions verify AndroidChromeUSB.jsonl \
   --all --destination http://localhost:3000 --receipt AndroidChromeUSB.receipt.json
 ```
 
+To organize a saved session, open **Review → Review an import** in Bookmarkt and choose the snapshot. For a bookmark file, choose **Review this import** after importing. Select the clear suggestions to file together, then answer or skip individual questions. Your choices are saved in this instance. Open the same import to return to skipped bookmarks. Protected bookmarks stay out of sync and external handoffs.
+
 Android cleanup is an explicit command. It
 requires a direct USB archive with a handset fingerprint and a destination
 that supports session verification. Archives converted with `--probe` do

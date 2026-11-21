@@ -11,6 +11,7 @@ import { startAzukDeliveries } from './azuk/delivery.js';
 import { getDb, type Db } from './db/client.js';
 import { backfillMatchKey } from './db/backfillMatchKey.js';
 import { linkRoutes } from './routes/links.js';
+import { importReviewRoutes } from './routes/importReviews.js';
 import { reviewRoutes } from './routes/review.js';
 import { builderRoutes } from './routes/builder.js';
 import { recipeRoutes } from './routes/recipe.js';
@@ -165,6 +166,7 @@ export async function buildApp(
     await api.register(protectedAuthRoutes, { prefix: '/auth' });
     await api.register(linkRoutes, { checkPage });
     await api.register(reviewRoutes, { azuk });
+    await api.register(importReviewRoutes);
     await api.register(builderRoutes, { fetcher: opts.builderFetch ?? globalThis.fetch });
     await api.register(recipeRoutes, { readPage: opts.recipePage ?? readPublicPage });
     await api.register(knowledgeRoutes, { readPage: opts.knowledgePage ?? readPublicPage });

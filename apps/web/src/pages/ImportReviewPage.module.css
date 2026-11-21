@@ -1,0 +1,18 @@
+.title { overflow-wrap: anywhere; margin-top: .7rem !important; }
+.section { border-top: 1px solid var(--bk-rule); padding-block: 1.2rem; }
+.section h2 { margin-bottom: .65rem; }
+.section > button { margin-top: .75rem; }
+.list { padding: 0; list-style: none; }
+.list li { border-bottom: 1px solid var(--bk-rule); padding-block: .6rem; overflow-wrap: anywhere; }
+.list small, .question small { display: block; color: var(--bk-muted); }
+.question { min-width: 0; padding: 0; border: 0; margin: 0; }
+.question legend { font-weight: 700; padding: 0; overflow-wrap: anywhere; }
+.question label { display: block; margin-top: .8rem; }
+.question textarea { display: block; width: 100%; min-height: 4.5rem; box-sizing: border-box; padding: .6rem; margin-block: .4rem; font: inherit; color: var(--bk-ink); background: var(--bk-paper); border: 1px solid var(--bk-rule); }
+.controls { display: flex; flex-wrap: wrap; gap: .5rem; }
+.controls button, .list button { min-height: 44px; padding-inline: .65rem; cursor: pointer; }
+.details { font-size: .9rem; color: var(--bk-muted); }
+.details p { margin-block: .3rem; }
+.address { overflow-wrap: anywhere; }
+.feedback:empty { display: none; }
+.leave { display: inline-block; padding-block: .7rem; }

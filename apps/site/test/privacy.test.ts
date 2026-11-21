@@ -345,9 +345,8 @@ describe('the privacy page names every outside service the site and the web app 
 
   it('names each host the web app loads from', () => {
     const hosts = loadedHosts([...sourceFiles('apps/web/src', ['.css', '.tsx', '.ts']), 'apps/web/index.html']);
-    expect(hosts.size).toBeGreaterThan(0);
-    const webApp = section(privacy, 'The web app');
-    for (const host of hosts) expect(webApp).toContain(`\`${host}\``);
+    expect([...hosts]).toEqual([]);
+    expect(section(privacy, 'The web app')).toContain('serves its fonts from your instance');
     for (const file of ['apps/web/src/components/LinkCard.tsx', 'apps/web/src/components/LinkRow.tsx']) {
       expect(read(file)).toContain('referrerPolicy="no-referrer"');
     }

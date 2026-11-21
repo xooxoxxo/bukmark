@@ -159,11 +159,11 @@ export function FirstRunPage() {
       {preview.data && <FolderReview key={runId} preview={preview.data} />}
       <nav className={styles.footer} aria-label="After review"><Link to="/">Open library</Link><Link to="/start" onClick={() => { setIds(null); start.reset(); }}>Import another file</Link></nav>
     </> : <>
-      <p className={styles.intro}>Import your browser bookmarks, then try folder suggestions on up to {BOOKMARK_REVIEW_LIMIT} links. No AI account needed.</p>
+      <p className={styles.intro}>Choose a browser bookmarks file. You can review and organize it here after import.</p>
       <section aria-label="Choose a file">
         <ImportBookmarks disabled={start.isPending} onFileStarted={() => { setIds(null); start.reset(); }}
           buttonLabel={ids === null ? 'Choose bookmarks file…' : 'Choose another file…'}
-          buttonClass={ids === null ? styles.primary : styles.secondary} reviewLimit={BOOKMARK_REVIEW_LIMIT}
+          buttonClass={ids === null ? styles.primary : styles.secondary} reviewLinkClass={styles.reviewImport} reviewLimit={BOOKMARK_REVIEW_LIMIT}
           onImported={items => { setIds(items); start.reset(); }} />
         <details className={styles.fileHelp}><summary>Where do I get a bookmarks file?</summary>
           <p>Open your browser’s bookmark manager, choose Export Bookmarks, and save the HTML file.</p>
@@ -171,11 +171,11 @@ export function FirstRunPage() {
       </section>
       {ids !== null && <section>
         {ids.length ? <>
-          <h2>Review {ids.length} {ids.length === 1 ? 'bookmark' : 'bookmarks'}</h2>
-          <button className={styles.primary} disabled={start.isPending} onClick={() => start.mutate(ids)}>
-            {start.isPending ? 'Preparing suggestions…' : 'Show suggestions'}
+          <h2>Export a bookmark file</h2>
+          <button className={styles.secondary} disabled={start.isPending} onClick={() => start.mutate(ids)}>
+            {start.isPending ? 'Preparing suggestions…' : 'Choose folders for export'}
           </button>
-        </> : <p>This file has no active bookmarks available for review. Choose another file or open your library.</p>}
+        </> : <p>This file has no bookmarks available for export.</p>}
         {start.isError && <p role="alert">{errorMessage(start.error)}</p>}
       </section>}
       <nav className={styles.footer} aria-label="Return to library"><Link to="/">Open library</Link></nav>
